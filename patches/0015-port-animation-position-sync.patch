@@ -1,0 +1,69 @@
+--- a/src/main/java/yesman/epicfight/network/EpicFightClientBoundPayloadHandler.java
++++ b/src/main/java/yesman/epicfight/network/EpicFightClientBoundPayloadHandler.java
+@@ -332,10 +332,7 @@
+ 		Entity entity = context.player().level().getEntity(data.entityId());
+ 		
+ 		if (entity instanceof LivingEntity livingentity) {
+-			livingentity.lerpX = data.position().x;
+-			livingentity.lerpY = data.position().y;
+-			livingentity.lerpZ = data.position().z;
+-			livingentity.lerpSteps = data.lerpSteps();
++			AnimationPositionSync.apply(livingentity.getInterpolation(), data.position(), data.lerpSteps());
+ 		}
+ 	}
+ 	
+--- /dev/null
++++ b/src/main/java/yesman/epicfight/network/AnimationPositionSync.java
+@@ -0,0 +1,32 @@
++package yesman.epicfight.network;
++
++import net.minecraft.world.entity.InterpolationHandler;
++import net.minecraft.world.phys.Vec3;
++
++final class AnimationPositionSync {
++    private AnimationPositionSync() {
++    }
++
++    static void apply(InterpolationHandler interpolation, Vec3 position, int steps) {
++        if (interpolation == null) {
++            return;
++        }
++
++        float yaw = interpolation.yRot();
++        float pitch = interpolation.xRot();
++        // An identical target must still restart with the duration carried by this packet.
++        interpolation.cancel();
++
++        if (steps <= 0) {
++            return;
++        }
++
++        int previousLength = interpolation.interpolationSteps;
++        interpolation.setInterpolationLength(steps);
++        try {
++            interpolation.interpolateTo(position, yaw, pitch);
++        } finally {
++            interpolation.setInterpolationLength(previousLength);
++        }
++    }
++}
+--- a/src/main/resources/epicfight.accesswidener
++++ b/src/main/resources/epicfight.accesswidener
+@@ -102,9 +102,7 @@
+ accessible method net/minecraft/world/entity/Entity getInputVector (Lnet/minecraft/world/phys/Vec3;FF)Lnet/minecraft/world/phys/Vec3;
+ accessible field net/minecraft/world/entity/LivingEntity attackStrengthTicker I
+ accessible field net/minecraft/world/entity/LivingEntity lastHurt F
+-accessible field net/minecraft/world/entity/LivingEntity lerpX D
+-accessible field net/minecraft/world/entity/LivingEntity lerpY D
+-accessible field net/minecraft/world/entity/LivingEntity lerpZ D
++accessible field net/minecraft/world/entity/InterpolationHandler interpolationSteps I
+ accessible field net/minecraft/world/entity/LivingEntity noJumpDelay I
+ accessible field net/minecraft/world/entity/monster/EnderMan DATA_CREEPY Lnet/minecraft/network/syncher/EntityDataAccessor;
+ accessible method net/minecraft/world/entity/monster/EnderMan teleport ()Z
+@@ -138,6 +136,5 @@
+ accessible field net/minecraft/world/entity/projectile/AbstractArrow inGround Z
+ accessible method net/minecraft/client/renderer/entity/layers/HumanoidArmorLayer getArmorModel (Lnet/minecraft/world/entity/EquipmentSlot;)Lnet/minecraft/client/model/HumanoidModel;
+ accessible field net/minecraft/client/renderer/RenderType$CompositeState cullState Lnet/minecraft/client/renderer/RenderStateShard$CullStateShard;
+-accessible field net/minecraft/world/entity/LivingEntity lerpSteps I
+ accessible field net/minecraft/world/entity/boss/enderdragon/phases/EnderDragonPhaseManager dragon Lnet/minecraft/world/entity/boss/enderdragon/EnderDragon;
+ accessible field net/minecraft/commands/synchronization/ArgumentTypeInfos BY_CLASS Ljava/util/Map;
