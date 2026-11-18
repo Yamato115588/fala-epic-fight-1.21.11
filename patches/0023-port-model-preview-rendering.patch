@@ -1,0 +1,1437 @@
+--- /dev/null
++++ b/src/main/java/yesman/epicfight/client/gui/widgets/PreviewRenderTarget.java
+@@ -0,0 +1,118 @@
++package yesman.epicfight.client.gui.widgets;
++
++import com.mojang.blaze3d.ProjectionType;
++import com.mojang.blaze3d.pipeline.TextureTarget;
++import com.mojang.blaze3d.platform.Lighting;
++import com.mojang.blaze3d.systems.RenderSystem;
++import com.mojang.blaze3d.textures.FilterMode;
++import com.mojang.blaze3d.vertex.BufferBuilder;
++import com.mojang.blaze3d.vertex.ByteBufferBuilder;
++import com.mojang.blaze3d.vertex.PoseStack;
++import net.minecraft.client.Minecraft;
++import net.minecraft.client.gui.GuiGraphics;
++import net.minecraft.client.renderer.CachedPerspectiveProjectionMatrixBuffer;
++import net.minecraft.client.renderer.LightTexture;
++import net.minecraft.client.renderer.MultiBufferSource;
++import net.minecraft.client.renderer.OutlineBufferSource;
++import net.minecraft.client.renderer.RenderPipelines;
++import net.minecraft.client.renderer.SubmitNodeStorage;
++import net.minecraft.client.renderer.feature.FeatureRenderDispatcher;
++import net.minecraft.client.renderer.item.ItemStackRenderState;
++import net.minecraft.client.renderer.rendertype.RenderType;
++import net.minecraft.client.renderer.texture.OverlayTexture;
++import net.minecraft.util.ARGB;
++import net.minecraft.world.item.ItemDisplayContext;
++import net.minecraft.world.item.ItemStack;
++
++/** Off-screen rendering shared by the model editor and datapack preview. */
++public final class PreviewRenderTarget implements AutoCloseable {
++    private final TextureTarget target = new TextureTarget("Epic Fight preview", 8, 8, true);
++    private final CachedPerspectiveProjectionMatrixBuffer projection =
++        new CachedPerspectiveProjectionMatrixBuffer("Epic Fight preview", 0.05F, 100.0F);
++    private int clearColor = ARGB.colorFromFloat(1.0F, 0.1552F, 0.1552F, 0.1552F);
++    private ByteBufferBuilder itemVertices;
++    private MultiBufferSource.BufferSource itemBuffers;
++    private FeatureRenderDispatcher itemFeatures;
++
++    public void setClearColor(float red, float green, float blue, float alpha) {
++        this.clearColor = ARGB.colorFromFloat(alpha, red, green, blue);
++    }
++
++    public void resize(int width, int height) {
++        if (target.width != width || target.height != height) {
++            target.resize(width, height);
++        }
++    }
++
++    public void draw(Runnable content) {
++        var previousColor = RenderSystem.outputColorTextureOverride;
++        var previousDepth = RenderSystem.outputDepthTextureOverride;
++        var previousProjection = RenderSystem.getProjectionMatrixBuffer();
++        var previousProjectionType = RenderSystem.getProjectionType();
++        var previousLights = RenderSystem.getShaderLights();
++        var modelView = RenderSystem.getModelViewStack();
++        modelView.pushMatrix();
++        try {
++            modelView.identity();
++            RenderSystem.setProjectionMatrix(projection.getBuffer(target.width, target.height, 50.0F), ProjectionType.PERSPECTIVE);
++            RenderSystem.outputColorTextureOverride = target.getColorTextureView();
++            RenderSystem.outputDepthTextureOverride = target.getDepthTextureView();
++            RenderSystem.getDevice().createCommandEncoder().clearColorAndDepthTextures(
++                target.getColorTexture(), clearColor, target.getDepthTexture(), 1.0D);
++            Minecraft.getInstance().gameRenderer.getLighting().setupFor(Lighting.Entry.ITEMS_3D);
++            content.run();
++        } finally {
++            RenderSystem.outputColorTextureOverride = previousColor;
++            RenderSystem.outputDepthTextureOverride = previousDepth;
++            RenderSystem.setProjectionMatrix(previousProjection, previousProjectionType);
++            RenderSystem.setShaderLights(previousLights);
++            modelView.popMatrix();
++        }
++    }
++
++    public void submitToGui(GuiGraphics graphics, int x, int y, int width, int height) {
++        graphics.submitBlit(RenderPipelines.GUI_TEXTURED, target.getColorTextureView(),
++            RenderSystem.getSamplerCache().getClampToEdge(FilterMode.NEAREST),
++            x, x + width, y, y + height, 0.0F, 1.0F, 1.0F, 0.0F, -1);
++    }
++
++    public static void drawMesh(RenderType type, BufferBuilder builder) {
++        var data = builder.build();
++        if (data != null) {
++            type.draw(data);
++        }
++    }
++
++    public void drawItem(ItemStack stack, PoseStack pose) {
++        Minecraft client = Minecraft.getInstance();
++        if (itemFeatures == null) {
++            itemVertices = new ByteBufferBuilder(65536);
++            itemBuffers = MultiBufferSource.immediate(itemVertices);
++            itemFeatures = new FeatureRenderDispatcher(new SubmitNodeStorage(), client.getBlockRenderer(),
++                itemBuffers, client.getAtlasManager(), new OutlineBufferSource(), itemBuffers, client.font);
++        }
++
++        var storage = itemFeatures.getSubmitNodeStorage();
++        ItemStackRenderState state = new ItemStackRenderState();
++        client.getItemModelResolver().updateForTopItem(state, stack, ItemDisplayContext.THIRD_PERSON_RIGHT_HAND,
++            client.level, null, 0);
++        try {
++            state.submit(pose, storage, LightTexture.FULL_BRIGHT, OverlayTexture.NO_OVERLAY, 0);
++            itemFeatures.renderAllFeatures();
++            itemBuffers.endBatch();
++        } finally {
++            storage.clear();
++        }
++    }
++
++    @Override
++    public void close() {
++        target.destroyBuffers();
++        projection.close();
++        if (itemFeatures != null) {
++            itemFeatures.close();
++            itemVertices.close();
++            itemFeatures = null;
++        }
++    }
++}
+--- /dev/null
++++ b/src/main/java/yesman/epicfight/client/renderer/PreviewRenderTypes.java
+@@ -0,0 +1,61 @@
++package yesman.epicfight.client.renderer;
++
++import java.util.function.Function;
++
++import com.mojang.blaze3d.pipeline.BlendFunction;
++import com.mojang.blaze3d.pipeline.RenderPipeline;
++import com.mojang.blaze3d.platform.DepthTestFunction;
++import com.mojang.blaze3d.shaders.UniformType;
++import com.mojang.blaze3d.systems.RenderSystem;
++import com.mojang.blaze3d.textures.FilterMode;
++import com.mojang.blaze3d.vertex.DefaultVertexFormat;
++import com.mojang.blaze3d.vertex.VertexFormat;
++import net.minecraft.client.renderer.rendertype.RenderSetup;
++import net.minecraft.client.renderer.rendertype.RenderType;
++import net.minecraft.resources.Identifier;
++import net.minecraft.util.Util;
++
++public final class PreviewRenderTypes {
++    private static final Identifier SHADER = Identifier.fromNamespaceAndPath("epicfight", "core/preview_model");
++    private static final RenderPipeline SOLID = modelPipeline("solid", DefaultVertexFormat.POSITION_COLOR_NORMAL)
++        .withUniform("Lighting", UniformType.UNIFORM_BUFFER).build();
++    private static final RenderPipeline TEXTURED = modelPipeline("textured", DefaultVertexFormat.POSITION_TEX_COLOR_NORMAL)
++        .withUniform("Lighting", UniformType.UNIFORM_BUFFER)
++        .withSampler("Sampler0").withShaderDefine("TEXTURED").build();
++    private static final RenderPipeline TRAIL = modelPipeline("trail", DefaultVertexFormat.POSITION_TEX_COLOR)
++        .withSampler("Sampler0").withShaderDefine("TEXTURED").withShaderDefine("UNLIT")
++        .withVertexFormat(DefaultVertexFormat.POSITION_TEX_COLOR, VertexFormat.Mode.QUADS)
++        .withBlend(BlendFunction.TRANSLUCENT).withDepthWrite(false).build();
++
++    private static final RenderType SOLID_MODEL =
++        RenderType.create("epicfight:preview_solid", RenderSetup.builder(SOLID).createRenderSetup());
++    private static final Function<Identifier, RenderType> TEXTURED_MODEL = Util.memoize(texture ->
++        RenderType.create("epicfight:preview_textured", RenderSetup.builder(TEXTURED)
++            .withTexture("Sampler0", texture).createRenderSetup()));
++    private static final Function<Identifier, RenderType> TEXTURED_TRAIL = Util.memoize(texture ->
++        RenderType.create("epicfight:preview_trail", RenderSetup.builder(TRAIL)
++            .withTexture("Sampler0", texture, () -> RenderSystem.getSamplerCache().getClampToEdge(FilterMode.LINEAR))
++            .createRenderSetup()));
++
++    private PreviewRenderTypes() {
++    }
++
++    public static RenderType model(Identifier texture) {
++        return texture == null ? SOLID_MODEL : TEXTURED_MODEL.apply(texture);
++    }
++
++    public static RenderType trail(Identifier texture) {
++        return TEXTURED_TRAIL.apply(texture);
++    }
++
++    private static RenderPipeline.Builder modelPipeline(String name, VertexFormat format) {
++        return RenderPipeline.builder()
++            .withLocation(Identifier.fromNamespaceAndPath("epicfight", "pipeline/preview_" + name))
++            .withVertexShader(SHADER).withFragmentShader(SHADER)
++            .withUniform("DynamicTransforms", UniformType.UNIFORM_BUFFER)
++            .withUniform("Projection", UniformType.UNIFORM_BUFFER)
++            .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
++            .withDepthWrite(true).withCull(false)
++            .withVertexFormat(format, VertexFormat.Mode.TRIANGLES);
++    }
++}
+--- /dev/null
++++ b/src/main/resources/assets/epicfight/shaders/core/preview_model.vsh
+@@ -0,0 +1,29 @@
++#version 330
++
++#moj_import <minecraft:dynamictransforms.glsl>
++#moj_import <minecraft:projection.glsl>
++#ifndef UNLIT
++#moj_import <minecraft:light.glsl>
++in vec3 Normal;
++#endif
++
++in vec3 Position;
++in vec4 Color;
++out vec4 vertexColor;
++
++#ifdef TEXTURED
++in vec2 UV0;
++out vec2 texCoord;
++#endif
++
++void main() {
++    gl_Position = ProjMat * ModelViewMat * vec4(Position, 1.0);
++#ifdef UNLIT
++    vertexColor = Color;
++#else
++    vertexColor = minecraft_mix_light(Light0_Direction, Light1_Direction, Normal, Color);
++#endif
++#ifdef TEXTURED
++    texCoord = UV0;
++#endif
++}
+--- /dev/null
++++ b/src/main/resources/assets/epicfight/shaders/core/preview_model.fsh
+@@ -0,0 +1,18 @@
++#version 330
++
++in vec4 vertexColor;
++out vec4 fragColor;
++
++#ifdef TEXTURED
++uniform sampler2D Sampler0;
++in vec2 texCoord;
++#endif
++
++void main() {
++    vec4 color = vertexColor;
++#ifdef TEXTURED
++    color *= texture(Sampler0, texCoord);
++    if (color.a < 0.1) discard;
++#endif
++    fragColor = color;
++}
+--- a/src/main/java/yesman/epicfight/client/gui/widgets/ModelPreviewer.java
++++ b/src/main/java/yesman/epicfight/client/gui/widgets/ModelPreviewer.java
+@@ -1,9 +1,7 @@
+ package yesman.epicfight.client.gui.widgets;
+ 
+ import com.google.common.collect.Lists;
+-import com.mojang.blaze3d.pipeline.RenderTarget;
+ import com.mojang.blaze3d.platform.Window;
+-import com.mojang.blaze3d.systems.RenderSystem;
+ import com.mojang.blaze3d.vertex.*;
+ import com.mojang.math.Axis;
+ import net.minecraft.client.Camera;
+@@ -11,19 +9,14 @@
+ import net.minecraft.client.Minecraft;
+ import net.minecraft.client.gui.Font;
+ import net.minecraft.client.gui.GuiGraphics;
++import yesman.epicfight.client.renderer.PreviewRenderTypes;
+ import net.minecraft.client.gui.components.AbstractContainerWidget;
+ import net.minecraft.client.gui.components.events.GuiEventListener;
+ import net.minecraft.client.gui.narration.NarratedElementType;
+ import net.minecraft.client.gui.narration.NarrationElementOutput;
+ import net.minecraft.client.gui.navigation.ScreenRectangle;
+-import net.minecraft.client.particle.ParticleRenderType;
+-import net.minecraft.client.renderer.GameRenderer;
+-import net.minecraft.client.renderer.MultiBufferSource.BufferSource;
+ import net.minecraft.client.renderer.RenderType;
+-import net.minecraft.client.renderer.ShaderInstance;
+-import net.minecraft.client.renderer.entity.ItemRenderer;
+ import net.minecraft.client.renderer.texture.*;
+-import net.minecraft.client.resources.model.BakedModel;
+ import net.minecraft.network.chat.Component;
+ import net.minecraft.resources.ResourceLocation;
+ import net.minecraft.util.Mth;
+@@ -36,8 +29,6 @@
+ import org.jetbrains.annotations.Nullable;
+ import org.joml.Matrix4f;
+ import org.joml.Vector4f;
+-import org.lwjgl.opengl.GL11;
+-import org.lwjgl.opengl.GL12;
+ import yesman.epicfight.api.animation.*;
+ import yesman.epicfight.api.animation.types.*;
+ import yesman.epicfight.api.animation.types.AttackAnimation.Phase;
+@@ -60,7 +51,6 @@
+ import yesman.epicfight.api.utils.math.*;
+ import yesman.epicfight.client.gui.widgets.common.AnchoredWidget;
+ import yesman.epicfight.client.particle.AnimationTrailParticle;
+-import yesman.epicfight.client.renderer.EpicFightShaders;
+ import yesman.epicfight.gameasset.Animations;
+ import yesman.epicfight.generated.LangKeys;
+ import yesman.epicfight.main.EpicFightSharedConstants;
+@@ -72,7 +62,7 @@
+ import java.util.function.Function;
+ 
+ public class ModelPreviewer extends AbstractContainerWidget implements AnchoredWidget {
+-	private final ModelRenderTarget modelRenderTarget;
++	private final PreviewRenderTarget modelRenderTarget;
+ 	private final List<AssetAccessor<? extends StaticAnimation>> animationsToPlay = new ArrayList<> ();
+ 	private final List<CustomTrailParticle> trailParticles = new ArrayList<> ();
+     private final List<TrailInfo> trailInfoList = new ArrayList<> ();
+@@ -193,11 +183,11 @@
+             true
+         );
+ 
+-		this.modelRenderTarget = new ModelRenderTarget();
++		this.modelRenderTarget = new PreviewRenderTarget();
+ 
+ 		// default clear color
+ 		this.modelRenderTarget.setClearColor(0.1552F, 0.1552F, 0.1552F, 1.0F);
+-		this.modelRenderTarget.clear(Minecraft.ON_OSX);
++
+ 	}
+ 
+ 	public void setMesh(AssetAccessor<? extends SkinnedMesh> mesh) {
+@@ -466,12 +456,9 @@
+ 		return false;
+ 	}
+ 	
+-	protected void renderFigure(GuiGraphics guiGraphics, Tesselator tesselator) {
+-		BufferBuilder bufferbuilder = null;
+-		RenderSystem.enableDepthTest();
+-
+-        // Trick! we want to use advancing partial tick even tho the game is paused (in levels)
+-        final float partialTicks =((DeltaTracker.Timer)Minecraft.getInstance().getTimer()).deltaTickResidual;
++	protected void renderFigure(PoseStack poseStack, Tesselator tesselator) {
++        // Advance the preview animation independently of the paused game level.
++        float partialTicks = ((DeltaTracker.Timer) Minecraft.getInstance().getDeltaTracker()).deltaTickResidual;
+ 
+ 		if (this.entitypatch != null && this.mesh != null && this.mesh.get() != null) {
+ 			if (this.animator != null) {
+@@ -479,62 +466,40 @@
+ 				this.mesh.get().initialize();
+ 				OpenMatrix4f[] poseMatrices = this.entitypatch.getArmature().getPoseAsTransformMatrix(pose, false);
+ 				
+-				if (this.figureTexture != null) {
+-					RenderSystem.setShader(GameRenderer::getRendertypeCloudsShader);
+-					RenderSystem.setShaderTexture(0, this.figureTexture);
+-					bufferbuilder = tesselator.begin(VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.POSITION_TEX_COLOR_NORMAL);
+-					this.mesh.get().drawPosed(guiGraphics.pose(), bufferbuilder, Mesh.DrawingFunction.POSITION_TEX_COLOR_NORMAL, -1, 0.9411F, 0.9411F, 0.9411F, 1.0F, -1, this.entitypatch.getArmature(), poseMatrices);
+-				} else {
+-					RenderSystem.setShader(EpicFightShaders::getPositionColorNormalShader);
+-					bufferbuilder = tesselator.begin(VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.POSITION_COLOR_NORMAL);
+-					this.mesh.get().drawPosed(guiGraphics.pose(), bufferbuilder, Mesh.DrawingFunction.POSITION_COLOR_NORMAL, -1, 0.9411F, 0.9411F, 0.9411F, 1.0F, -1, this.entitypatch.getArmature(), poseMatrices);
+-				}
+-				
+-				BufferUploader.drawWithShader(bufferbuilder.buildOrThrow());
+-				
+-				if (this.item != null && this.showItemCheckbox.getWidgetValue()) {
+-					BufferSource bufferSource = Minecraft.getInstance().renderBuffers().bufferSource();
+-					ItemRenderer itemRenderer = Minecraft.getInstance().getItemRenderer();
+-					ItemStack itemstack = new ItemStack(this.item);
+-					OpenMatrix4f correction = new OpenMatrix4f().translate(0F, 0F, -0.13F).rotateDeg(-90.0F, Vec3f.X_AXIS);
+-					OpenMatrix4f handTransform = correction.mulFront(this.entitypatch.getArmature().getBoundTransformFor(pose, this.getArmature().get().searchJointByName("Tool_R")));
+-					
+-					guiGraphics.pose().pushPose();
+-					MathUtils.mulStack(guiGraphics.pose(), handTransform);
+-					
+-					BakedModel model = itemRenderer.getItemModelShaper().getItemModel(this.item);
+-					BakedModel overridedModel = model.getOverrides().resolve(model, itemstack, null, null, 0);
+-					DynamicTexture light = Minecraft.getInstance().gameRenderer.lightTexture().lightTexture;
+-					
+-					// Update light color
+-					light.getPixels().setPixelRGBA(0, 0, 0xFFFFFFFF);
+-					light.upload();
+-					
+-					itemRenderer.render(itemstack, ItemDisplayContext.THIRD_PERSON_RIGHT_HAND, false, guiGraphics.pose(), bufferSource, 0, OverlayTexture.NO_OVERLAY, overridedModel);
+-					bufferSource.endBatch();
+-					
+-					guiGraphics.pose().popPose();
+-				}
+-				
+-				if (!this.trailParticles.isEmpty() && this.showTrailCheckbox.getWidgetValue()) {
+-					RenderSystem.setShader(GameRenderer::getParticleShader);
+-					DynamicTexture light = Minecraft.getInstance().gameRenderer.lightTexture().lightTexture;
+-					
+-					// Update light color
+-					light.getPixels().setPixelRGBA(0, 0, 0xFFFFFFFF);
+-					light.upload();
+-					
+-					for (CustomTrailParticle trail : this.trailParticles) {
+-						ParticleRenderType particleRendertype = trail.getRenderType();
+-						particleRendertype.begin(tesselator, Minecraft.getInstance().getTextureManager());
+-						trail.render(bufferbuilder, null, partialTicks);
+-					}
+-				}
+-				
++
++                RenderType modelType = PreviewRenderTypes.model(this.figureTexture);
++                BufferBuilder builder = tesselator.begin(modelType.mode(), modelType.format());
++                this.mesh.get().drawPosed(poseStack, builder, this.figureTexture == null
++                    ? Mesh.DrawingFunction.POSITION_COLOR_NORMAL : Mesh.DrawingFunction.POSITION_TEX_COLOR_NORMAL,
++                    -1, 0.9411F, 0.9411F, 0.9411F, 1.0F, -1, this.entitypatch.getArmature(), poseMatrices);
++                PreviewRenderTarget.drawMesh(modelType, builder);
++
++                if (this.item != null && this.showItemCheckbox.getWidgetValue()) {
++                    OpenMatrix4f correction = new OpenMatrix4f().translate(0F, 0F, -0.13F).rotateDeg(-90.0F, Vec3f.X_AXIS);
++                    OpenMatrix4f handTransform = correction.mulFront(
++                        this.entitypatch.getArmature().getBoundTransformFor(pose, this.getArmature().get().searchJointByName("Tool_R")));
++                    poseStack.pushPose();
++                    try {
++                        MathUtils.mulStack(poseStack, handTransform);
++                        this.modelRenderTarget.drawItem(new ItemStack(this.item), poseStack);
++                    } finally {
++                        poseStack.popPose();
++                    }
++                }
++
++                if (!this.trailParticles.isEmpty() && this.showTrailCheckbox.getWidgetValue()) {
++                    for (CustomTrailParticle trail : this.trailParticles) {
++                        RenderType trailType = PreviewRenderTypes.trail(trail.texturePath());
++                        BufferBuilder trailBuilder = tesselator.begin(trailType.mode(), trailType.format());
++                        trail.drawPreview(trailBuilder, partialTicks);
++                        PreviewRenderTarget.drawMesh(trailType, trailBuilder);
++                    }
++                }
++
+ 				if (this.collider != null && this.showColliderCheckbox.getWidgetValue()) {
+ 					RenderType renderType = this.collider.getRenderType();
+-					bufferbuilder = tesselator.begin(renderType.mode(), renderType.format);
+-					RenderSystem.setShader(GameRenderer::getRendertypeLinesShader);
++
++                    BufferBuilder bufferbuilder = tesselator.begin(renderType.mode(), renderType.format());
+ 					
+ 					AnimationPlayer player = this.animator.getPlayerFor(null);
+ 					float elapsedTime = player.getPrevElapsedTime() + (player.getElapsedTime() - player.getPrevElapsedTime()) * partialTicks;
+@@ -543,7 +508,7 @@
+ 					if (this.colliderJoint != null) {
+ 						Pose prevPose = this.animator.getPose(0.0F);
+ 						Pose currentPose = this.animator.getPose(1.0F);
+-						this.collider.drawInternal(guiGraphics.pose(), bufferbuilder, this.entitypatch.getArmature(), this.colliderJoint, prevPose, currentPose, partialTicks, red ? 0xFFFF0000 : -1);
++						this.collider.drawInternal(poseStack, bufferbuilder, this.entitypatch.getArmature(), this.colliderJoint, prevPose, currentPose, partialTicks, red ? 0xFFFF0000 : -1);
+ 					} else {
+ 						DynamicAnimation animation = player.getAnimation().get();
+ 						
+@@ -553,41 +518,29 @@
+ 							for (AttackAnimation.JointColliderPair pair : phase.getColliders()) {
+ 								Pose prevPose = animation.getRawPose(player.getPrevElapsedTime());
+ 								Pose currentPose = animation.getRawPose(player.getElapsedTime());
+-								this.collider.drawInternal(guiGraphics.pose(), bufferbuilder, this.entitypatch.getArmature(), pair.getFirst(), prevPose, currentPose, partialTicks, -1);
++								this.collider.drawInternal(poseStack, bufferbuilder, this.entitypatch.getArmature(), pair.getFirst(), prevPose, currentPose, partialTicks, -1);
+ 							}
+ 						}
+ 					}
+ 					
+-					RenderSystem.lineWidth(3.0F);
+-					RenderSystem.disableCull();
+-					BufferUploader.drawWithShader(bufferbuilder.buildOrThrow());
+-					RenderSystem.lineWidth(1.0F);
+-					RenderSystem.enableCull();
+-				}
+-			} else {
+-				RenderSystem.setShader(EpicFightShaders::getPositionColorNormalShader);
+-				this.mesh.get().initialize();
+-				
+-				if (this.figureTexture != null) {
+-					RenderSystem.setShader(GameRenderer::getRendertypeCloudsShader);
+-					RenderSystem.setShaderTexture(0, this.figureTexture);
+-					bufferbuilder = tesselator.begin(VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.POSITION_TEX_COLOR_NORMAL);
+-					this.mesh.get().draw(guiGraphics.pose(), bufferbuilder, Mesh.DrawingFunction.POSITION_TEX_COLOR_NORMAL, -1, 0.9411F, 0.9411F, 0.9411F, 1.0F, OverlayTexture.NO_OVERLAY);
+-				} else {
+-					RenderSystem.setShader(EpicFightShaders::getPositionColorNormalShader);
+-					bufferbuilder = tesselator.begin(VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.POSITION_COLOR_NORMAL);
+-					this.mesh.get().draw(guiGraphics.pose(), bufferbuilder, Mesh.DrawingFunction.POSITION_COLOR_NORMAL, -1, 0.9411F, 0.9411F, 0.9411F, 1.0F, OverlayTexture.NO_OVERLAY);
+-				}
+-				
+-				BufferUploader.drawWithShader(bufferbuilder.buildOrThrow());
+-			}
+-		}
+-		
++                    PreviewRenderTarget.drawMesh(renderType, bufferbuilder);
++                }
++            } else {
++                this.mesh.get().initialize();
++                RenderType modelType = PreviewRenderTypes.model(this.figureTexture);
++                BufferBuilder builder = tesselator.begin(modelType.mode(), modelType.format());
++                this.mesh.get().draw(poseStack, builder, this.figureTexture == null
++                    ? Mesh.DrawingFunction.POSITION_COLOR_NORMAL : Mesh.DrawingFunction.POSITION_TEX_COLOR_NORMAL,
++                    -1, 0.9411F, 0.9411F, 0.9411F, 1.0F, OverlayTexture.NO_OVERLAY);
++                PreviewRenderTarget.drawMesh(modelType, builder);
++            }
++        }
++
+ 		if (this.cloakMesh != null && this.cloakTexture != null) {
+ 			TextureManager textureManager = Minecraft.getInstance().getTextureManager();
+ 			AbstractTexture texture = textureManager.getTexture(this.cloakTexture);
+ 			
+-			if (texture != MissingTextureAtlasSprite.getTexture()) {
++			if (texture != textureManager.getTexture(MissingTextureAtlasSprite.getLocation())) {
+ 				this.cloakMesh.getOriginalMesh().initialize();
+ 				
+ 				if (this.animator != null && this.entitypatch != null && this.clothSimulator != null) {
+@@ -602,87 +555,42 @@
+ 			            this.entitypatch.getArmature().setPose(pose);
+ 			            
+ 						clothObj.tick(this.entitypatch, partialColliderTransformProvider, partialTicks, this.entitypatch.getArmature(), this.entitypatch.getArmature().getPoseMatrices());
+-						RenderSystem.setShader(GameRenderer::getRendertypeCloudsShader);
+-						RenderSystem.setShaderTexture(0, this.cloakTexture);
+-						BufferBuilder bufferbuilder$2 = tesselator.begin(VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.POSITION_TEX_COLOR_NORMAL);
++
++                        RenderType cloakType = PreviewRenderTypes.model(this.cloakTexture);
++                        BufferBuilder bufferbuilder$2 = tesselator.begin(cloakType.mode(), cloakType.format());
++						poseStack.pushPose();
++						poseStack.mulPose(Axis.YP.rotationDegrees(this.entitypatch.getYRot() - 180.0F));
++						clothObj.drawPosed(poseStack, bufferbuilder$2, Mesh.DrawingFunction.POSITION_TEX_COLOR_NORMAL, -1, this.cloakColor.x, this.cloakColor.y, this.cloakColor.z, 1.0F, OverlayTexture.NO_OVERLAY, this.entitypatch.getArmature(), this.entitypatch.getArmature().getPoseMatrices());
++						poseStack.popPose();
+ 						
+-						guiGraphics.pose().pushPose();
+-						guiGraphics.pose().mulPose(Axis.YP.rotationDegrees(this.entitypatch.getYRot() - 180.0F));
+-						clothObj.drawPosed(guiGraphics.pose(), bufferbuilder$2, Mesh.DrawingFunction.POSITION_TEX_COLOR_NORMAL, -1, this.cloakColor.x, this.cloakColor.y, this.cloakColor.z, 1.0F, OverlayTexture.NO_OVERLAY, this.entitypatch.getArmature(), this.entitypatch.getArmature().getPoseMatrices());
+-						guiGraphics.pose().popPose();
+-						
+-						BufferUploader.drawWithShader(bufferbuilder$2.buildOrThrow());
++						PreviewRenderTarget.drawMesh(cloakType, bufferbuilder$2);
+ 					});
+ 				} else {
+-					RenderSystem.setShader(GameRenderer::getRendertypeCloudsShader);
+-					bufferbuilder = tesselator.begin(VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.POSITION_TEX_COLOR_NORMAL);
+-					RenderSystem.setShaderTexture(0, this.cloakTexture);
+-					((Mesh)this.cloakMesh).draw(guiGraphics.pose(), bufferbuilder, Mesh.DrawingFunction.POSITION_TEX_COLOR_NORMAL, -1, this.cloakColor.x, this.cloakColor.y, this.cloakColor.z, 1.0F, OverlayTexture.NO_OVERLAY);
+-					BufferUploader.drawWithShader(bufferbuilder.buildOrThrow());
+-				}
+-			}
+-		}
+-		
+-		RenderSystem.disableDepthTest();
+-	}
+-	
++                    RenderType cloakType = PreviewRenderTypes.model(this.cloakTexture);
++                    BufferBuilder builder = tesselator.begin(cloakType.mode(), cloakType.format());
++                    ((Mesh)this.cloakMesh).draw(poseStack, builder, Mesh.DrawingFunction.POSITION_TEX_COLOR_NORMAL,
++                        -1, this.cloakColor.x, this.cloakColor.y, this.cloakColor.z, 1.0F, OverlayTexture.NO_OVERLAY);
++                    PreviewRenderTarget.drawMesh(cloakType, builder);
++                }
++            }
++        }
++    }
++
+ 	@Override
+ 	public void renderWidget(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTicks) {
+-		Minecraft minecraft = Minecraft.getInstance();
+-		minecraft.getMainRenderTarget().unbindWrite();
+-		
+-		RenderSystem.enableDepthTest();
+-		
+-		ScreenRectangle screenrectangle = null;
+-		boolean scissorApplied = !guiGraphics.scissorStack.stack.isEmpty();
+-		
+-		// If scissor test is enabled, remove it.
+-		if (scissorApplied) {
+-			screenrectangle = guiGraphics.scissorStack.stack.peekLast();
+-			guiGraphics.disableScissor();
+-		}
+-		
+-		this.modelRenderTarget.clear(true);
+-		this.modelRenderTarget.bindWrite(true);
+-		
+-		if (this.backgroundClearColor != null) {
+-			this.modelRenderTarget.setClearColor(this.backgroundClearColor.x, this.backgroundClearColor.y, this.backgroundClearColor.z, this.backgroundClearColor.w);
+-		}
+-		
+-		Tesselator tesselator = RenderSystem.renderThreadTesselator();
+-		Matrix4f oldProjection = RenderSystem.getProjectionMatrix();
+-		Matrix4f perspective = new Matrix4f().setPerspective((float)Math.toRadians(50.0F), (float)this.width / (float)this.height, 0.05F, 100.0F);
+-		
+-		ShaderInstance prevShader = RenderSystem.getShader();
+-		RenderSystem.setProjectionMatrix(perspective, VertexSorting.DISTANCE_TO_ORIGIN);
+-		RenderSystem.getModelViewStack().pushMatrix();
+-		RenderSystem.getModelViewStack().identity();
+-		RenderSystem.applyModelViewMatrix();
+-		
+-		guiGraphics.pose().pushPose();
+-		guiGraphics.pose().translate(this.xMove, this.yMove - 1.0D, this.zoom);
+-		guiGraphics.pose().mulPose(Axis.XP.rotationDegrees(this.xRot));
+-		guiGraphics.pose().mulPose(Axis.YP.rotationDegrees(this.yRot));
+-		
+-		this.renderFigure(guiGraphics, tesselator);
+-		
+-		guiGraphics.pose().popPose();
+-		
+-		RenderSystem.setProjectionMatrix(oldProjection, VertexSorting.ORTHOGRAPHIC_Z);
+-		RenderSystem.getModelViewStack().popMatrix();
+-		RenderSystem.applyModelViewMatrix();
+-		RenderSystem.setShader(() -> prevShader);
+-		
+-		this.modelRenderTarget.unbindWrite();
+-		
+-		minecraft.getMainRenderTarget().bindWrite(true);
+-		
+-		if (scissorApplied) {
+-			guiGraphics.enableScissor(screenrectangle.left(), screenrectangle.top(), screenrectangle.right(), screenrectangle.bottom());
+-		}
+-
+-		this.modelRenderTarget.blitToScreen(guiGraphics);
+-		
++
++        if (this.backgroundClearColor != null) {
++            this.modelRenderTarget.setClearColor(this.backgroundClearColor.x, this.backgroundClearColor.y,
++                this.backgroundClearColor.z, this.backgroundClearColor.w);
++        }
++
++        PoseStack previewPose = new PoseStack();
++        previewPose.translate(this.xMove, this.yMove - 1.0D, this.zoom);
++        previewPose.mulPose(Axis.XP.rotationDegrees(this.xRot));
++        previewPose.mulPose(Axis.YP.rotationDegrees(this.yRot));
++        this.modelRenderTarget.draw(() -> this.renderFigure(previewPose, Tesselator.getInstance()));
++        this.modelRenderTarget.submitToGui(guiGraphics, this.getX(), this.getY(), this.getWidth(), this.getHeight());
++
+ 		if (this.animator != null) {
+ 			// Controls visibilities of each widget
+ 			int top = this.getY() + 6;
+@@ -713,7 +621,6 @@
+ 			}
+ 		}
+ 		
+-		RenderSystem.disableDepthTest();
+ 	}
+ 
+ 	@Override
+@@ -722,7 +629,7 @@
+ 	}
+ 
+ 	public void onDestroy() {
+-		this.modelRenderTarget.destroyBuffers();
++		this.modelRenderTarget.close();
+ 	}
+ 
+ 	public class FakeEntityPatch extends LivingEntityPatch<LivingEntity> implements SimulatableObject, ClothSimulatable {
+@@ -1154,43 +1061,7 @@
+ 		}
+ 	}
+ 	
+-	class ModelRenderTarget extends RenderTarget {
+-		public ModelRenderTarget() {
+-			super(true);
+-			
+-			RenderSystem.assertOnRenderThreadOrInit();
+-			Window window = Minecraft.getInstance().getWindow();
+-			
+-			this.resize(window.getWidth(), window.getHeight(), false);
+-		}
+-		
+-		private void blitToScreen(GuiGraphics guiGraphics) {
+-			RenderSystem.setShader(GameRenderer::getPositionTexColorShader);
+-			RenderSystem.setShaderTexture(0, this.colorTextureId);
+-			
+-			float left = getX();
+-			float top = getY();
+-			float right = left + getWidth();
+-			float bottom = top + getHeight();
+-			
+-			float u = (float) this.viewWidth / (float) this.width;
+-			float v = (float) this.viewHeight / (float) this.height;
+-			
+-			guiGraphics.pose().pushPose();
+-			
+-			PoseStack.Pose lastPose = guiGraphics.pose().last();
+-			Tesselator tesselator = Tesselator.getInstance();
+-			BufferBuilder bufferbuilder = tesselator.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR);
+-			bufferbuilder.addVertex(lastPose, left, bottom, 0.0F).setUv(0.0F, 0.0F).setColor(255, 255, 255, 255);
+-			bufferbuilder.addVertex(lastPose, right, bottom, 0.0F).setUv(u, 0.0F).setColor(255, 255, 255, 255);
+-			bufferbuilder.addVertex(lastPose, right, top, 0.0F).setUv(u, v).setColor(255, 255, 255, 255);
+-			bufferbuilder.addVertex(lastPose, left, top, 0.0F).setUv(0.0F, v).setColor(255, 255, 255, 255);
+-			BufferUploader.drawWithShader(bufferbuilder.buildOrThrow());
+-			
+-			guiGraphics.pose().popPose();
+-		}
+-	}
+-	
++
+ 	class CustomTrailParticle extends AnimationTrailParticle {
+         @SuppressWarnings("deprecation")
+         protected CustomTrailParticle(Joint joint, AssetAccessor<? extends StaticAnimation> animation, TrailInfo trailInfo) {
+@@ -1293,21 +1164,18 @@
+             this.makeTrailEdges(finalStartPositions, finalEndPositions, visibleTrail ? this.trailEdges : this.invisibleTrailEdges);
+         }
+ 
+-        @Override
+-        public void render(VertexConsumer vertexConsumer, Camera camera, float partialTick) {
++        private ResourceLocation texturePath() {
++            return this.trailInfo.texturePath();
++        }
++
++        private void drawPreview(VertexConsumer vertexConsumer, float partialTick) {
+             if (this.trailEdges.isEmpty()) {
+                 return;
+             }
+ 
+-            TextureManager texturemanager = Minecraft.getInstance().getTextureManager();
+-            AbstractTexture abstracttexture = texturemanager.getTexture(this.trailInfo.texturePath());
+-            RenderSystem.bindTexture(abstracttexture.getId());
+-            RenderSystem.texParameter(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_S, GL12.GL_CLAMP_TO_EDGE);
+-            RenderSystem.texParameter(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_T, GL12.GL_CLAMP_TO_EDGE);
+-            RenderSystem.setShaderTexture(0, abstracttexture.getId());
+ 
+             PoseStack poseStack = new PoseStack();
+-            this.setupPoseStack(poseStack, camera, partialTick);
++            this.setupPoseStack(poseStack, null, partialTick);
+             Matrix4f matrix4f = poseStack.last().pose();
+             int edges = this.trailEdges.size() - 1;
+             boolean startFade = this.trailEdges.get(0).lifetime == 1;
+@@ -1345,10 +1213,10 @@
+                 float alphaFrom = Mth.clamp(from, 0.0F, 1.0F);
+                 float alphaTo = Mth.clamp(to, 0.0F, 1.0F);
+ 
+-                vertexConsumer.addVertex(pos1.x(), pos1.y(), pos1.z()).setUv(from, 1.0F).setColor(this.rCol, this.gCol, this.bCol, this.alpha * alphaFrom * fading).setLight(0);
+-                vertexConsumer.addVertex(pos2.x(), pos2.y(), pos2.z()).setUv(from, 0.0F).setColor(this.rCol, this.gCol, this.bCol, this.alpha * alphaFrom * fading).setLight(0);
+-                vertexConsumer.addVertex(pos3.x(), pos3.y(), pos3.z()).setUv(to, 0.0F).setColor(this.rCol, this.gCol, this.bCol, this.alpha * alphaTo * fading).setLight(0);
+-                vertexConsumer.addVertex(pos4.x(), pos4.y(), pos4.z()).setUv(to, 1.0F).setColor(this.rCol, this.gCol, this.bCol, this.alpha * alphaTo * fading).setLight(0);
++                vertexConsumer.addVertex(pos1.x(), pos1.y(), pos1.z()).setUv(from, 1.0F).setColor(this.rCol, this.gCol, this.bCol, this.alpha * alphaFrom * fading);
++                vertexConsumer.addVertex(pos2.x(), pos2.y(), pos2.z()).setUv(from, 0.0F).setColor(this.rCol, this.gCol, this.bCol, this.alpha * alphaFrom * fading);
++                vertexConsumer.addVertex(pos3.x(), pos3.y(), pos3.z()).setUv(to, 0.0F).setColor(this.rCol, this.gCol, this.bCol, this.alpha * alphaTo * fading);
++                vertexConsumer.addVertex(pos4.x(), pos4.y(), pos4.z()).setUv(to, 1.0F).setColor(this.rCol, this.gCol, this.bCol, this.alpha * alphaTo * fading);
+ 
+                 from += interval;
+                 to += interval;
+@@ -1438,7 +1306,7 @@
+ 
+         // Multiply GUI scale for resolution
+         int guiScale = (int)Minecraft.getInstance().getWindow().getGuiScale();
+-        this.modelRenderTarget.resize(Math.max(8, this.getWidth() * guiScale), Math.max(8, this.getHeight() * guiScale), true);
++        this.modelRenderTarget.resize(Math.max(8, this.getWidth() * guiScale), Math.max(8, this.getHeight() * guiScale));
+     }
+ 
+ 	public void sysoutTranslationInfo() {
+--- a/src/main/java/yesman/epicfight/client/gui/datapack/widgets/ModelPreviewer.java
++++ b/src/main/java/yesman/epicfight/client/gui/datapack/widgets/ModelPreviewer.java
+@@ -1,27 +1,22 @@
+ package yesman.epicfight.client.gui.datapack.widgets;
+ 
+ import com.google.common.collect.Lists;
+-import com.mojang.blaze3d.pipeline.RenderTarget;
+ import com.mojang.blaze3d.platform.Window;
+-import com.mojang.blaze3d.systems.RenderSystem;
+ import com.mojang.blaze3d.vertex.*;
+ import com.mojang.math.Axis;
+ import net.minecraft.client.Camera;
+ import net.minecraft.client.DeltaTracker;
+ import net.minecraft.client.Minecraft;
+ import net.minecraft.client.gui.GuiGraphics;
++import net.minecraft.client.particle.ParticleRenderType;
++import yesman.epicfight.client.gui.widgets.PreviewRenderTarget;
++import yesman.epicfight.client.renderer.PreviewRenderTypes;
+ import net.minecraft.client.gui.components.AbstractWidget;
+ import net.minecraft.client.gui.narration.NarratedElementType;
+ import net.minecraft.client.gui.narration.NarrationElementOutput;
+ import net.minecraft.client.gui.navigation.ScreenRectangle;
+-import net.minecraft.client.particle.ParticleRenderType;
+-import net.minecraft.client.renderer.GameRenderer;
+-import net.minecraft.client.renderer.MultiBufferSource.BufferSource;
+ import net.minecraft.client.renderer.RenderType;
+-import net.minecraft.client.renderer.ShaderInstance;
+-import net.minecraft.client.renderer.entity.ItemRenderer;
+ import net.minecraft.client.renderer.texture.*;
+-import net.minecraft.client.resources.model.BakedModel;
+ import net.minecraft.network.chat.Component;
+ import net.minecraft.resources.ResourceLocation;
+ import net.minecraft.util.Mth;
+@@ -55,7 +50,6 @@
+ import yesman.epicfight.api.utils.math.*;
+ import yesman.epicfight.client.particle.AnimationTrailParticle;
+ import yesman.epicfight.client.particle.EpicFightParticleRenderTypes;
+-import yesman.epicfight.client.renderer.EpicFightShaders;
+ import yesman.epicfight.gameasset.Animations;
+ import yesman.epicfight.main.EpicFightSharedConstants;
+ import yesman.epicfight.world.capabilities.entitypatch.Faction;
+@@ -70,7 +64,7 @@
+ /// We're refactoring UI codes, use [yesman.epicfight.client.gui.widgets.ModelPreviewer] instead
+ @Deprecated
+ public class ModelPreviewer extends AbstractWidget implements ResizableComponent, TickableComponent {
+-	private final ModelRenderTarget modelRenderTarget;
++	private final PreviewRenderTarget modelRenderTarget;
+ 	private final List<AssetAccessor<? extends StaticAnimation>> animationsToPlay = Lists.newArrayList();
+ 	private final List<CustomTrailParticle> trailParticles = Lists.newArrayList();
+ 	private final CheckBox showColliderCheckbox = new CheckBox(Minecraft.getInstance().font, 0, 60, 0, 10, null, null, true, Component.translatable("datapack_edit.model_player.collider"), null);
+@@ -126,12 +120,12 @@
+ 		this.mesh = mesh;
+ 		this.armature = armature;
+ 		
+-		this.modelRenderTarget = new ModelRenderTarget();
++		this.modelRenderTarget = new PreviewRenderTarget();
+ 		this.resize(Minecraft.getInstance().screen.getRectangle());
+ 		
+ 		// default clear color
+ 		this.modelRenderTarget.setClearColor(0.1552F, 0.1552F, 0.1552F, 1.0F);
+-		this.modelRenderTarget.clear(Minecraft.ON_OSX);
++
+ 	}
+ 	
+ 	public void setMesh(AssetAccessor<? extends SkinnedMesh> mesh) {
+@@ -390,10 +384,9 @@
+ 		return false;
+ 	}
+ 	
+-	protected void renderFigure(GuiGraphics guiGraphics, Tesselator tesselator) {
+-		RenderSystem.enableDepthTest();
+-
+-        final float partialTicks =((DeltaTracker.Timer)Minecraft.getInstance().getTimer()).deltaTickResidual;
++	protected void renderFigure(PoseStack poseStack, Tesselator tesselator) {
++        // Advance the preview animation independently of the paused game level.
++        float partialTicks = ((DeltaTracker.Timer) Minecraft.getInstance().getDeltaTracker()).deltaTickResidual;
+ 
+ 		if (this.mesh != null && this.mesh.get() != null) {
+ 			if (this.animator != null) {
+@@ -401,78 +394,40 @@
+ 				this.mesh.get().initialize();
+ 				OpenMatrix4f[] poseMatrices = this.entitypatch.getArmature().getPoseAsTransformMatrix(pose, false);
+ 
+-				if (this.figureTexture != null) {
+-					RenderSystem.setShader(GameRenderer::getRendertypeCloudsShader);
+-					RenderSystem.setShaderTexture(0, this.figureTexture);
+-                    BufferBuilder bufferbuilder = tesselator.begin(VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.POSITION_TEX_COLOR_NORMAL);
+-					this.mesh.get().drawPosed(guiGraphics.pose(), bufferbuilder, Mesh.DrawingFunction.POSITION_TEX_COLOR_NORMAL, -1, 0.9411F, 0.9411F, 0.9411F, 1.0F, -1, this.entitypatch.getArmature(), poseMatrices);
+-
+-                    MeshData meshData = bufferbuilder.build();
+-
+-                    if (meshData != null) {
+-                        BufferUploader.drawWithShader(meshData);
++
++                RenderType modelType = PreviewRenderTypes.model(this.figureTexture);
++                BufferBuilder builder = tesselator.begin(modelType.mode(), modelType.format());
++                this.mesh.get().drawPosed(poseStack, builder, this.figureTexture == null
++                    ? Mesh.DrawingFunction.POSITION_COLOR_NORMAL : Mesh.DrawingFunction.POSITION_TEX_COLOR_NORMAL,
++                    -1, 0.9411F, 0.9411F, 0.9411F, 1.0F, -1, this.entitypatch.getArmature(), poseMatrices);
++                PreviewRenderTarget.drawMesh(modelType, builder);
++
++                if (this.item != null && this.showItemCheckbox._getValue()) {
++                    OpenMatrix4f correction = new OpenMatrix4f().translate(0F, 0F, -0.13F).rotateDeg(-90.0F, Vec3f.X_AXIS);
++                    OpenMatrix4f handTransform = correction.mulFront(
++                        this.entitypatch.getArmature().getBoundTransformFor(pose, this.getArmature().get().searchJointByName("Tool_R")));
++                    poseStack.pushPose();
++                    try {
++                        MathUtils.mulStack(poseStack, handTransform);
++                        this.modelRenderTarget.drawItem(new ItemStack(this.item), poseStack);
++                    } finally {
++                        poseStack.popPose();
+                     }
+-				} else {
+-					RenderSystem.setShader(EpicFightShaders::getPositionColorNormalShader);
+-                    BufferBuilder bufferbuilder = tesselator.begin(VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.POSITION_COLOR_NORMAL);
+-					this.mesh.get().drawPosed(guiGraphics.pose(), bufferbuilder, Mesh.DrawingFunction.POSITION_COLOR_NORMAL, -1, 0.9411F, 0.9411F, 0.9411F, 1.0F, -1, this.entitypatch.getArmature(), poseMatrices);
+-
+-                    MeshData meshData = bufferbuilder.build();
+-
+-                    if (meshData != null) {
+-                        BufferUploader.drawWithShader(meshData);
++                }
++
++                if (!this.trailParticles.isEmpty() && this.showTrailCheckbox._getValue()) {
++                    for (CustomTrailParticle trail : this.trailParticles) {
++                        RenderType trailType = PreviewRenderTypes.trail(trail.texturePath());
++                        BufferBuilder trailBuilder = tesselator.begin(trailType.mode(), trailType.format());
++                        trail.drawPreview(trailBuilder, partialTicks);
++                        PreviewRenderTarget.drawMesh(trailType, trailBuilder);
+                     }
+-				}
+-
+-				if (this.item != null && this.showItemCheckbox._getValue()) {
+-					BufferSource bufferSource = Minecraft.getInstance().renderBuffers().bufferSource();
+-					ItemRenderer itemRenderer = Minecraft.getInstance().getItemRenderer();
+-					ItemStack itemstack = new ItemStack(this.item);
+-					OpenMatrix4f correction = new OpenMatrix4f().translate(0F, 0F, -0.13F).rotateDeg(-90.0F, Vec3f.X_AXIS);
+-					OpenMatrix4f handTransform = correction.mulFront(this.entitypatch.getArmature().getBoundTransformFor(pose, this.getArmature().get().searchJointByName("Tool_R")));
+-					
+-					guiGraphics.pose().pushPose();
+-					MathUtils.mulStack(guiGraphics.pose(), handTransform);
+-					
+-					BakedModel model = itemRenderer.getItemModelShaper().getItemModel(this.item);
+-					BakedModel overridedModel = model.getOverrides().resolve(model, itemstack, null, null, 0);
+-					DynamicTexture light = Minecraft.getInstance().gameRenderer.lightTexture() != null ? ((yesman.epicfight.mixin.client.LightTextureAccessor) Minecraft.getInstance().gameRenderer.lightTexture()).epicfight$getLightTexture() : null;
+-					
+-					// Update light color
+-					light.getPixels().setPixelRGBA(0, 0, 0xFFFFFFFF);
+-					light.upload();
+-					
+-					itemRenderer.render(itemstack, ItemDisplayContext.THIRD_PERSON_RIGHT_HAND, false, guiGraphics.pose(), bufferSource, 0, OverlayTexture.NO_OVERLAY, overridedModel);
+-					bufferSource.endBatch();
+-					
+-					guiGraphics.pose().popPose();
+-				}
+-				
+-				if (!this.trailParticles.isEmpty() && this.showTrailCheckbox._getValue()) {
+-					RenderSystem.setShader(GameRenderer::getParticleShader);
+-                    RenderSystem.enableBlend();
+-                    Minecraft.getInstance().gameRenderer.lightTexture().turnOnLightLayer();
+-
+-					for (CustomTrailParticle trail : this.trailParticles) {
+-						ParticleRenderType particleRendertype = trail.getRenderType();
+-                        BufferBuilder bufferbuilder = particleRendertype.begin(tesselator, Minecraft.getInstance().getTextureManager());
+-						trail.render(bufferbuilder, null, partialTicks);
+-                        MeshData meshdata = bufferbuilder.build();
+-
+-                        if (meshdata != null) {
+-                            BufferUploader.drawWithShader(meshdata);
+-                        }
+-					}
+-
+-                    RenderSystem.depthMask(true);
+-                    RenderSystem.disableBlend();
+-                    Minecraft.getInstance().gameRenderer.lightTexture().turnOffLightLayer();
+-				}
+-				
++                }
++
+ 				if (this.collider != null && this.showColliderCheckbox._getValue()) {
+ 					RenderType renderType = this.collider.getRenderType();
+-                    BufferBuilder bufferbuilder = tesselator.begin(renderType.mode(), renderType.format);
+-					RenderSystem.setShader(GameRenderer::getRendertypeLinesShader);
++
++                    BufferBuilder bufferbuilder = tesselator.begin(renderType.mode(), renderType.format());
+ 					
+ 					AnimationPlayer player = this.animator.getPlayerFor(null);
+ 					float elapsedTime = player.getPrevElapsedTime() + (player.getElapsedTime() - player.getPrevElapsedTime()) * partialTicks;
+@@ -481,7 +436,7 @@
+ 					if (this.colliderJoint != null) {
+ 						Pose prevPose = this.animator.getPose(0.0F);
+ 						Pose currentPose = this.animator.getPose(1.0F);
+-						this.collider.drawInternal(guiGraphics.pose(), bufferbuilder, this.entitypatch.getArmature(), this.colliderJoint, prevPose, currentPose, partialTicks, red ? 0xFFFF0000 : -1);
++						this.collider.drawInternal(poseStack, bufferbuilder, this.entitypatch.getArmature(), this.colliderJoint, prevPose, currentPose, partialTicks, red ? 0xFFFF0000 : -1);
+ 					} else {
+ 						DynamicAnimation animation = player.getAnimation().get();
+ 						
+@@ -491,57 +446,29 @@
+ 							for (AttackAnimation.JointColliderPair pair : phase.getColliders()) {
+ 								Pose prevPose = animation.getRawPose(player.getPrevElapsedTime());
+ 								Pose currentPose = animation.getRawPose(player.getElapsedTime());
+-								this.collider.drawInternal(guiGraphics.pose(), bufferbuilder, this.entitypatch.getArmature(), pair.getFirst(), prevPose, currentPose, partialTicks, -1);
++								this.collider.drawInternal(poseStack, bufferbuilder, this.entitypatch.getArmature(), pair.getFirst(), prevPose, currentPose, partialTicks, -1);
+ 							}
+ 						}
+ 					}
+ 
+-                    MeshData meshData = bufferbuilder.build();
+-
+-                    if (meshData != null) {
+-                        RenderSystem.lineWidth(3.0F);
+-                        RenderSystem.disableCull();
+-                        BufferUploader.drawWithShader(meshData);
+-                        RenderSystem.lineWidth(1.0F);
+-                        RenderSystem.enableCull();
+-                    }
+-				}
+-			} else {
+-				RenderSystem.setShader(EpicFightShaders::getPositionColorNormalShader);
+-				this.mesh.get().initialize();
+-				
+-				if (this.figureTexture != null) {
+-					RenderSystem.setShader(GameRenderer::getRendertypeCloudsShader);
+-					RenderSystem.setShaderTexture(0, this.figureTexture);
+-                    BufferBuilder bufferbuilder = tesselator.begin(VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.POSITION_TEX_COLOR_NORMAL);
+-					this.mesh.get().draw(guiGraphics.pose(), bufferbuilder, Mesh.DrawingFunction.POSITION_TEX_COLOR_NORMAL, -1, 0.9411F, 0.9411F, 0.9411F, 1.0F, OverlayTexture.NO_OVERLAY);
+-                    MeshData meshData = bufferbuilder.build();
+-
+-                    if (meshData != null) {
+-                        RenderSystem.lineWidth(3.0F);
+-                        RenderSystem.disableCull();
+-                        BufferUploader.drawWithShader(meshData);
+-                    }
+-				} else {
+-					RenderSystem.setShader(EpicFightShaders::getPositionColorNormalShader);
+-                    BufferBuilder  bufferbuilder = tesselator.begin(VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.POSITION_COLOR_NORMAL);
+-					this.mesh.get().draw(guiGraphics.pose(), bufferbuilder, Mesh.DrawingFunction.POSITION_COLOR_NORMAL, -1, 0.9411F, 0.9411F, 0.9411F, 1.0F, OverlayTexture.NO_OVERLAY);
+-                    MeshData meshData = bufferbuilder.build();
+-
+-                    if (meshData != null) {
+-                        RenderSystem.lineWidth(3.0F);
+-                        RenderSystem.disableCull();
+-                        BufferUploader.drawWithShader(meshData);
+-                    }
+-				}
+-			}
+-		}
+-		
++                    PreviewRenderTarget.drawMesh(renderType, bufferbuilder);
++                }
++            } else {
++                this.mesh.get().initialize();
++                RenderType modelType = PreviewRenderTypes.model(this.figureTexture);
++                BufferBuilder builder = tesselator.begin(modelType.mode(), modelType.format());
++                this.mesh.get().draw(poseStack, builder, this.figureTexture == null
++                    ? Mesh.DrawingFunction.POSITION_COLOR_NORMAL : Mesh.DrawingFunction.POSITION_TEX_COLOR_NORMAL,
++                    -1, 0.9411F, 0.9411F, 0.9411F, 1.0F, OverlayTexture.NO_OVERLAY);
++                PreviewRenderTarget.drawMesh(modelType, builder);
++            }
++        }
++
+ 		if (this.cloakMesh != null && this.cloakTexture != null) {
+ 			TextureManager textureManager = Minecraft.getInstance().getTextureManager();
+ 			AbstractTexture texture = textureManager.getTexture(this.cloakTexture);
+ 			
+-			if (texture != MissingTextureAtlasSprite.getTexture()) {
++			if (texture != textureManager.getTexture(MissingTextureAtlasSprite.getLocation())) {
+ 				this.cloakMesh.getOriginalMesh().initialize();
+ 				
+ 				if (this.animator != null && this.entitypatch != null && this.clothSimulator != null) {
+@@ -556,91 +483,41 @@
+ 			            this.entitypatch.getArmature().setPose(pose);
+ 			            
+ 						clothObj.tick(this.entitypatch, partialColliderTransformProvider, partialTicks, this.entitypatch.getArmature(), this.entitypatch.getArmature().getPoseMatrices());
+-						RenderSystem.setShader(GameRenderer::getRendertypeCloudsShader);
+-						RenderSystem.setShaderTexture(0, this.cloakTexture);
+-						BufferBuilder bufferbuilder$2 = tesselator.begin(VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.POSITION_TEX_COLOR_NORMAL);
++
++                        RenderType cloakType = PreviewRenderTypes.model(this.cloakTexture);
++                        BufferBuilder bufferbuilder$2 = tesselator.begin(cloakType.mode(), cloakType.format());
++						poseStack.pushPose();
++						poseStack.mulPose(Axis.YP.rotationDegrees(this.entitypatch.getYRot() - 180.0F));
++						clothObj.drawPosed(poseStack, bufferbuilder$2, Mesh.DrawingFunction.POSITION_TEX_COLOR_NORMAL, -1, this.cloakColor.x, this.cloakColor.y, this.cloakColor.z, 1.0F, OverlayTexture.NO_OVERLAY, this.entitypatch.getArmature(), this.entitypatch.getArmature().getPoseMatrices());
++						poseStack.popPose();
+ 						
+-						guiGraphics.pose().pushPose();
+-						guiGraphics.pose().mulPose(Axis.YP.rotationDegrees(this.entitypatch.getYRot() - 180.0F));
+-						clothObj.drawPosed(guiGraphics.pose(), bufferbuilder$2, Mesh.DrawingFunction.POSITION_TEX_COLOR_NORMAL, -1, this.cloakColor.x, this.cloakColor.y, this.cloakColor.z, 1.0F, OverlayTexture.NO_OVERLAY, this.entitypatch.getArmature(), this.entitypatch.getArmature().getPoseMatrices());
+-						guiGraphics.pose().popPose();
+-						
+-						BufferUploader.drawWithShader(bufferbuilder$2.buildOrThrow());
++						PreviewRenderTarget.drawMesh(cloakType, bufferbuilder$2);
+ 					});
+ 				} else {
+-					RenderSystem.setShader(GameRenderer::getRendertypeCloudsShader);
+-					BufferBuilder bufferbuilder = tesselator.begin(VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.POSITION_TEX_COLOR_NORMAL);
+-					RenderSystem.setShaderTexture(0, this.cloakTexture);
+-					((Mesh)this.cloakMesh).draw(guiGraphics.pose(), bufferbuilder, Mesh.DrawingFunction.POSITION_TEX_COLOR_NORMAL, -1, this.cloakColor.x, this.cloakColor.y, this.cloakColor.z, 1.0F, OverlayTexture.NO_OVERLAY);
+-
+-                    MeshData meshData = bufferbuilder.build();
+-
+-                    if (meshData != null) {
+-					    BufferUploader.drawWithShader(meshData);
+-                    }
+-				}
+-			}
+-		}
+-		
+-		RenderSystem.disableDepthTest();
+-	}
+-	
++                    RenderType cloakType = PreviewRenderTypes.model(this.cloakTexture);
++                    BufferBuilder builder = tesselator.begin(cloakType.mode(), cloakType.format());
++                    ((Mesh)this.cloakMesh).draw(poseStack, builder, Mesh.DrawingFunction.POSITION_TEX_COLOR_NORMAL,
++                        -1, this.cloakColor.x, this.cloakColor.y, this.cloakColor.z, 1.0F, OverlayTexture.NO_OVERLAY);
++                    PreviewRenderTarget.drawMesh(cloakType, builder);
++                }
++            }
++        }
++    }
++
+ 	@Override
+ 	public void renderWidget(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTicks) {
+-		Minecraft minecraft = Minecraft.getInstance();
+-		minecraft.getMainRenderTarget().unbindWrite();
+-		
+-		RenderSystem.enableDepthTest();
+-		
+-		ScreenRectangle screenrectangle = null;
+-		boolean scissorApplied = guiGraphics.scissorStack.stack.size() > 0;
+-		
+-		// If scissor test is enabled, remove it.
+-		if (scissorApplied) {
+-			screenrectangle = guiGraphics.scissorStack.stack.peekLast();
+-			guiGraphics.disableScissor();
+-		}
+-		
+-		this.modelRenderTarget.clear(true);
+-		this.modelRenderTarget.bindWrite(true);
+-		
+-		if (this.backgroundClearColor != null) {
+-			this.modelRenderTarget.setClearColor(this.backgroundClearColor.x, this.backgroundClearColor.y, this.backgroundClearColor.z, this.backgroundClearColor.w);
+-		}
+-		
+-		Tesselator tesselator = RenderSystem.renderThreadTesselator();
+-		Matrix4f oldProjection = RenderSystem.getProjectionMatrix();
+-		Matrix4f perspective = new Matrix4f().setPerspective((float)Math.toRadians(50.0F), (float)this.width / (float)this.height, 0.05F, 100.0F);
+-		
+-		ShaderInstance prevShader = RenderSystem.getShader();
+-		RenderSystem.setProjectionMatrix(perspective, VertexSorting.DISTANCE_TO_ORIGIN);
+-		RenderSystem.getModelViewStack().pushMatrix();
+-		RenderSystem.getModelViewStack().identity();
+-		RenderSystem.applyModelViewMatrix();
+-		
+-		guiGraphics.pose().pushPose();
+-		guiGraphics.pose().translate(this.xMove, this.yMove - 1.0D, this.zoom);
+-		guiGraphics.pose().mulPose(Axis.XP.rotationDegrees(this.xRot));
+-		guiGraphics.pose().mulPose(Axis.YP.rotationDegrees(this.yRot));
+-		
+-		this.renderFigure(guiGraphics, tesselator);
+-		
+-		guiGraphics.pose().popPose();
+-		
+-		RenderSystem.setProjectionMatrix(oldProjection, VertexSorting.ORTHOGRAPHIC_Z);
+-		RenderSystem.getModelViewStack().popMatrix();
+-		RenderSystem.applyModelViewMatrix();
+-		RenderSystem.setShader(() -> prevShader);
+-		
+-		this.modelRenderTarget.unbindWrite();
+-		
+-		minecraft.getMainRenderTarget().bindWrite(true);
+-		
+-		if (scissorApplied) {
+-			guiGraphics.enableScissor(screenrectangle.left(), screenrectangle.top(), screenrectangle.right(), screenrectangle.bottom());
+-		}
+-
+-		this.modelRenderTarget.blitToScreen(guiGraphics);
++
++        if (this.backgroundClearColor != null) {
++            this.modelRenderTarget.setClearColor(this.backgroundClearColor.x, this.backgroundClearColor.y,
++                this.backgroundClearColor.z, this.backgroundClearColor.w);
++        }
++
++        PoseStack previewPose = new PoseStack();
++        previewPose.translate(this.xMove, this.yMove - 1.0D, this.zoom);
++        previewPose.mulPose(Axis.XP.rotationDegrees(this.xRot));
++        previewPose.mulPose(Axis.YP.rotationDegrees(this.yRot));
++        this.modelRenderTarget.draw(() -> this.renderFigure(previewPose, Tesselator.getInstance()));
++        this.modelRenderTarget.submitToGui(guiGraphics, this.getX(), this.getY(), this.getWidth(), this.getHeight());
+ 
+ 		if (this.animator != null) {
+ 			// Visibility control widgets
+@@ -672,7 +549,6 @@
+ 			}
+ 		}
+ 		
+-		RenderSystem.disableDepthTest();
+ 	}
+ 	
+ 	@Override
+@@ -691,11 +567,11 @@
+ 		}
+ 		
+ 		double guiScale = Minecraft.getInstance().getWindow().getGuiScale();
+-		this.modelRenderTarget.resize(Math.max(8, this._getWidth() * (int)guiScale), Math.max(8, this._getHeight() * (int)guiScale), true);
++		this.modelRenderTarget.resize(Math.max(8, this._getWidth() * (int)guiScale), Math.max(8, this._getHeight() * (int)guiScale));
+ 	}
+ 	
+ 	public void onDestroy() {
+-		this.modelRenderTarget.destroyBuffers();
++		this.modelRenderTarget.close();
+ 	}
+ 	
+ 	public class FakeEntityPatch extends LivingEntityPatch<LivingEntity> implements SimulatableObject, ClothSimulatable {
+@@ -1137,43 +1013,7 @@
+ 		}
+ 	}
+ 	
+-	class ModelRenderTarget extends RenderTarget {
+-		public ModelRenderTarget() {
+-			super(true);
+-			
+-			RenderSystem.assertOnRenderThreadOrInit();
+-			Window window = Minecraft.getInstance().getWindow();
+-			
+-			this.resize(window.getWidth(), window.getHeight(), false);
+-		}
+-		
+-		private void blitToScreen(GuiGraphics guiGraphics) {
+-			RenderSystem.setShader(GameRenderer::getPositionTexColorShader);
+-			RenderSystem.setShaderTexture(0, this.colorTextureId);
+-			
+-			float left = ModelPreviewer.this._getX();
+-			float top = ModelPreviewer.this._getY();
+-			float right = left + ModelPreviewer.this._getWidth();
+-			float bottom = top + ModelPreviewer.this._getHeight();
+-			
+-			float u = (float) this.viewWidth / (float) this.width;
+-			float v = (float) this.viewHeight / (float) this.height;
+-			
+-			guiGraphics.pose().pushPose();
+-			
+-			PoseStack.Pose lastPose = guiGraphics.pose().last();
+-			Tesselator tesselator = Tesselator.getInstance();
+-			BufferBuilder bufferbuilder = tesselator.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR);
+-			bufferbuilder.addVertex(lastPose, left, bottom, 0.0F).setUv(0.0F, 0.0F).setColor(255, 255, 255, 255);
+-			bufferbuilder.addVertex(lastPose, right, bottom, 0.0F).setUv(u, 0.0F).setColor(255, 255, 255, 255);
+-			bufferbuilder.addVertex(lastPose, right, top, 0.0F).setUv(u, v).setColor(255, 255, 255, 255);
+-			bufferbuilder.addVertex(lastPose, left, top, 0.0F).setUv(0.0F, v).setColor(255, 255, 255, 255);
+-			BufferUploader.drawWithShader(bufferbuilder.buildOrThrow());
+-			
+-			guiGraphics.pose().popPose();
+-		}
+-	}
+-	
++
+ 	class CustomTrailParticle extends AnimationTrailParticle {
+ 		@SuppressWarnings("deprecation")
+ 		protected CustomTrailParticle(Joint joint, AssetAccessor<? extends StaticAnimation> animation, TrailInfo trailInfo) {
+@@ -1281,14 +1121,17 @@
+ 			this.makeTrailEdges(finalStartPositions, finalEndPositions, visibleTrail ? this.trailEdges : this.invisibleTrailEdges);
+ 		}
+ 		
+-		@Override
+-		public void render(VertexConsumer vertexConsumer, Camera camera, float partialTick) {
++		private ResourceLocation texturePath() {
++            return this.trailInfo.texturePath();
++        }
++
++        private void drawPreview(VertexConsumer vertexConsumer, float partialTick) {
+ 			if (this.trailEdges.isEmpty()) {
+ 				return;
+ 			}
+ 
+ 			PoseStack poseStack = new PoseStack();
+-			this.setupPoseStack(poseStack, camera, partialTick);
++			this.setupPoseStack(poseStack, null, partialTick);
+ 			Matrix4f matrix4f = poseStack.last().pose();
+ 			int edges = this.trailEdges.size() - 1;
+ 			boolean startFade = this.trailEdges.get(0).lifetime == 1;
+@@ -1326,10 +1169,10 @@
+ 				float alphaFrom = Mth.clamp(from, 0.0F, 1.0F);
+ 				float alphaTo = Mth.clamp(to, 0.0F, 1.0F);
+ 				
+-				vertexConsumer.addVertex(pos1.x(), pos1.y(), pos1.z()).setUv(from, 1.0F).setColor(this.rCol, this.gCol, this.bCol, this.alpha * alphaFrom * fading).setLight(0);
+-				vertexConsumer.addVertex(pos2.x(), pos2.y(), pos2.z()).setUv(from, 0.0F).setColor(this.rCol, this.gCol, this.bCol, this.alpha * alphaFrom * fading).setLight(0);
+-				vertexConsumer.addVertex(pos3.x(), pos3.y(), pos3.z()).setUv(to, 0.0F).setColor(this.rCol, this.gCol, this.bCol, this.alpha * alphaTo * fading).setLight(0);
+-				vertexConsumer.addVertex(pos4.x(), pos4.y(), pos4.z()).setUv(to, 1.0F).setColor(this.rCol, this.gCol, this.bCol, this.alpha * alphaTo * fading).setLight(0);
++				vertexConsumer.addVertex(pos1.x(), pos1.y(), pos1.z()).setUv(from, 1.0F).setColor(this.rCol, this.gCol, this.bCol, this.alpha * alphaFrom * fading);
++				vertexConsumer.addVertex(pos2.x(), pos2.y(), pos2.z()).setUv(from, 0.0F).setColor(this.rCol, this.gCol, this.bCol, this.alpha * alphaFrom * fading);
++				vertexConsumer.addVertex(pos3.x(), pos3.y(), pos3.z()).setUv(to, 0.0F).setColor(this.rCol, this.gCol, this.bCol, this.alpha * alphaTo * fading);
++				vertexConsumer.addVertex(pos4.x(), pos4.y(), pos4.z()).setUv(to, 1.0F).setColor(this.rCol, this.gCol, this.bCol, this.alpha * alphaTo * fading);
+ 
+ 				from += interval;
+ 				to += interval;
+--- a/src/main/java/yesman/epicfight/EpicFightFabricClient.java
++++ b/src/main/java/yesman/epicfight/EpicFightFabricClient.java
+@@ -7,13 +7,11 @@
+ import net.fabricmc.fabric.api.client.model.loading.v1.ModelLoadingPlugin;
+ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
+ import net.fabricmc.fabric.api.client.particle.v1.ParticleFactoryRegistry;
+-import net.fabricmc.fabric.api.client.rendering.v1.CoreShaderRegistrationCallback;
+ import net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry;
+ import net.fabricmc.fabric.api.client.rendering.v1.BlockEntityRendererRegistry;
+ import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
+ import net.fabricmc.fabric.api.client.screen.v1.ScreenKeyboardEvents;
+ import net.fabricmc.fabric.api.client.screen.v1.ScreenMouseEvents;
+-import com.mojang.blaze3d.vertex.DefaultVertexFormat;
+ import net.minecraft.client.Minecraft;
+ import yesman.epicfight.api.client.input.action.EpicFightInputAction;
+ import yesman.epicfight.api.client.input.action.InputAction;
+@@ -49,7 +47,6 @@
+ import net.fabricmc.fabric.api.resource.v1.ResourceLoader;
+ import net.minecraft.server.packs.PackType;
+ import net.minecraft.server.packs.resources.ResourceManagerReloadListener;
+-import yesman.epicfight.client.renderer.EpicFightShaders;
+ import yesman.epicfight.client.renderer.blockentity.FractureBlockRenderer;
+ import yesman.epicfight.client.renderer.entity.DroppedNetherStarRenderer;
+ import yesman.epicfight.client.renderer.entity.WitherGhostRenderer;
+@@ -72,15 +69,6 @@
+     @Override
+     public void onInitializeClient() {
+         EpicFightClient.initialize(new FabricClientModPlatform());
+-
+-        // Register core shaders — fires during resource reload on the render thread
+-        CoreShaderRegistrationCallback.EVENT.register(context -> {
+-            context.register(
+-                    EpicFight.identifier("solid_model"),
+-                    DefaultVertexFormat.POSITION_COLOR_NORMAL,
+-                    shader -> EpicFightShaders.positionColorNormalShader = shader);
+-
+-        });
+ 
+         ResourceLoader.get(PackType.CLIENT_RESOURCES).registerReloader(
+             EpicFight.identifier("compute_shaders"),
+--- a/src/main/java/yesman/epicfight/client/renderer/EpicFightShaders.java
++++ /dev/null
+@@ -1,32 +0,0 @@
+-package yesman.epicfight.client.renderer;
+-import yesman.epicfight.EpicFight;
+-
+-import java.io.IOException;
+-
+-import javax.annotation.Nullable;
+-
+-import com.mojang.blaze3d.vertex.DefaultVertexFormat;
+-
+-import net.minecraft.client.renderer.ShaderInstance;
+-import net.minecraft.resources.ResourceLocation;
+-import net.fabricmc.api.EnvType;
+-
+-
+-
+-
+-
+-public class EpicFightShaders {
+-	public static ShaderInstance positionColorNormalShader;
+-	
+-	@Nullable
+-	public static ShaderInstance getPositionColorNormalShader() {
+-		return positionColorNormalShader;
+-	}
+-	
+-	
+-	public static void epicfight$registerShaders(yesman.epicfight.platform.neoforged.client.event.RegisterShadersEvent event) throws IOException {
+-		event.registerShader(new ShaderInstance(event.getResourceProvider(), EpicFight.identifier("solid_model").toString(), DefaultVertexFormat.POSITION_COLOR_NORMAL), reloadedShader -> {
+-			positionColorNormalShader = reloadedShader;
+-		});
+-	}
+-}
+--- a/src/main/java/yesman/epicfight/platform/neoforged/client/event/RegisterShadersEvent.java
++++ /dev/null
+@@ -1,21 +0,0 @@
+-package yesman.epicfight.platform.neoforged.client.event;
+-
+-import net.minecraft.client.renderer.ShaderInstance;
+-import net.minecraft.server.packs.resources.ResourceProvider;
+-import java.util.function.Consumer;
+-
+-/// Stub for NeoForge's RegisterShadersEvent.
+-public class RegisterShadersEvent {
+-    private final ResourceProvider resourceProvider;
+-
+-    public RegisterShadersEvent(ResourceProvider resourceProvider) {
+-        this.resourceProvider = resourceProvider;
+-    }
+-
+-    public ResourceProvider getResourceProvider() {
+-        return resourceProvider;
+-    }
+-
+-    public void registerShader(ShaderInstance shader, Consumer<ShaderInstance> callback) {}
+-    public void registerShader(ShaderInstance shader) {}
+-}
+--- a/src/main/java/yesman/epicfight/mixin/client/LightTextureAccessor.java
++++ /dev/null
+@@ -1,12 +0,0 @@
+-package yesman.epicfight.mixin.client;
+-
+-import net.minecraft.client.renderer.texture.DynamicTexture;
+-import net.minecraft.client.renderer.LightTexture;
+-import org.spongepowered.asm.mixin.Mixin;
+-import org.spongepowered.asm.mixin.gen.Accessor;
+-
+-@Mixin(LightTexture.class)
+-public interface LightTextureAccessor {
+-    @Accessor("lightTexture")
+-    DynamicTexture epicfight$getLightTexture();
+-}
+--- a/src/main/resources/epicfight.mixins.json
++++ b/src/main/resources/epicfight.mixins.json
+@@ -35,7 +35,6 @@
+         "client.MixinClientResourceReload",
+         "client.MixinThrownTridentRenderer",
+         "client.MixinBossHealthOverlay",
+-        "client.LightTextureAccessor",
+         "client.AbstractContainerScreenAccessor",
+         "client.OutlineBufferSourceAccessor",
+         "client.VillagerProfessionLayerAccessor",
+--- a/src/main/java/yesman/epicfight/skill/passive/AdaptiveSkinSkill.java
++++ b/src/main/java/yesman/epicfight/skill/passive/AdaptiveSkinSkill.java
+@@ -3,6 +3,8 @@
+ import com.google.common.collect.ImmutableMap;
+ import net.minecraft.ChatFormatting;
+ import net.minecraft.client.gui.GuiGraphics;
++import net.minecraft.client.renderer.RenderPipelines;
++import net.minecraft.util.ARGB;
+ import net.minecraft.client.renderer.RenderType;
+ import net.minecraft.nbt.CompoundTag;
+ import net.minecraft.network.chat.Component;
+@@ -196,7 +198,8 @@
+     @Override @ClientOnly
+     public void drawOnGui(BattleModeGui gui, SkillContainer container, GuiGraphics guiGraphics, float x, float y, float partialTick) {
+         Vec3f color = this.protectableDamageTypeTags.get(container.getDataManager().getDataValue(EpicFightSkillDataKeys.RESISTING_DAMAGE_TYPE));
+-        guiGraphics.innerBlit(this.getSkillTexture(), (int)x, (int)x + 24, (int)y, (int)y + 24, 0, 0.0F, 1.0F, 0.0F, 1.0F, color.x, color.y, color.z, 1.0F);
++        guiGraphics.blit(RenderPipelines.GUI_TEXTURED, this.getSkillTexture(), (int)x, (int)y, 0, 0, 24, 24, 24, 24,
++            ARGB.colorFromFloat(1.0F, color.x, color.y, color.z));
+         int stacks = container.getDataManager().getDataValue(EpicFightSkillDataKeys.STACKS);
+ 
+         if (stacks > 1) {
+--- a/src/main/java/yesman/epicfight/client/renderer/EpicFightRenderTypes.java
++++ b/src/main/java/yesman/epicfight/client/renderer/EpicFightRenderTypes.java
+@@ -33,7 +33,7 @@
+ 		}
+ 		
+ 		if (renderType instanceof CompositeRenderType compositeRenderType) {
+-			return new CompositeRenderType(renderType.name, renderType.format, VertexFormat.Mode.TRIANGLES, renderType.bufferSize(), renderType.affectsCrumbling(), renderType.sortOnUpload, compositeRenderType.state);
++			return new CompositeRenderType(renderType.name, renderType.format(), VertexFormat.Mode.TRIANGLES, renderType.bufferSize(), renderType.affectsCrumbling(), renderType.sortOnUpload(), compositeRenderType.state);
+ 		} else {
+ 			return renderType;
+ 		}
+@@ -88,11 +88,11 @@
+ 			
+ 			CompositeRenderType triangulatedRenderType = new CompositeRenderType(
+ 				renderType.name,
+-				renderType.format,
++				renderType.format(),
+ 				VertexFormat.Mode.TRIANGLES,
+ 				renderType.bufferSize(),
+ 				renderType.affectsCrumbling(),
+-				renderType.sortOnUpload,
++				renderType.sortOnUpload(),
+ 				compositeRenderType.state
+ 			);
+ 			
+@@ -480,7 +480,7 @@
+ 				, compositeRenderType.state.outlineProperty
+ 			);
+ 			
+-			return new CompositeRenderType(renderType.name, renderType.format, compositeRenderType.mode, renderType.bufferSize(), renderType.affectsCrumbling(), renderType.sortOnUpload, textureReplacedState);
++			return new CompositeRenderType(renderType.name, renderType.format(), compositeRenderType.mode(), renderType.bufferSize(), renderType.affectsCrumbling(), renderType.sortOnUpload(), textureReplacedState);
+ 		} else {
+ 			return null;
+ 		}
+--- a/src/main/resources/epicfight.accesswidener
++++ b/src/main/resources/epicfight.accesswidener
+@@ -13,7 +13,6 @@
+ accessible method net/minecraft/client/Minecraft startAttack ()Z
+ accessible field net/minecraft/client/gui/Gui CROSSHAIR_SPRITE Lnet/minecraft/resources/ResourceLocation;
+ accessible field net/minecraft/client/gui/GuiGraphics scissorStack Lnet/minecraft/client/gui/GuiGraphics$ScissorStack;
+-accessible method net/minecraft/client/gui/GuiGraphics innerBlit (Lnet/minecraft/resources/ResourceLocation;IIIIIFFFFFFFF)V
+ accessible class net/minecraft/client/gui/GuiGraphics$ScissorStack
+ accessible field net/minecraft/client/gui/GuiGraphics$ScissorStack stack Ljava/util/Deque;
+ accessible field net/minecraft/client/gui/components/AbstractSelectionList itemHeight I
+@@ -35,7 +34,6 @@
+ accessible field net/minecraft/client/player/ClientInput moveVector Lnet/minecraft/world/phys/Vec2;
+ accessible field net/minecraft/client/player/LocalPlayer sprintTriggerTime I
+ accessible method net/minecraft/client/renderer/GameRenderer getFov (Lnet/minecraft/client/Camera;FZ)F
+-accessible method net/minecraft/client/renderer/block/model/ItemOverrides$PropertyMatcher <init> (IF)V
+ accessible field net/minecraft/client/renderer/entity/EntityRenderDispatcher renderers Ljava/util/Map;
+ accessible field net/minecraft/client/renderer/entity/LivingEntityRenderer layers Ljava/util/List;
+ accessible field net/minecraft/client/renderer/entity/layers/HumanoidArmorLayer ARMOR_LOCATION_CACHE Ljava/util/Map;
+@@ -111,11 +109,8 @@
+ accessible field net/minecraft/world/entity/projectile/ThrownTrident dealtDamage Z
+ accessible method net/minecraft/world/item/ItemStack <init> (Ljava/lang/Void;)V
+ accessible method net/minecraft/core/particles/SimpleParticleType <init> (Z)V
+-accessible field net/minecraft/client/renderer/RenderType format Lcom/mojang/blaze3d/vertex/VertexFormat;
+ accessible method net/minecraft/core/IdMapper <init> (I)V
+ accessible field net/minecraft/client/renderer/RenderStateShard name Ljava/lang/String;
+-accessible field net/minecraft/client/renderer/RenderType sortOnUpload Z
+-accessible field net/minecraft/client/renderer/RenderType mode Lcom/mojang/blaze3d/vertex/VertexFormat$Mode;
+ accessible field net/minecraft/client/gui/components/Button$Builder x I
+ accessible field net/minecraft/client/gui/components/Button$Builder y I
+ accessible field net/minecraft/client/gui/components/Button$Builder width I
+@@ -128,10 +123,10 @@
+ extendable class net/minecraft/client/renderer/RenderType$CompositeRenderType
+ accessible field net/minecraft/client/gui/components/Button$Builder height I
+ accessible field net/minecraft/client/renderer/entity/EntityRenderDispatcher playerRenderers Ljava/util/Map;
+-accessible field net/minecraft/client/renderer/LightTexture lightTexture Lnet/minecraft/client/renderer/texture/DynamicTexture;
+ accessible method net/minecraft/world/entity/projectile/AbstractArrow isInGround ()Z
+ accessible method net/minecraft/client/renderer/entity/layers/HumanoidArmorLayer getArmorModel (Lnet/minecraft/world/entity/EquipmentSlot;)Lnet/minecraft/client/model/HumanoidModel;
+ accessible field net/minecraft/client/renderer/RenderType$CompositeState cullState Lnet/minecraft/client/renderer/RenderStateShard$CullStateShard;
+ accessible field net/minecraft/world/entity/boss/enderdragon/phases/EnderDragonPhaseManager dragon Lnet/minecraft/world/entity/boss/enderdragon/EnderDragon;
+ accessible field net/minecraft/commands/synchronization/ArgumentTypeInfos BY_CLASS Ljava/util/Map;
+ accessible method net/minecraft/client/renderer/RenderType create (Ljava/lang/String;Lnet/minecraft/client/renderer/rendertype/RenderSetup;)Lnet/minecraft/client/renderer/RenderType;
++accessible method net/minecraft/client/gui/GuiGraphics submitBlit (Lcom/mojang/blaze3d/pipeline/RenderPipeline;Lcom/mojang/blaze3d/textures/GpuTextureView;Lcom/mojang/blaze3d/textures/GpuSampler;IIIIFFFFI)V
