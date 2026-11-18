@@ -1,0 +1,232 @@
+--- a/src/main/java/yesman/epicfight/registry/deferred_shim/DeferredHolderShim.java
++++ b/src/main/java/yesman/epicfight/registry/deferred_shim/DeferredHolderShim.java
+@@ -28,7 +28,7 @@
+     /// holder, or null when `location` is absent or the reference is not yet
+     /// bound (e.g. the registry has not been frozen). Never mutates the registry.
+     public static <T> DeferredHolderShim<T, T> lookup(Registry<T> registry, ResourceLocation location) {
+-        Holder.Reference<T> reference = registry.getHolder(ResourceKey.create(registry.key(), location)).orElse(null);
++        Holder.Reference<T> reference = registry.get(location).orElse(null);
+         if (reference == null || !reference.isBound()) {
+             return null;
+         }
+@@ -39,17 +39,15 @@
+         return result;
+     }
+ 
+-    @SuppressWarnings("unchecked")
+     void bind(Registry<T> registry) {
+         I supplied = supplier.get();
++        this.holder = Registry.registerForHolder(registry, this.key, supplied);
+         this.value = supplied;
+-        Registry.register(registry, key.location(), supplied);
+-        this.holder = registry.getHolder((net.minecraft.resources.ResourceKey<T>) key).orElse(null);
+     }
+ 
+     public I get() {
+         if (value == null) {
+-            EpicFight.LOGGER.warn("Accessed before registration: " + (key != null ? key.location() : "unknown") + ", returning null"); return null;
++            EpicFight.LOGGER.warn("Accessed before registration: " + (key != null ? key.identifier() : "unknown") + ", returning null"); return null;
+         }
+         return value;
+     }
+@@ -63,7 +61,7 @@
+     }
+ 
+     public ResourceLocation getId() {
+-        return key.location();
++        return key.identifier();
+     }
+ 
+     public Optional<Holder<T>> getHolder() {
+@@ -72,7 +70,7 @@
+ 
+     public Holder<T> asHolder() {
+         if (holder == null) {
+-            EpicFight.LOGGER.warn("Accessed before registration: " + (key != null ? key.location() : "unknown") + ", returning null"); return null;
++            EpicFight.LOGGER.warn("Accessed before registration: " + (key != null ? key.identifier() : "unknown") + ", returning null"); return null;
+         }
+         return holder;
+     }
+@@ -138,12 +136,12 @@
+ 
+     @Override
+     public boolean is(ResourceLocation location) {
+-        return this.key.location().equals(location);
++        return this.key.identifier().equals(location);
+     }
+ 
+     @Override
+     public String toString() {
+-        return "DeferredHolderShim[" + key.location() + "]";
++        return "DeferredHolderShim[" + key.identifier() + "]";
+     }
+ 
+     @Override
+--- a/src/main/java/yesman/epicfight/registry/deferred_shim/DeferredRegisterShim.java
++++ b/src/main/java/yesman/epicfight/registry/deferred_shim/DeferredRegisterShim.java
+@@ -79,7 +79,7 @@
+         var registry = getRegistry();
+         if (registry == null) {
+             org.slf4j.LoggerFactory.getLogger("epicfight")
+-                .warn("Registry {} still absent at late bind — skipped {}", registryKey.location(), holder.getId());
++                .warn("Registry {} still absent at late bind — skipped {}", registryKey.identifier(), holder.getId());
+             return;
+         }
+         if (registry instanceof yesman.epicfight.mixin.common.MappedRegistryAccessor accessor
+@@ -136,6 +136,6 @@
+ 
+     @SuppressWarnings("unchecked")
+     private Registry<T> getRegistry() {
+-        return (Registry<T>) BuiltInRegistries.REGISTRY.get(registryKey.location());
++        return (Registry<T>) BuiltInRegistries.REGISTRY.getValue(registryKey.identifier());
+     }
+ }
+--- a/src/main/java/yesman/epicfight/registry/EpicFightRegistries.java
++++ b/src/main/java/yesman/epicfight/registry/EpicFightRegistries.java
+@@ -80,7 +80,7 @@
+         //    then bake (depends on SKILL registry being baked first)
+         try {
+             SkillDataKeyCallbacks skillDataKeyCallbacks = SkillDataKeyCallbacks.getRegistryCallback();
+-            SKILL_DATA_KEY.holders().forEach(holder -> {
++            SKILL_DATA_KEY.listElements().forEach(holder -> {
+                 try {
+                     int id = SKILL_DATA_KEY.getId(holder.value());
+                     skillDataKeyCallbacks.onAdd(SKILL_DATA_KEY, id, holder.key(), holder.value());
+@@ -112,7 +112,7 @@
+         RegistryEntryAddedCallback.event(SKILL).register((id, resourceLocation, value) -> {
+             try {
+                 var resourceKey = ResourceKey.create(Keys.SKILL, resourceLocation);
+-                SKILL.getHolder(resourceKey).ifPresent(value::setHolder);
++                SKILL.get(resourceKey).ifPresent(value::setHolder);
+             } catch (Throwable e) {
+                 EpicFight.LOGGER.warn("Failed to set holder for late-registered skill {}", resourceLocation, e);
+             }
+--- a/src/main/java/yesman/epicfight/registry/callbacks/SkillDataKeyCallbacks.java
++++ b/src/main/java/yesman/epicfight/registry/callbacks/SkillDataKeyCallbacks.java
+@@ -63,7 +63,7 @@
+ 	
+ 	@Override
+ 	public void onBake(Registry<SkillDataKey<?>> registry) {
+-		EpicFightRegistries.SKILL.holders().forEach(holder -> {
++		EpicFightRegistries.SKILL.listElements().forEach(holder -> {
+ 			Class<? extends Skill> skillClass = holder.value().getClass();
+ 			Set<Holder<SkillDataKey<?>>> dataKeySet = CLASS_TO_DATA_KEYS.computeIfAbsent(skillClass, this::collectDataKeys);
+ 			
+@@ -75,7 +75,7 @@
+ 	
+ 	@Override
+ 	public void onAdd(Registry<SkillDataKey<?>> registry, int id, ResourceKey<SkillDataKey<?>> key, SkillDataKey<?> value) {
+-		addForClasses(value.referencingSkillClasses(), registry.getHolder(key).orElseThrow());
++		addForClasses(value.referencingSkillClasses(), registry.get(key).orElseThrow());
+ 	}
+ 	
+ 	/// Binds a data-key holder to its referencing skill classes and drops any
+--- a/src/main/java/yesman/epicfight/EpicFightFabric.java
++++ b/src/main/java/yesman/epicfight/EpicFightFabric.java
+@@ -164,7 +164,7 @@
+ 
+         // Add skill books to creative tab
+         ItemGroupEvents.modifyEntriesEvent(EpicFightCreativeTabs.ITEMS.getKey()).register(entries -> {
+-            EpicFightRegistries.SKILL.holders()
++            EpicFightRegistries.SKILL.listElements()
+                 .filter(skill -> skill.value().getCategory().learnable() && skill.value().getCreativeTab() == null)
+                 .forEach(holder -> {
+                     ItemStack stack = new ItemStack(EpicFightItems.SKILLBOOK.get());
+--- a/src/main/java/yesman/epicfight/skill/Skill.java
++++ b/src/main/java/yesman/epicfight/skill/Skill.java
+@@ -545,7 +545,7 @@
+ 	
+ 	public Holder<Skill> holder() {
+ 		if (this.holder == null && this.registryName != null) {
+-			this.holder = EpicFightRegistries.SKILL.getHolder(
++			this.holder = EpicFightRegistries.SKILL.get(
+ 				net.minecraft.resources.ResourceKey.create(EpicFightRegistries.Keys.SKILL, this.registryName)
+ 			).orElse(null);
+ 		}
+--- a/src/main/java/yesman/epicfight/server/commands/arguments/SkillArgument.java
++++ b/src/main/java/yesman/epicfight/server/commands/arguments/SkillArgument.java
+@@ -38,7 +38,7 @@
+ 
+ 	public Holder<Skill> parse(StringReader p_98428_) throws CommandSyntaxException {
+ 		ResourceLocation resourcelocation = ResourceLocation.read(p_98428_);
+-		Optional<Holder.Reference<Skill>> skill = EpicFightRegistries.SKILL.getHolder(resourcelocation);
++		Optional<Holder.Reference<Skill>> skill = EpicFightRegistries.SKILL.get(resourcelocation);
+ 		
+ 		if (skill.isEmpty()) {
+ 			throw ERROR_UNKNOWN_SKILL.create(resourcelocation);
+--- a/src/main/java/yesman/epicfight/api/data/reloader/SkillReloadListener.java
++++ b/src/main/java/yesman/epicfight/api/data/reloader/SkillReloadListener.java
+@@ -50,22 +50,22 @@
+ 		}
+ 		
+ 		if (EpicFightRegistries.SKILL.containsKey(rl)) {
+-			return EpicFightRegistries.SKILL.get(rl);
++			return EpicFightRegistries.SKILL.getValue(rl);
+ 		} else {
+ 			return null;
+ 		}
+ 	}
+ 	
+ 	public static Collection<Skill> getSkills(Predicate<Skill> predicate) {
+-		return EpicFightRegistries.SKILL.holders().map(Holder::value).filter(skill -> predicate.test(skill)).toList();
++		return EpicFightRegistries.SKILL.listElements().map(Holder::value).filter(skill -> predicate.test(skill)).toList();
+ 	}
+ 	
+ 	public static Stream<ResourceLocation> getSkillNames(Predicate<Skill> predicate) {
+-		return EpicFightRegistries.SKILL.holders().map(Holder::value).filter(skill -> predicate.test(skill)).map(skill -> skill.getRegistryName());
++		return EpicFightRegistries.SKILL.listElements().map(Holder::value).filter(skill -> predicate.test(skill)).map(skill -> skill.getRegistryName());
+ 	}
+ 	
+ 	public static void reloadAllSkillsAnimations() {
+-		EpicFightRegistries.SKILL.holders().map(Holder::value).forEach((skill) -> {
++		EpicFightRegistries.SKILL.listElements().map(Holder::value).forEach((skill) -> {
+ 			try {
+ 				skill.registerPropertiesToAnimation();
+ 			} catch (NullPointerException e) {
+@@ -82,7 +82,7 @@
+ 				continue;
+ 			}
+ 			
+-			EpicFightRegistries.SKILL.get(ResourceLocation.parse(tag.getString("id"))).loadDatapackParameters(tag);
++			EpicFightRegistries.SKILL.getValue(ResourceLocation.parse(tag.getString("id"))).loadDatapackParameters(tag);
+ 		}
+ 		
+ 		LocalPlayerPatch localplayerpatch = EpicFightCapabilities.ClientModule.getCachedLocalPlayerPatch();
+@@ -138,6 +138,6 @@
+ 			}
+ 			
+ 			return true;
+-		}).map(SkillReloadListener::parseParameters).forEach((pair) -> EpicFightRegistries.SKILL.get(pair.getFirst()).loadDatapackParameters(pair.getSecond()));
++		}).map(SkillReloadListener::parseParameters).forEach((pair) -> EpicFightRegistries.SKILL.getValue(pair.getFirst()).loadDatapackParameters(pair.getSecond()));
+ 	}
+ }
+\ No newline at end of file
+--- a/src/main/java/yesman/epicfight/api/ex_cap/data/Moveset.java
++++ b/src/main/java/yesman/epicfight/api/ex_cap/data/Moveset.java
+@@ -500,7 +500,7 @@
+                         if (get.isJsonObject())
+                         {
+                             get.getAsJsonObject().entrySet().forEach(entry -> {
+-                                Skill guard = EpicFightRegistries.SKILL.get(ResourceLocation.parse(entry.getKey()));
++                                Skill guard = EpicFightRegistries.SKILL.getValue(ResourceLocation.parse(entry.getKey()));
+                                 List<AnimationManager.AnimationAccessor<? extends StaticAnimation>> animations = Lists.newArrayList();
+                                 if (entry.getValue().isJsonArray())
+                                 {
+@@ -525,7 +525,7 @@
+                     }
+                     if (json.has("innate_skill"))
+                     {
+-                        result.addInnateSkill((itemStack, playerPatch) -> EpicFightRegistries.SKILL.get(ResourceLocation.parse(json.get("innate_skill").getAsString())));
++                        result.addInnateSkill((itemStack, playerPatch) -> EpicFightRegistries.SKILL.getValue(ResourceLocation.parse(json.get("innate_skill").getAsString())));
+                     }
+                     if (json.has("living_animations"))
+                     {
+@@ -533,7 +533,7 @@
+                     }
+                     if (json.has("weapon_passive"))
+                     {
+-                        result.setPassiveSkill(EpicFightRegistries.SKILL.getHolder(ResourceLocation.parse(json.get("weapon_passive").getAsString())).get());
++                        result.setPassiveSkill(EpicFightRegistries.SKILL.get(ResourceLocation.parse(json.get("weapon_passive").getAsString())).get());
+                     }
+                     if (json.has("guard_motions"))
+                     {

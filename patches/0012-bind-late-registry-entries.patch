@@ -1,0 +1,115 @@
+--- a/src/main/java/yesman/epicfight/registry/deferred_shim/DeferredHolderShim.java
++++ b/src/main/java/yesman/epicfight/registry/deferred_shim/DeferredHolderShim.java
+@@ -6,6 +6,10 @@
+ import net.minecraft.resources.ResourceKey;
+ import net.minecraft.resources.ResourceLocation;
+ 
++import yesman.epicfight.mixin.common.HolderReferenceAccessor;
++import yesman.epicfight.mixin.common.MappedRegistryAccessor;
++
++import java.util.List;
+ import java.util.Objects;
+ import java.util.Optional;
+ import java.util.function.Supplier;
+@@ -40,8 +44,37 @@
+     }
+ 
+     void bind(Registry<T> registry) {
+-        I supplied = supplier.get();
+-        this.holder = Registry.registerForHolder(registry, this.key, supplied);
++        this.bind(registry, false);
++    }
++
++    void bindLate(Registry<T> registry) {
++        if (!(registry instanceof MappedRegistryAccessor accessor) || !accessor.epicfight$isFrozen()) {
++            this.bind(registry);
++            return;
++        }
++
++        if (!HolderReferenceAccessor.class.isAssignableFrom(Holder.Reference.class)) {
++            throw new IllegalStateException("The Epic Fight holder accessor did not load");
++        }
++        accessor.epicfight$setFrozen(false);
++        try {
++            this.bind(registry, true);
++        } finally {
++            accessor.epicfight$setFrozen(true);
++        }
++    }
++
++    @SuppressWarnings("unchecked")
++    private void bind(Registry<T> registry, boolean late) {
++        I supplied = this.supplier.get();
++        Holder.Reference<T> reference = Registry.registerForHolder(registry, this.key, supplied);
++        if (late) {
++            // The rest of this registry, including its tag state, was already frozen.
++            var accessor = (HolderReferenceAccessor<T>)(Object)reference;
++            accessor.epicfight$bindValue(supplied);
++            accessor.epicfight$bindTags(List.of());
++        }
++        this.holder = reference;
+         this.value = supplied;
+     }
+ 
+--- a/src/main/java/yesman/epicfight/registry/deferred_shim/DeferredRegisterShim.java
++++ b/src/main/java/yesman/epicfight/registry/deferred_shim/DeferredRegisterShim.java
+@@ -72,9 +72,7 @@
+         }
+     }
+ 
+-    /// Vanilla freezes every registry at the end of the first datapack load;
+-    /// addon registrations can arrive after that, so reopen the registry just
+-    /// for the bind and refreeze afterwards.
++    /// Binds an entry after initial registration without reloading already-bound tags.
+     private void bindLate(DeferredHolderShim<T, ?> holder) {
+         var registry = getRegistry();
+         if (registry == null) {
+@@ -82,17 +80,7 @@
+                 .warn("Registry {} still absent at late bind — skipped {}", registryKey.identifier(), holder.getId());
+             return;
+         }
+-        if (registry instanceof yesman.epicfight.mixin.common.MappedRegistryAccessor accessor
+-                && accessor.epicfight$isFrozen()) {
+-            accessor.epicfight$setFrozen(false);
+-            try {
+-                holder.bind(registry);
+-            } finally {
+-                ((net.minecraft.core.MappedRegistry<?>) registry).freeze();
+-            }
+-        } else {
+-            holder.bind(registry);
+-        }
++        holder.bindLate(registry);
+     }
+ 
+     /// Binds every queued late registration. Called once at the head of
+--- a/src/main/resources/epicfight.mixins.json
++++ b/src/main/resources/epicfight.mixins.json
+@@ -79,6 +79,7 @@
+         "common.MixinRegistryDataLoader",
+         "common.MixinBlockStateBase",
+         "common.MixinWorldLoader",
++        "common.HolderReferenceAccessor",
+         "common.MappedRegistryAccessor"
+     ],
+     "injectors": {
+--- /dev/null
++++ b/src/main/java/yesman/epicfight/mixin/common/HolderReferenceAccessor.java
+@@ -0,0 +1,17 @@
++package yesman.epicfight.mixin.common;
++
++import net.minecraft.core.Holder;
++import net.minecraft.tags.TagKey;
++import org.spongepowered.asm.mixin.Mixin;
++import org.spongepowered.asm.mixin.gen.Invoker;
++
++import java.util.Collection;
++
++@Mixin(Holder.Reference.class)
++public interface HolderReferenceAccessor<T> {
++    @Invoker("bindValue")
++    void epicfight$bindValue(T value);
++
++    @Invoker("bindTags")
++    void epicfight$bindTags(Collection<TagKey<T>> tags);
++}
