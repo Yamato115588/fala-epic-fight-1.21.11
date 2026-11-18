@@ -1,0 +1,156 @@
+--- a/src/main/java/yesman/epicfight/client/renderer/shader/compute/ComputeShaderSetup.java
++++ b/src/main/java/yesman/epicfight/client/renderer/shader/compute/ComputeShaderSetup.java
+@@ -1,7 +1,7 @@
+ package yesman.epicfight.client.renderer.shader.compute;
+ 
+ import com.google.common.collect.Lists;
+-import com.mojang.blaze3d.platform.GlStateManager;
++import com.mojang.blaze3d.opengl.GlStateManager;
+ import com.mojang.blaze3d.platform.Window;
+ import com.mojang.blaze3d.systems.RenderSystem;
+ import com.mojang.blaze3d.vertex.PoseStack;
+--- a/src/main/java/yesman/epicfight/client/renderer/shader/compute/VanillaComputeShaderSetup.java
++++ b/src/main/java/yesman/epicfight/client/renderer/shader/compute/VanillaComputeShaderSetup.java
+@@ -1,6 +1,6 @@
+ package yesman.epicfight.client.renderer.shader.compute;
+ 
+-import com.mojang.blaze3d.platform.GlStateManager;
++import com.mojang.blaze3d.opengl.GlStateManager;
+ import com.mojang.blaze3d.vertex.PoseStack;
+ import com.mojang.blaze3d.vertex.VertexFormat;
+ import com.mojang.blaze3d.vertex.VertexFormatElement;
+--- a/src/main/java/yesman/epicfight/client/renderer/shader/compute/backend/ssbo/DynamicSSBO.java
++++ b/src/main/java/yesman/epicfight/client/renderer/shader/compute/backend/ssbo/DynamicSSBO.java
+@@ -1,6 +1,6 @@
+ package yesman.epicfight.client.renderer.shader.compute.backend.ssbo;
+ 
+-import com.mojang.blaze3d.platform.GlStateManager;
++import com.mojang.blaze3d.opengl.GlStateManager;
+ import org.lwjgl.BufferUtils;
+ import org.lwjgl.opengl.GL15C;
+ import org.lwjgl.opengl.GL30C;
+--- a/src/main/java/yesman/epicfight/client/renderer/shader/compute/backend/ssbo/OutputSSBO.java
++++ b/src/main/java/yesman/epicfight/client/renderer/shader/compute/backend/ssbo/OutputSSBO.java
+@@ -1,6 +1,6 @@
+ package yesman.epicfight.client.renderer.shader.compute.backend.ssbo;
+ 
+-import com.mojang.blaze3d.platform.GlStateManager;
++import com.mojang.blaze3d.opengl.GlStateManager;
+ import org.lwjgl.opengl.GL15C;
+ import org.lwjgl.opengl.GL30C;
+ import org.lwjgl.opengl.GL43C;
+--- a/src/main/java/yesman/epicfight/client/renderer/shader/compute/backend/ssbo/StaticSSBO.java
++++ b/src/main/java/yesman/epicfight/client/renderer/shader/compute/backend/ssbo/StaticSSBO.java
+@@ -1,6 +1,6 @@
+ package yesman.epicfight.client.renderer.shader.compute.backend.ssbo;
+ 
+-import com.mojang.blaze3d.platform.GlStateManager;
++import com.mojang.blaze3d.opengl.GlStateManager;
+ import org.jetbrains.annotations.NotNull;
+ import org.lwjgl.BufferUtils;
+ import org.lwjgl.opengl.GL15C;
+--- a/src/main/java/yesman/epicfight/client/renderer/shader/compute/iris/IrisComputeShaderSetup.java
++++ b/src/main/java/yesman/epicfight/client/renderer/shader/compute/iris/IrisComputeShaderSetup.java
+@@ -15,7 +15,7 @@
+ import javax.annotation.Nullable;
+ 
+ import com.google.common.collect.Lists;
+-import com.mojang.blaze3d.platform.GlStateManager;
++import com.mojang.blaze3d.opengl.GlStateManager;
+ import com.mojang.blaze3d.vertex.PoseStack;
+ import com.mojang.blaze3d.vertex.VertexFormat;
+ import com.mojang.blaze3d.vertex.VertexFormatElement;
+--- a/src/main/java/yesman/epicfight/client/renderer/shader/compute/loader/ComputeShaderProvider.java
++++ b/src/main/java/yesman/epicfight/client/renderer/shader/compute/loader/ComputeShaderProvider.java
+@@ -15,6 +15,8 @@
+ import yesman.epicfight.client.renderer.shader.compute.backend.ssbo.DynamicSSBO;
+ import yesman.epicfight.client.renderer.shader.compute.backend.ssbo.IArrayBufferProxy;
+ import yesman.epicfight.client.renderer.shader.compute.iris.IrisComputeShaderSetup;
++
++import net.minecraft.server.packs.resources.ResourceProvider;
+ 
+ import java.nio.FloatBuffer;
+ import java.util.function.BiConsumer;
+@@ -69,22 +71,22 @@
+         EpicFight.LOGGER.warn("[Computer Shader Acceleration] Compute Shader: {}", (supportComputeShader ? "Supported" : "Unsupported"));
+     }
+     
+-    public static void epicfight$registerComputeShaders(yesman.epicfight.platform.neoforged.client.event.RegisterShadersEvent event) {
++    public static void reloadComputeShaders(ResourceProvider resources) {
+         if (!supportComputeShader) return;
+         
+         clear();
+         
+         try {
+-            meshComputeVanilla = ComputeShaderLoader.loadComputeShaderProgram(event.getResourceProvider(),
++            meshComputeVanilla = ComputeShaderLoader.loadComputeShaderProgram(resources,
+                     EpicFight.identifier("shaders/compute/vanilla_mesh_transformer.comp"),
+                     BarrierFlags.SHADER_STORAGE, BarrierFlags.VERTEX_ATTRIB_ARRAY);
+             /*batchedMeshComputeVanilla =
+-                    ComputeShaderLoader.loadComputeShaderProgram(event.getResourceProvider(),
++                    ComputeShaderLoader.loadComputeShaderProgram(resources,
+                             EpicFight.identifier("shaders/compute/batched/vanilla_batched_mesh_transformer.comp"),
+                             BarrierFlags.SHADER_STORAGE, BarrierFlags.VERTEX_ATTRIB_ARRAY);*/
+             if (irisLoaded)
+             {
+-                meshComputeIris = ComputeShaderLoader.loadComputeShaderProgram(event.getResourceProvider(), EpicFight.identifier("shaders/compute/iris_mesh_transformer.comp"), BarrierFlags.SHADER_STORAGE, BarrierFlags.VERTEX_ATTRIB_ARRAY);
++                meshComputeIris = ComputeShaderLoader.loadComputeShaderProgram(resources, EpicFight.identifier("shaders/compute/iris_mesh_transformer.comp"), BarrierFlags.SHADER_STORAGE, BarrierFlags.VERTEX_ATTRIB_ARRAY);
+             }
+ 
+             maxSSBOLen = ComputeShaderLoader.getGLMaxSSBOSize();
+--- a/src/main/java/yesman/epicfight/EpicFightFabricClient.java
++++ b/src/main/java/yesman/epicfight/EpicFightFabricClient.java
+@@ -46,6 +46,9 @@
+ import yesman.epicfight.client.particle.LaserParticle;
+ import yesman.epicfight.client.particle.ProjectileTrailParticle;
+ import yesman.epicfight.client.particle.TsunamiSplashParticle;
++import net.fabricmc.fabric.api.resource.v1.ResourceLoader;
++import net.minecraft.server.packs.PackType;
++import net.minecraft.server.packs.resources.ResourceManagerReloadListener;
+ import yesman.epicfight.client.renderer.EpicFightShaders;
+ import yesman.epicfight.client.renderer.blockentity.FractureBlockRenderer;
+ import yesman.epicfight.client.renderer.entity.DroppedNetherStarRenderer;
+@@ -77,19 +80,19 @@
+                     DefaultVertexFormat.POSITION_COLOR_NORMAL,
+                     shader -> EpicFightShaders.positionColorNormalShader = shader);
+ 
+-            // Register compute shaders if hardware supports them
+-            try {
+-                ComputeShaderProvider.checkIfSupports();
+-                if (ComputeShaderProvider.supportComputeShader()) {
+-                    yesman.epicfight.platform.neoforged.client.event.RegisterShadersEvent evt =
+-                            new yesman.epicfight.platform.neoforged.client.event.RegisterShadersEvent(
+-                                    Minecraft.getInstance().getResourceManager());
+-                    ComputeShaderProvider.epicfight$registerComputeShaders(evt);
++        });
++
++        ResourceLoader.get(PackType.CLIENT_RESOURCES).registerReloader(
++            EpicFight.identifier("compute_shaders"),
++            (ResourceManagerReloadListener) resources -> {
++                try {
++                    ComputeShaderProvider.checkIfSupports();
++                    ComputeShaderProvider.reloadComputeShaders(resources);
++                } catch (RuntimeException e) {
++                    EpicFight.LOGGER.warn("Compute shader registration failed", e);
+                 }
+-            } catch (Throwable e) {
+-                EpicFight.LOGGER.warn("Compute shader registration failed", e);
+-            }
+-        });
++            }
++        );
+ 
+         // Register entity renderers
+         EntityRendererRegistry.register(EpicFightEntityTypes.AREA_EFFECT_BREATH.get(), net.minecraft.client.renderer.entity.NoopRenderer::new);
+@@ -174,10 +177,7 @@
+                         yesman.epicfight.client.gui.screen.config.ItemsPreferenceScreen.resetItems();
+                     }
+                     if (ComputeShaderProvider.supportComputeShader() && ComputeShaderProvider.meshComputeVanilla == null) {
+-                        yesman.epicfight.platform.neoforged.client.event.RegisterShadersEvent evt =
+-                                new yesman.epicfight.platform.neoforged.client.event.RegisterShadersEvent(
+-                                        Minecraft.getInstance().getResourceManager());
+-                        ComputeShaderProvider.epicfight$registerComputeShaders(evt);
++                        ComputeShaderProvider.reloadComputeShaders(client.getResourceManager());
+                     }
+                 } catch (Throwable e) {
+                     EpicFight.LOGGER.warn("First-tick client setup failed", e);

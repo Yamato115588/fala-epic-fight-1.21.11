@@ -1,0 +1,166 @@
+--- a/src/main/java/yesman/epicfight/client/renderer/EpicFightRenderTypes.java
++++ b/src/main/java/yesman/epicfight/client/renderer/EpicFightRenderTypes.java
+@@ -5,7 +5,6 @@
+ import java.util.List;
+ import java.util.Map;
+ import java.util.Optional;
+-import java.util.OptionalDouble;
+ import java.util.function.BiFunction;
+ import java.util.function.Function;
+ 
+@@ -315,54 +314,6 @@
+ 		)
+ 	);
+ 	
+-	private static final RenderType OBB = create(
+-		  EpicFightMod.prefix("debug_collider")
+-		, DefaultVertexFormat.POSITION_COLOR_NORMAL
+-		, VertexFormat.Mode.LINE_STRIP
+-		, 256
+-		, false
+-		, false
+-		, RenderType.CompositeState.builder()
+-			.setShaderState(POSITION_COLOR_SHADER)
+-			.setLineState(new RenderStateShard.LineStateShard(OptionalDouble.empty()))
+-			.setLayeringState(VIEW_OFFSET_Z_LAYERING)
+-			.setTransparencyState(TRANSLUCENT_TRANSPARENCY)
+-			.setOutputState(ITEM_ENTITY_TARGET)
+-			.setWriteMaskState(COLOR_DEPTH_WRITE)
+-			.setCullState(NO_CULL)
+-			.createCompositeState(false)
+-	);
+-	
+-	private static final RenderType DEBUG_QUADS = create(
+-		  EpicFightMod.prefix("debug_quad")
+-		, DefaultVertexFormat.POSITION_COLOR
+-		, VertexFormat.Mode.QUADS
+-		, 256
+-		, false
+-		, false
+-		, RenderType.CompositeState.builder()
+-			.setShaderState(POSITION_COLOR_SHADER)
+-			.setLayeringState(VIEW_OFFSET_Z_LAYERING)
+-			.setTransparencyState(NO_TRANSPARENCY)
+-			.setWriteMaskState(COLOR_DEPTH_WRITE)
+-			.setCullState(NO_CULL)
+-			.createCompositeState(false)
+-	);
+-	
+-	private static final RenderType GUI_TRIANGLE = create(
+-		  EpicFightMod.prefix("gui_triangle")
+-		, DefaultVertexFormat.POSITION_COLOR
+-		, VertexFormat.Mode.TRIANGLES
+-		, 256
+-		, false
+-		, false
+-		, RenderType.CompositeState.builder()
+-			.setShaderState(RENDERTYPE_GUI_SHADER)
+-			.setTransparencyState(TRANSLUCENT_TRANSPARENCY)
+-			.setDepthTestState(LEQUAL_DEPTH_TEST)
+-			.createCompositeState(false)
+-	);
+-	
+ 	private static final Function<ResourceLocation, RenderType> OVERLAY_MODEL = Util.memoize(texLocation -> {
+ 		return create(
+ 			EpicFightMod.prefix("overlay_model"),
+@@ -565,15 +516,15 @@
+ 	}
+ 	
+ 	public static RenderType debugCollider() {
+-		return OBB;
++		return EpicFightColorRenderTypes.COLLIDER;
+ 	}
+ 	
+ 	public static RenderType debugQuads() {
+-		return DEBUG_QUADS;
++		return EpicFightColorRenderTypes.QUADS;
+ 	}
+ 	
+ 	public static RenderType guiTriangle() {
+-		return GUI_TRIANGLE;
++		return EpicFightColorRenderTypes.GUI_TRIANGLE;
+ 	}
+ 	
+ 	public static RenderType overlayModel(ResourceLocation textureLocation) {
+--- /dev/null
++++ b/src/main/java/yesman/epicfight/client/renderer/EpicFightColorRenderTypes.java
+@@ -0,0 +1,46 @@
++package yesman.epicfight.client.renderer;
++
++import com.mojang.blaze3d.pipeline.BlendFunction;
++import com.mojang.blaze3d.pipeline.RenderPipeline;
++import com.mojang.blaze3d.platform.DepthTestFunction;
++import com.mojang.blaze3d.shaders.UniformType;
++import com.mojang.blaze3d.vertex.DefaultVertexFormat;
++import com.mojang.blaze3d.vertex.VertexFormat;
++import net.minecraft.client.renderer.rendertype.LayeringTransform;
++import net.minecraft.client.renderer.rendertype.OutputTarget;
++import net.minecraft.client.renderer.rendertype.RenderSetup;
++import net.minecraft.client.renderer.rendertype.RenderType;
++import net.minecraft.resources.Identifier;
++
++final class EpicFightColorRenderTypes {
++    static final RenderType COLLIDER = RenderType.create("epicfight:debug_collider", RenderSetup.builder(
++        colorPipeline("debug_collider", "core/position_color", DefaultVertexFormat.POSITION_COLOR_NORMAL, VertexFormat.Mode.DEBUG_LINE_STRIP)
++            .withCull(false).withBlend(BlendFunction.TRANSLUCENT).build())
++        .setLayeringTransform(LayeringTransform.VIEW_OFFSET_Z_LAYERING)
++        .setOutputTarget(OutputTarget.ITEM_ENTITY_TARGET).bufferSize(256).createRenderSetup());
++
++    static final RenderType QUADS = RenderType.create("epicfight:debug_quad", RenderSetup.builder(
++        colorPipeline("debug_quad", "core/position_color", DefaultVertexFormat.POSITION_COLOR, VertexFormat.Mode.QUADS)
++            .withCull(false).build())
++        .setLayeringTransform(LayeringTransform.VIEW_OFFSET_Z_LAYERING).bufferSize(256).createRenderSetup());
++
++    static final RenderType GUI_TRIANGLE = RenderType.create("epicfight:gui_triangle", RenderSetup.builder(
++        colorPipeline("gui_triangle", "core/gui", DefaultVertexFormat.POSITION_COLOR, VertexFormat.Mode.TRIANGLES)
++            .withBlend(BlendFunction.TRANSLUCENT).build())
++        .bufferSize(256).createRenderSetup());
++
++    private EpicFightColorRenderTypes() {
++    }
++
++    private static RenderPipeline.Builder colorPipeline(String name, String shader, VertexFormat format, VertexFormat.Mode mode) {
++        return RenderPipeline.builder()
++            .withLocation(Identifier.fromNamespaceAndPath("epicfight", "pipeline/" + name))
++            .withVertexShader(shader)
++            .withFragmentShader(shader)
++            .withUniform("DynamicTransforms", UniformType.UNIFORM_BUFFER)
++            .withUniform("Projection", UniformType.UNIFORM_BUFFER)
++            .withDepthTestFunction(DepthTestFunction.LEQUAL_DEPTH_TEST)
++            .withDepthWrite(true)
++            .withVertexFormat(format, mode);
++    }
++}
+--- a/src/main/java/yesman/epicfight/client/particle/ProjectileTrailParticle.java
++++ b/src/main/java/yesman/epicfight/client/particle/ProjectileTrailParticle.java
+@@ -48,7 +48,7 @@
+ 			return false;
+ 		}
+ 		
+-		return this.owner.getOriginal().isAlive() && !this.owner.getOriginal().inGround;
++		return this.owner.getOriginal().isAlive() && !this.owner.getOriginal().isInGround();
+ 	}
+ 	
+ 	@Override
+--- a/src/main/resources/epicfight.accesswidener
++++ b/src/main/resources/epicfight.accesswidener
+@@ -34,7 +34,7 @@
+ accessible field net/minecraft/client/particle/Particle alpha F
+ accessible field net/minecraft/client/player/ClientInput moveVector Lnet/minecraft/world/phys/Vec2;
+ accessible field net/minecraft/client/player/LocalPlayer sprintTriggerTime I
+-accessible method net/minecraft/client/renderer/GameRenderer getFov (Lnet/minecraft/client/Camera;FZ)D
++accessible method net/minecraft/client/renderer/GameRenderer getFov (Lnet/minecraft/client/Camera;FZ)F
+ accessible method net/minecraft/client/renderer/block/model/ItemOverrides$PropertyMatcher <init> (IF)V
+ accessible field net/minecraft/client/renderer/entity/EntityRenderDispatcher renderers Ljava/util/Map;
+ accessible field net/minecraft/client/renderer/entity/LivingEntityRenderer layers Ljava/util/List;
+@@ -129,8 +129,9 @@
+ accessible field net/minecraft/client/gui/components/Button$Builder height I
+ accessible field net/minecraft/client/renderer/entity/EntityRenderDispatcher playerRenderers Ljava/util/Map;
+ accessible field net/minecraft/client/renderer/LightTexture lightTexture Lnet/minecraft/client/renderer/texture/DynamicTexture;
+-accessible field net/minecraft/world/entity/projectile/AbstractArrow inGround Z
++accessible method net/minecraft/world/entity/projectile/AbstractArrow isInGround ()Z
+ accessible method net/minecraft/client/renderer/entity/layers/HumanoidArmorLayer getArmorModel (Lnet/minecraft/world/entity/EquipmentSlot;)Lnet/minecraft/client/model/HumanoidModel;
+ accessible field net/minecraft/client/renderer/RenderType$CompositeState cullState Lnet/minecraft/client/renderer/RenderStateShard$CullStateShard;
+ accessible field net/minecraft/world/entity/boss/enderdragon/phases/EnderDragonPhaseManager dragon Lnet/minecraft/world/entity/boss/enderdragon/EnderDragon;
+ accessible field net/minecraft/commands/synchronization/ArgumentTypeInfos BY_CLASS Ljava/util/Map;
++accessible method net/minecraft/client/renderer/RenderType create (Ljava/lang/String;Lnet/minecraft/client/renderer/rendertype/RenderSetup;)Lnet/minecraft/client/renderer/RenderType;

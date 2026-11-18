@@ -1,0 +1,376 @@
+--- a/src/main/java/yesman/epicfight/registry/entries/EpicFightArmorMaterials.java
++++ b/src/main/java/yesman/epicfight/registry/entries/EpicFightArmorMaterials.java
+@@ -1,46 +1,39 @@
+ package yesman.epicfight.registry.entries;
++
++import java.util.Map;
++
++import net.minecraft.core.component.DataComponents;
++import net.minecraft.core.registries.Registries;
++import net.minecraft.resources.ResourceKey;
++import net.minecraft.sounds.SoundEvents;
++import net.minecraft.tags.TagKey;
++import net.minecraft.world.item.Item;
++import net.minecraft.world.item.equipment.ArmorMaterial;
++import net.minecraft.world.item.equipment.ArmorType;
++import net.minecraft.world.item.equipment.EquipmentAssets;
++import net.minecraft.world.item.equipment.Equippable;
+ import yesman.epicfight.EpicFight;
+ 
+-import java.util.EnumMap;
+-import java.util.List;
++public final class EpicFightArmorMaterials {
++    private EpicFightArmorMaterials() {
++    }
+ 
+-import net.minecraft.Util;
+-import net.minecraft.core.registries.Registries;
+-import net.minecraft.resources.ResourceLocation;
+-import net.minecraft.sounds.SoundEvents;
+-import net.minecraft.world.item.ArmorItem;
+-import net.minecraft.world.item.ArmorMaterial;
+-import net.minecraft.world.item.Items;
+-import net.minecraft.world.item.crafting.Ingredient;
+-import yesman.epicfight.registry.deferred_shim.DeferredHolderShim;
+-import yesman.epicfight.registry.deferred_shim.DeferredRegisterShim;
++    public static final ArmorMaterial STRAY_CLOTH = new ArmorMaterial(
++        0, Map.of(ArmorType.BOOTS, 1, ArmorType.LEGGINGS, 2, ArmorType.CHESTPLATE, 3,
++            ArmorType.HELMET, 1, ArmorType.BODY, 2),
++        15, SoundEvents.ARMOR_EQUIP_LEATHER, 0.0F, 0.0F,
++        TagKey.create(Registries.ITEM, EpicFight.identifier("repairs_stray_cloth")),
++        ResourceKey.create(EquipmentAssets.ROOT_ID, EpicFight.identifier("stray_cloth"))
++    );
+ 
+-public final class EpicFightArmorMaterials {
+-	private EpicFightArmorMaterials() {}
+-	
+-	public static final DeferredRegisterShim<ArmorMaterial> REGISTRY = new DeferredRegisterShim<>(Registries.ARMOR_MATERIAL, EpicFight.MODID);
+-	
+-	public static final DeferredHolderShim<ArmorMaterial, ArmorMaterial> STRAY_CLOTH =
+-		REGISTRY.register(
+-			  "stray_cloth"
+-			, () ->
+-				new ArmorMaterial(
+-					Util.make(
+-						new EnumMap<>(ArmorItem.Type.class),
+-						enumMap -> {
+-					        enumMap.put(ArmorItem.Type.BOOTS, 1);
+-					        enumMap.put(ArmorItem.Type.LEGGINGS, 2);
+-					        enumMap.put(ArmorItem.Type.CHESTPLATE, 3);
+-					        enumMap.put(ArmorItem.Type.HELMET, 1);
+-					        enumMap.put(ArmorItem.Type.BODY, 2);
+-						}
+-					)
+-					, 15
+-					, SoundEvents.ARMOR_EQUIP_LEATHER
+-					, () -> Ingredient.of(Items.STRING)
+-					, List.of(new ArmorMaterial.Layer(EpicFight.identifier("stray_cloth")))
+-					, 0.0F
+-					, 0.0F
+-				)
+-		);
+-}
+\ No newline at end of file
++    public static Item makeStrayCloth(Item.Properties properties, ArmorType type) {
++        return new Item(properties.stacksTo(1)
++            .attributes(STRAY_CLOTH.createAttributes(type))
++            .enchantable(STRAY_CLOTH.enchantmentValue())
++            .repairable(STRAY_CLOTH.repairIngredient())
++            .component(DataComponents.EQUIPPABLE, Equippable.builder(type.getSlot())
++                .setEquipSound(STRAY_CLOTH.equipSound())
++                .setAsset(STRAY_CLOTH.assetId())
++                .build()));
++    }
++}
+--- a/src/main/java/yesman/epicfight/registry/entries/EpicFightItems.java
++++ b/src/main/java/yesman/epicfight/registry/entries/EpicFightItems.java
+@@ -5,7 +5,7 @@
+ 
+ import net.minecraft.core.registries.Registries;
+ import net.minecraft.resources.ResourceKey;
+-import net.minecraft.world.item.ArmorItem;
++import net.minecraft.world.item.equipment.ArmorType;
+ import net.minecraft.world.item.Item;
+ import net.minecraft.world.item.Rarity;
+ import net.minecraft.world.item.ToolMaterial;
+@@ -145,9 +145,9 @@
+ 	);
+ 	
+ 	// Stray armor
+-	public static final DeferredHolderShim<Item, ArmorItem> STRAY_HAT = registerItem("stray_hat", properties -> new ArmorItem(EpicFightArmorMaterials.STRAY_CLOTH, ArmorItem.Type.HELMET, properties));
+-	public static final DeferredHolderShim<Item, ArmorItem> STRAY_ROBE = registerItem("stray_robe", properties -> new ArmorItem(EpicFightArmorMaterials.STRAY_CLOTH, ArmorItem.Type.CHESTPLATE, properties));
+-	public static final DeferredHolderShim<Item, ArmorItem> STRAY_PANTS = registerItem("stray_pants", properties -> new ArmorItem(EpicFightArmorMaterials.STRAY_CLOTH, ArmorItem.Type.LEGGINGS, properties));
++	public static final DeferredHolderShim<Item, Item> STRAY_HAT = registerItem("stray_hat", properties -> EpicFightArmorMaterials.makeStrayCloth(properties, ArmorType.HELMET));
++	public static final DeferredHolderShim<Item, Item> STRAY_ROBE = registerItem("stray_robe", properties -> EpicFightArmorMaterials.makeStrayCloth(properties, ArmorType.CHESTPLATE));
++	public static final DeferredHolderShim<Item, Item> STRAY_PANTS = registerItem("stray_pants", properties -> EpicFightArmorMaterials.makeStrayCloth(properties, ArmorType.LEGGINGS));
+ 	
+ 	public static final DeferredHolderShim<Item, SkillBookItem> SKILLBOOK = registerItem("skillbook", properties -> new SkillBookItem(properties.rarity(Rarity.RARE).stacksTo(1)));
+ }
+\ No newline at end of file
+--- a/src/main/java/yesman/epicfight/registry/EpicFightRegistries.java
++++ b/src/main/java/yesman/epicfight/registry/EpicFightRegistries.java
+@@ -49,7 +49,7 @@
+     }
+ 
+     public static final List<DeferredRegisterShim<?>> DEFERRED_REGISTRIES = List.of(
+-        EpicFightArmorMaterials.REGISTRY, EpicFightAttributes.REGISTRY, EpicFightBlockEntities.REGISTRY,
++        EpicFightAttributes.REGISTRY, EpicFightBlockEntities.REGISTRY,
+         EpicFightBlocks.REGISTRY, EpicFightCommandArgumentTypes.REGISTRY, EpicFightConditions.REGISTRY,
+         EpicFightCreativeTabs.REGISTRY, EpicFightDataComponentTypes.REGISTRY, EpicFightEntityTypes.REGISTRY,
+         EpicFightExpandedEntityDataAccessors.REGISTRY, EpicFightItems.REGISTRY, EpicFightLootItemFunctions.REGISTRY,
+--- /dev/null
++++ b/src/main/java/yesman/epicfight/world/capabilities/item/ArmorAttributes.java
+@@ -0,0 +1,43 @@
++package yesman.epicfight.world.capabilities.item;
++
++import net.minecraft.core.component.DataComponents;
++import net.minecraft.world.entity.ai.attributes.AttributeModifier;
++import net.minecraft.world.entity.ai.attributes.Attributes;
++import net.minecraft.world.item.Item;
++import net.minecraft.world.item.component.ItemAttributeModifiers;
++import net.minecraft.world.item.equipment.ArmorType;
++
++public record ArmorAttributes(ArmorType type, double defense) {
++    public static ArmorAttributes fromItem(Item item) {
++        var components = item.components();
++        var equippable = components.get(DataComponents.EQUIPPABLE);
++        if (equippable == null) {
++            return null;
++        }
++
++        ArmorType type = switch (equippable.slot()) {
++            case FEET -> ArmorType.BOOTS;
++            case LEGS -> ArmorType.LEGGINGS;
++            case CHEST -> ArmorType.CHESTPLATE;
++            case HEAD -> ArmorType.HELMET;
++            case BODY -> ArmorType.BODY;
++            default -> null;
++        };
++        if (type == null) {
++            return null;
++        }
++
++        boolean hasArmor = false;
++        double defense = 0.0D;
++        var attributes = components.getOrDefault(DataComponents.ATTRIBUTE_MODIFIERS, ItemAttributeModifiers.EMPTY);
++        for (var entry : attributes.modifiers()) {
++            if (entry.attribute().equals(Attributes.ARMOR) && entry.slot().test(equippable.slot())) {
++                hasArmor = true;
++                if (entry.modifier().operation() == AttributeModifier.Operation.ADD_VALUE) {
++                    defense += entry.modifier().amount();
++                }
++            }
++        }
++        return hasArmor ? new ArmorAttributes(type, defense) : null;
++    }
++}
+--- a/src/main/java/yesman/epicfight/world/capabilities/item/ArmorCapability.java
++++ b/src/main/java/yesman/epicfight/world/capabilities/item/ArmorCapability.java
+@@ -10,8 +10,7 @@
+ import net.minecraft.world.entity.ai.attributes.AttributeModifier;
+ import net.minecraft.world.entity.ai.attributes.AttributeModifier.Operation;
+ import net.minecraft.world.entity.ai.attributes.Attributes;
+-import net.minecraft.world.item.ArmorItem;
+-import net.minecraft.world.item.ArmorMaterial;
++import net.minecraft.world.item.equipment.ArmorType;
+ import net.minecraft.world.item.Item;
+ import net.minecraft.world.item.ItemStack;
+ import net.minecraft.world.item.component.ItemAttributeModifiers;
+@@ -23,7 +22,7 @@
+ public class ArmorCapability extends CapabilityItem {
+ 	protected final double weight;
+ 	protected final double stunArmor;
+-	protected final ArmorItem.Type armorType;
++	protected final ArmorType armorType;
+ 	
+ 	protected ArmorCapability(ArmorCapability.Builder builder) {
+ 		super(builder);
+@@ -56,7 +55,7 @@
+             }
+         }
+ 
+-        index++;
++        index = Math.min(index + 1, itemTooltip.size());
+ 
+         if (!modifyIn) {
+             itemTooltip.add(index, Component.literal(""));
+@@ -106,7 +105,7 @@
+ 	}
+ 	
+ 	public static class Builder extends CapabilityItem.Builder<Builder> {
+-		private ArmorItem.Type armorType;
++		private ArmorType armorType;
+ 		private double weight;
+ 		private double stunArmor;
+ 		
+@@ -117,19 +116,18 @@
+ 		}
+ 		
+ 		public Builder byItem(Item item) {
+-			if (item instanceof ArmorItem armorItem) {
+-				Holder<ArmorMaterial> armorMaterial = armorItem.getMaterial();
+-				this.armorType = armorItem.getType();
+-				
+-				if (this.weight < 0.0D) {
+-					this.weight = armorMaterial.value().defense().getOrDefault(this.armorType, 1) * 2.5F;
+-				}
+-				
+-				if (this.stunArmor < 0.0D) {
+-					this.stunArmor = armorMaterial.value().defense().getOrDefault(this.armorType, 1) * 0.375F;
+-				}
++			ArmorAttributes armor = ArmorAttributes.fromItem(item);
++			if (armor == null) {
++				throw new IllegalArgumentException("Item has no armor attributes for its equipment slot");
+ 			}
+-			
++			this.armorType = armor.type();
++			if (this.weight < 0.0D) {
++				this.weight = armor.defense() * 2.5D;
++			}
++			if (this.stunArmor < 0.0D) {
++				this.stunArmor = armor.defense() * 0.375D;
++			}
++
+ 			return this;
+ 		}
+ 		
+--- a/src/main/java/yesman/epicfight/world/capabilities/provider/CommonItemCapabilityProvider.java
++++ b/src/main/java/yesman/epicfight/world/capabilities/provider/CommonItemCapabilityProvider.java
+@@ -8,19 +8,16 @@
+ 
+ import net.minecraft.core.registries.BuiltInRegistries;
+ import net.minecraft.resources.ResourceLocation;
+-import net.minecraft.world.item.ArmorItem;
+-import net.minecraft.world.item.AxeItem;
++import net.minecraft.tags.ItemTags;
+ import net.minecraft.world.item.BlockItem;
++import yesman.epicfight.world.item.TieredWeaponItem;
++import yesman.epicfight.registry.entries.EpicFightItems;
+ import net.minecraft.world.item.BowItem;
+ import net.minecraft.world.item.CrossbowItem;
+-import net.minecraft.world.item.HoeItem;
+ import net.minecraft.world.item.Item;
+ import net.minecraft.world.item.ItemStack;
+ import net.minecraft.world.item.MapItem;
+-import net.minecraft.world.item.PickaxeItem;
+ import net.minecraft.world.item.ShieldItem;
+-import net.minecraft.world.item.ShovelItem;
+-import net.minecraft.world.item.SwordItem;
+ 
+ import yesman.epicfight.registry.deferred.holders.DeferredPreset;
+ import yesman.epicfight.registry.entries.EpicFightItemCapabilityPresets;
+@@ -35,13 +32,11 @@
+ 	private final Map<Item, CapabilityItem> capabilities = new HashMap<> ();
+ 	
+ 	public void registerWeaponTypesByClass() {
+-		this.typedCapabilities.put(ArmorItem.class, EpicFightItemCapabilityPresets.ARMOR);
++
+ 		this.typedCapabilities.put(ShieldItem.class, EpicFightItemCapabilityPresets.SHIELD);
+-        this.typedCapabilities.put(SwordItem.class, EpicFightItemCapabilityPresets.BOKKEN);
+-        this.typedCapabilities.put(PickaxeItem.class, EpicFightItemCapabilityPresets.PICKAXE);
+-        this.typedCapabilities.put(AxeItem.class, EpicFightItemCapabilityPresets.AXE);
+-        this.typedCapabilities.put(ShovelItem.class, EpicFightItemCapabilityPresets.SHOVEL);
+-        this.typedCapabilities.put(HoeItem.class, EpicFightItemCapabilityPresets.HOE);
++
++
++
+         this.typedCapabilities.put(BowItem.class, EpicFightItemCapabilityPresets.BOW);
+         this.typedCapabilities.put(CrossbowItem.class, EpicFightItemCapabilityPresets.CROSSBOW);
+ 		this.typedCapabilities.put(MapItem.class, EpicFightItemCapabilityPresets.MAP);
+@@ -56,17 +51,35 @@
+ 		if (capability != null) {
+ 			return capability;
+ 		}
+-		for (Class<?> clazz = item.getClass(); clazz != null; clazz = clazz.getSuperclass()) {
++		var itemHolder = item.builtInRegistryHolder();
++        if (ArmorAttributes.fromItem(item) != null) {
++            return getDefault(item, EpicFightItemCapabilityPresets.ARMOR);
++        }
++        if (item instanceof TieredWeaponItem || item == EpicFightItems.BOKKEN.get() || itemHolder.is(ItemTags.SWORDS)) {
++            return getDefault(item, EpicFightItemCapabilityPresets.BOKKEN);
++        }
++        if (itemHolder.is(ItemTags.PICKAXES)) {
++            return getDefault(item, EpicFightItemCapabilityPresets.PICKAXE);
++        }
++        if (itemHolder.is(ItemTags.AXES)) {
++            return getDefault(item, EpicFightItemCapabilityPresets.AXE);
++        }
++        if (itemHolder.is(ItemTags.SHOVELS)) {
++            return getDefault(item, EpicFightItemCapabilityPresets.SHOVEL);
++        }
++        if (itemHolder.is(ItemTags.HOES)) {
++            return getDefault(item, EpicFightItemCapabilityPresets.HOE);
++        }
++        for (Class<?> clazz = item.getClass(); clazz != null; clazz = clazz.getSuperclass()) {
+ 			if (this.typedCapabilities.containsKey(clazz)) {
+-				return getDefault(item, clazz);
++				return getDefault(item, this.typedCapabilities.get(clazz));
+ 			}
+ 		}
+ 		return null;
+ 	}
+ 
+-	private CapabilityItem getDefault(Item item, Class<?> clazz)
++	private CapabilityItem getDefault(Item item, DeferredPreset<? extends CapabilityItem.Builder<?>> builderEntry)
+ 	{
+-		DeferredPreset<? extends CapabilityItem.Builder<?>> builderEntry = this.typedCapabilities.getOrDefault(clazz, null);
+ 		CapabilityItem.Builder<?> result = null;
+ 		if (builderEntry != null)
+ 		{
+@@ -101,7 +114,7 @@
+ 			}
+ 
+ 			for (Map.Entry<ResourceLocation, ItemKeywordReloadListener.ItemRegex> regexEntry : ItemKeywordReloadListener.getRegexes().entrySet()) {
+-				if (regexEntry.getValue().matchesAny(entry.getKey().location().toString())) {
++				if (regexEntry.getValue().matchesAny(entry.getKey().identifier().toString())) {
+ 					type = WeaponTypeReloadListener.get(regexEntry.getKey());
+ 
+ 					if (type != null) {
+@@ -112,14 +125,7 @@
+ 			}
+ 
+ 			if (type == null) {
+-				Class<?> clazz = item.getClass();
+-				CapabilityItem capability = null;
+-
+-				for (; clazz != null && capability == null; clazz = clazz.getSuperclass()) {
+-					if (this.typedCapabilities.containsKey(clazz)) {
+-						capability = getDefault(item, clazz);
+-					}
+-				}
++				CapabilityItem capability = this.get(item);
+ 
+ 				if (capability != null) {
+ 					this.capabilities.put(item, capability);
+--- a/src/main/java/yesman/epicfight/api/data/reloader/ItemCapabilityReloadListener.java
++++ b/src/main/java/yesman/epicfight/api/data/reloader/ItemCapabilityReloadListener.java
+@@ -114,10 +114,10 @@
+ 	public static CapabilityItem deserializeArmor(Item item, CompoundTag tag) {
+ 		ArmorCapability.Builder builder = ArmorCapability.builder();
+ 		
+-		if (tag.contains("attributes")) {
+-			CompoundTag attributes = tag.getCompound("attributes");
+-			builder.weight(attributes.getDouble("weight")).stunArmor(attributes.getDouble("stun_armor"));
+-		}
++		tag.getCompound("attributes").ifPresent(attributes -> {
++			builder.weight(attributes.getDoubleOr("weight", 0.0D))
++			       .stunArmor(attributes.getDoubleOr("stun_armor", 0.0D));
++		});
+ 		
+ 		builder.byItem(item);
+ 		
+--- /dev/null
++++ b/src/main/resources/data/epicfight/tags/item/repairs_stray_cloth.json
+@@ -0,0 +1,3 @@
++{
++  "values": ["minecraft:string"]
++}
+--- /dev/null
++++ b/src/main/resources/assets/epicfight/equipment/stray_cloth.json
+@@ -0,0 +1,6 @@
++{
++  "layers": {
++    "humanoid": [{"texture": "epicfight:stray_cloth"}],
++    "humanoid_leggings": [{"texture": "epicfight:stray_cloth"}]
++  }
++}
