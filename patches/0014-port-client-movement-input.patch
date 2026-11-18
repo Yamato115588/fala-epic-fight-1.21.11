@@ -1,0 +1,318 @@
+diff --git a/src/main/java/yesman/epicfight/api/client/event/types/control/MappedMovementInputUpdateEvent.java b/src/main/java/yesman/epicfight/api/client/event/types/control/MappedMovementInputUpdateEvent.java
+--- a/src/main/java/yesman/epicfight/api/client/event/types/control/MappedMovementInputUpdateEvent.java
++++ b/src/main/java/yesman/epicfight/api/client/event/types/control/MappedMovementInputUpdateEvent.java
+@@ -1,7 +1,7 @@
+ package yesman.epicfight.api.client.event.types.control;
+ import net.minecraft.client.Minecraft;
+ 
+-import net.minecraft.client.player.Input;
++import net.minecraft.client.player.ClientInput;
+ import org.jetbrains.annotations.ApiStatus;
+ import org.jetbrains.annotations.NotNull;
+ import org.jetbrains.annotations.Nullable;
+@@ -23,7 +23,7 @@
+     @SuppressWarnings("DeprecatedIsStillUsed")
+     @NotNull
+     @Deprecated
+-    private final Input movementInput;
++    private final ClientInput movementInput;
+ 
+     // This was set as @Nullable to introduce PlayerInputState in a backward compatible way.
+     // As soon as we introduce a breaking change by removing the existing constructor that sets movementInput, we
+@@ -32,12 +32,12 @@
+     private final PlayerInputState inputState;
+ 
+     /// **DEPRECATED:** Please use the new constructor that accepts [PlayerInputState] to support controllers.
+-    /// This constructor is only kept for backward compatibility with addons that rely on vanilla [Input].
++    /// This constructor is only kept for backward compatibility with addons that rely on vanilla [ClientInput].
+     ///
+     /// @see InputManager
+     @Deprecated
+     @ApiStatus.Internal
+-    public MappedMovementInputUpdateEvent(LocalPlayerPatch playerPatch, @NotNull Input input) {
++    public MappedMovementInputUpdateEvent(LocalPlayerPatch playerPatch, @NotNull ClientInput input) {
+         super(playerPatch);
+         this.movementInput = input;
+         this.inputState = null;
+@@ -52,24 +52,24 @@
+     public MappedMovementInputUpdateEvent(LocalPlayerPatch playerPatch, @NotNull PlayerInputState inputState) {
+         super(playerPatch);
+         this.inputState = inputState;
+-        // DEPRECATED: Still set the vanilla Input for backward compatibility to avoid Epic Fight addons breakage.
++        // DEPRECATED: Still set the vanilla ClientInput for backward compatibility to avoid Epic Fight addons breakage.
+         // Not setting this, may break any consumers that depend on the deprecated MovementObject#getMovementInput() method.
+         this.movementInput = playerPatch.getOriginal().input;
+     }
+ 
+     /// **DEPRECATED:** Use [#getInputState()] instead to support controllers.
+     /// Note that [PlayerInputState] is immutable. You cannot directly modify the fields
+-    /// like in vanilla [Input]. To apply changes, use [InputManager#setInputState].
++    /// like in vanilla [ClientInput]. To apply changes, use [InputManager#setInputState].
+     ///
+     /// @return the vanilla input instance (deprecated)
+     /// @see InputManager#setInputState 
+     @Deprecated
+-    public @NotNull Input getMovementInput() {
++    public @NotNull ClientInput getMovementInput() {
+         return this.movementInput;
+     }
+ 
+     /// Returns the current input state for the player.
+-    /// This method abstracts over vanilla [Input] and controller input, providing a unified,
++    /// This method abstracts over vanilla [ClientInput] and controller input, providing a unified,
+     /// immutable [PlayerInputState].
+     ///
+     /// @return the current player input state
+@@ -81,9 +81,7 @@
+         return inputState;
+     }
+ 
+-    /// Currently, this calls [Input#tick] without performing any additional logic.
+-    /// This abstraction was introduced to allow calling it without depending on the vanilla Minecraft [Input],
+-    /// enabling Epic Fight to introduce changes in future updates if necessary to support controllers.
++    /// Refreshes the movement keys. LocalPlayer applies the sneaking speed separately.
+     @ApiStatus.Experimental
+     public void sneakingTick(boolean isSneaking, float sneakingSpeedMultiplier) {
+         InputUtils.sneakingTick(isSneaking, sneakingSpeedMultiplier);
+diff --git a/src/main/java/yesman/epicfight/api/client/input/InputManager.java b/src/main/java/yesman/epicfight/api/client/input/InputManager.java
+--- a/src/main/java/yesman/epicfight/api/client/input/InputManager.java
++++ b/src/main/java/yesman/epicfight/api/client/input/InputManager.java
+@@ -10,7 +10,7 @@
+ 
+ import net.minecraft.client.KeyMapping;
+ import net.minecraft.client.Minecraft;
+-import net.minecraft.client.player.Input;
++import net.minecraft.client.player.ClientInput;
+ import net.minecraft.client.player.LocalPlayer;
+ import yesman.epicfight.api.client.input.action.InputAction;
+ import yesman.epicfight.api.client.input.controller.ControllerBinding;
+@@ -163,19 +163,19 @@
+ 
+     /// Retrieves the current input state for the current player (client-side).
+     ///
+-    ///  You should use this method instead of depending on the vanilla [Input] directly support controllers.
++    ///  You should use this method instead of depending on the vanilla [ClientInput] directly support controllers.
+     ///
+     /// The [PlayerInputState] is immutable, so properties cannot be updated directly, for that,
+     /// use [InputManager#setInputState].
+     ///
+     /// **Note:** [InputMode#MIXED] is currently unsupported and its behavior is undefined.
+     ///
+-    /// @param vanillaInput the Minecraft vanilla [Input] which will be mapped to a [PlayerInputState];
++    /// @param vanillaInput the Minecraft vanilla [ClientInput] which will be mapped to a [PlayerInputState];
+     ///                                                                                                                                                                                                                                                                                                                                                                         ignored if using a controller.
+     /// @return an immutable [PlayerInputState] representing the current input state.
+     /// @see InputManager#setInputState
+     @NotNull
+-    public static PlayerInputState getInputState(@NotNull Input vanillaInput) {
++    public static PlayerInputState getInputState(@NotNull ClientInput vanillaInput) {
+         final IEpicFightControllerMod controllerMod = getControllerModApi();
+         if (controllerMod != null && controllerMod.getInputMode() == InputMode.CONTROLLER) {
+             return controllerMod.getInputState();
+@@ -184,10 +184,10 @@
+         return PlayerInputState.fromVanillaInput(vanillaInput);
+     }
+ 
+-    /// Convenience overload of [#getInputState(Input)] that requires the full [LocalPlayer],
+-    /// which is needed to read the vanilla [Input] used for non-controller inputs.
+-    ///
+-    /// @param localPlayer the player whose vanilla [Input] will be read; ignored when using a controller.
++    /// Convenience overload of [#getInputState(ClientInput)] that requires the full [LocalPlayer],
++    /// which is needed to read the vanilla [ClientInput] used for non-controller inputs.
++    ///
++    /// @param localPlayer the player whose vanilla [ClientInput] will be read; ignored when using a controller.
+     /// @return an immutable [PlayerInputState] representing the current input state.
+     @NotNull
+     public static PlayerInputState getInputState(@NotNull LocalPlayer localPlayer) {
+@@ -196,7 +196,7 @@
+ 
+     /// Updates the current input state for the current player (client-side).
+     ///
+-    /// Consider using this instead of modifying fields in the vanilla [Input] directly
++    /// Consider using this instead of modifying fields in the vanilla [ClientInput] directly
+     /// to avoid direct dependency on Minecraft.
+     ///
+     /// @param inputState the updated input state.
+@@ -204,7 +204,7 @@
+     public static void setInputState(@NotNull PlayerInputState inputState) {
+         final LocalPlayer player = Minecraft.getInstance().player;
+         if (player != null) {
+-            final Input input = player.input;
++            final ClientInput input = player.input;
+             PlayerInputState.applyToVanillaInput(inputState, input);
+         }
+     }
+diff --git a/src/main/java/yesman/epicfight/api/client/input/PlayerInputState.java b/src/main/java/yesman/epicfight/api/client/input/PlayerInputState.java
+--- a/src/main/java/yesman/epicfight/api/client/input/PlayerInputState.java
++++ b/src/main/java/yesman/epicfight/api/client/input/PlayerInputState.java
+@@ -1,13 +1,13 @@
+ package yesman.epicfight.api.client.input;
+-import net.minecraft.client.Minecraft;
+ 
+-import net.minecraft.client.player.Input;
++import net.minecraft.client.player.ClientInput;
++import net.minecraft.world.entity.player.Input;
+ import net.minecraft.world.phys.Vec2;
+ import org.jetbrains.annotations.NotNull;
+ import org.jetbrains.annotations.Nullable;
+ 
+ /// Represents the abstract state of the player input (client-side).
+-/// Mirrors the vanilla Minecraft [Input] class.
++/// Mirrors the vanilla Minecraft [ClientInput] class.
+ public record PlayerInputState(
+         float leftImpulse,
+         float forwardImpulse,
+@@ -18,30 +18,24 @@
+         boolean jumping,
+         boolean sneaking
+ ) {
+-    public static PlayerInputState fromVanillaInput(Input input) {
++    public static PlayerInputState fromVanillaInput(ClientInput input) {
++        Vec2 movement = input.getMoveVector();
++        Input keys = input.keyPresses;
+         return new PlayerInputState(
+-                input.leftImpulse, input.forwardImpulse,
+-                input.up, input.down,
+-                input.left, input.right,
+-                input.jumping, input.shiftKeyDown
++                movement.x, movement.y,
++                keys.forward(), keys.backward(),
++                keys.left(), keys.right(),
++                keys.jump(), keys.shift()
+         );
+     }
+ 
+-    /// Applies the values from a [PlayerInputState] to a vanilla [Input] instance.
+-    ///
+-    /// **Note:** Updating the vanilla [Input] fields has side effects, so this change is **not immutable**.
+-    ///
+-    /// @param updated the new input state to apply
+-    /// @param input   the existing vanilla Input instance to update
+-    public static Input applyToVanillaInput(@NotNull PlayerInputState updated, @NotNull Input input) {
+-        if (input.leftImpulse != updated.leftImpulse()) input.leftImpulse = updated.leftImpulse();
+-        if (input.forwardImpulse != updated.forwardImpulse()) input.forwardImpulse = updated.forwardImpulse();
+-        if (input.up != updated.up()) input.up = updated.up();
+-        if (input.down != updated.down()) input.down = updated.down();
+-        if (input.left != updated.left()) input.left = updated.left();
+-        if (input.right != updated.right()) input.right = updated.right();
+-        if (input.jumping != updated.jumping()) input.jumping = updated.jumping();
+-        if (input.shiftKeyDown != updated.sneaking()) input.shiftKeyDown = updated.sneaking();
++    /// Updates the vanilla movement vector and key state, preserving the sprint key.
++    public static ClientInput applyToVanillaInput(@NotNull PlayerInputState updated, @NotNull ClientInput input) {
++        input.moveVector = updated.getMoveVector();
++        input.keyPresses = new Input(
++                updated.up(), updated.down(), updated.left(), updated.right(),
++                updated.jumping(), updated.sneaking(), input.keyPresses.sprint()
++        );
+         return input;
+     }
+ 
+diff --git a/src/main/java/yesman/epicfight/client/events/engine/ControlEngine.java b/src/main/java/yesman/epicfight/client/events/engine/ControlEngine.java
+--- a/src/main/java/yesman/epicfight/client/events/engine/ControlEngine.java
++++ b/src/main/java/yesman/epicfight/client/events/engine/ControlEngine.java
+@@ -7,7 +7,7 @@
+ import net.minecraft.client.Minecraft;
+ import net.minecraft.client.Options;
+ import net.minecraft.client.multiplayer.ClientPacketListener;
+-import net.minecraft.client.player.Input;
++import net.minecraft.client.player.ClientInput;
+ import net.minecraft.client.player.LocalPlayer;
+ import yesman.epicfight.EpicFight;
+ import net.minecraft.core.BlockPos;
+@@ -528,9 +528,9 @@
+         this.playerpatch.toggleMode();
+     }
+ 
+-    /// Called from [MixinLocalPlayerInput] after [Input#tick] during [LocalPlayer#aiStep].
++    /// Called from [MixinLocalPlayerInput] after [ClientInput#tick] during [LocalPlayer#aiStep].
+     /// Replaces the NeoForge [MovementInputUpdateEvent] handler [epicfight$moveInputEvent].
+-    public void handleMovementInput(Input input) {
++    public void handleMovementInput(ClientInput input) {
+         if (this.playerpatch == null) {
+             return;
+         }
+@@ -559,7 +559,7 @@
+         EpicFightCameraAPI.getInstance().setNextLockOnTarget(-1, true, true);
+     }
+ 
+-    private PlayerInputState inputTick(Input input) {
++    private PlayerInputState inputTick(ClientInput input) {
+ 		if (this.tickSinceLastJump > 0) this.tickSinceLastJump--;
+ 		PlayerInputState inputState = InputManager.getInputState(input);
+ 
+diff --git a/src/main/java/yesman/epicfight/client/input/InputUtils.java b/src/main/java/yesman/epicfight/client/input/InputUtils.java
+--- a/src/main/java/yesman/epicfight/client/input/InputUtils.java
++++ b/src/main/java/yesman/epicfight/client/input/InputUtils.java
+@@ -4,7 +4,6 @@
+ import net.minecraft.client.KeyMapping;
+ import net.minecraft.client.Minecraft;
+ import net.minecraft.client.Options;
+-import net.minecraft.client.player.Input;
+ import net.minecraft.client.player.LocalPlayer;
+ import net.minecraft.world.InteractionHand;
+ 
+@@ -74,10 +73,8 @@
+         return true;
+     }
+ 
+-    /// Currently, this calls [Input#tick] without performing any additional logic.
+-    /// This abstraction was introduced to allow calling it without depending on the vanilla Minecraft [Input],
+-    /// enabling Epic Fight to introduce changes in future updates if necessary to support controllers.
++    /// Refreshes the movement keys. LocalPlayer applies the sneaking speed separately.
+     public static void sneakingTick(@NotNull LocalPlayer player, boolean isSneaking, float sneakingSpeedMultiplier) {
+-        player.input.tick(isSneaking, sneakingSpeedMultiplier);
++        player.input.tick();
+     }
+ }
+diff --git a/src/main/java/yesman/epicfight/mixin/client/MixinLocalPlayerInput.java b/src/main/java/yesman/epicfight/mixin/client/MixinLocalPlayerInput.java
+--- a/src/main/java/yesman/epicfight/mixin/client/MixinLocalPlayerInput.java
++++ b/src/main/java/yesman/epicfight/mixin/client/MixinLocalPlayerInput.java
+@@ -1,6 +1,5 @@
+ package yesman.epicfight.mixin.client;
+ 
+-import net.minecraft.client.player.Input;
+ import net.minecraft.client.player.LocalPlayer;
+ import org.spongepowered.asm.mixin.Mixin;
+ import org.spongepowered.asm.mixin.injection.At;
+@@ -8,18 +7,18 @@
+ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+ import yesman.epicfight.client.events.engine.ControlEngine;
+ 
+-/// Fires Epic Fight's movement input update hook after [Input#tick] during [LocalPlayer#aiStep].
++/// Fires Epic Fight's movement input update hook after [ClientInput#tick] during [LocalPlayer#aiStep].
+ ///
+ /// On NeoForge, this was [MovementInputUpdateEvent] dispatched to [ControlEngine#epicfight$moveInputEvent],
+ /// which called [ControlEngine#inputTick] and posted [MappedMovementInputUpdateEvent].
+-/// On Fabric, we inject directly after the [Input#tick] INVOKE in [LocalPlayer#aiStep].
++/// On Fabric, we inject directly after the [ClientInput#tick] INVOKE in [LocalPlayer#aiStep].
+ @Mixin(value = LocalPlayer.class)
+ public abstract class MixinLocalPlayerInput {
+ 	@Inject(
+ 		method = "aiStep()V",
+ 		at = @At(
+ 			value = "INVOKE",
+-			target = "Lnet/minecraft/client/player/Input;tick(ZF)V",
++			target = "Lnet/minecraft/client/player/ClientInput;tick()V",
+ 			shift = At.Shift.AFTER
+ 		)
+ 	)
+@@ -27,7 +26,7 @@
+ 		LocalPlayer self = (LocalPlayer)(Object)this;
+ 		ControlEngine controlEngine = ControlEngine.getInstance();
+ 
+-		// Pass the player's Input to ControlEngine for inputTick + MAPPED_MOVEMENT_INPUT_UPDATE
++		// Pass the player's ClientInput to ControlEngine for inputTick + MAPPED_MOVEMENT_INPUT_UPDATE
+ 		controlEngine.handleMovementInput(self.input);
+ 	}
+ }
+diff --git a/src/main/resources/epicfight.accesswidener b/src/main/resources/epicfight.accesswidener
+--- a/src/main/resources/epicfight.accesswidener
++++ b/src/main/resources/epicfight.accesswidener
+@@ -32,6 +32,7 @@
+ accessible class net/minecraft/client/model/geom/ModelPart$Polygon
+ accessible method net/minecraft/client/multiplayer/MultiPlayerGameMode performUseItemOn (Lnet/minecraft/client/player/LocalPlayer;Lnet/minecraft/world/InteractionHand;Lnet/minecraft/world/phys/BlockHitResult;)Lnet/minecraft/world/InteractionResult;
+ accessible field net/minecraft/client/particle/Particle alpha F
++accessible field net/minecraft/client/player/ClientInput moveVector Lnet/minecraft/world/phys/Vec2;
+ accessible field net/minecraft/client/player/LocalPlayer sprintTriggerTime I
+ accessible method net/minecraft/client/renderer/GameRenderer getFov (Lnet/minecraft/client/Camera;FZ)D
+ accessible method net/minecraft/client/renderer/block/model/ItemOverrides$PropertyMatcher <init> (IF)V
