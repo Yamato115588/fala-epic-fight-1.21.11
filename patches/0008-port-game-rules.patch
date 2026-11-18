@@ -1,0 +1,574 @@
+--- a/src/main/java/yesman/epicfight/world/gamerule/EpicFightGameRules.java
++++ b/src/main/java/yesman/epicfight/world/gamerule/EpicFightGameRules.java
+@@ -1,13 +1,17 @@
+ package yesman.epicfight.world.gamerule;
+ 
+-import com.google.common.base.Function;
++import com.google.common.base.CaseFormat;
+ import com.google.common.collect.ImmutableMap;
+ import io.netty.buffer.ByteBuf;
+ import net.minecraft.network.codec.ByteBufCodecs;
+ import net.minecraft.network.codec.StreamCodec;
+-import net.minecraft.server.MinecraftServer;
++import net.fabricmc.fabric.api.gamerule.v1.GameRuleBuilder;
++import net.fabricmc.fabric.api.gamerule.v1.GameRuleEvents;
++import net.minecraft.server.level.ServerLevel;
+ import net.minecraft.server.level.ServerPlayer;
+-import net.minecraft.world.level.GameRules;
++import net.minecraft.resources.Identifier;
++import net.minecraft.world.level.gamerules.GameRule;
++import net.minecraft.world.level.gamerules.GameRuleCategory;
+ import net.minecraft.world.level.Level;
+ import yesman.epicfight.platform.neoforged.common.ModConfigSpec;
+ import yesman.epicfight.network.EpicFightNetworkManager;
+@@ -15,101 +19,101 @@
+ import yesman.epicfight.skill.SkillSlots;
+ 
+ import java.util.Map;
+-import java.util.function.BiConsumer;
+-import java.util.function.BiFunction;
++import java.util.WeakHashMap;
++import java.util.function.Function;
+ 
+ public class EpicFightGameRules {
+-	public static final ConfigurableGameRule<Boolean, ModConfigSpec.BooleanValue, GameRules.BooleanValue> GLOBAL_STUN = create(
++	public static final ConfigurableGameRule<Boolean, ModConfigSpec.BooleanValue> GLOBAL_STUN = create(
+ 			  "globalStun"
+-			, GameRules.Category.MOBS
++			, GameRuleCategory.MOBS
+ 			, configBuilder -> configBuilder.define("default_gamerule.globalStun", true)
+ 			, RuleType.BOOLEAN
+ 			, false
+ 	);
+ 	
+-	public static final ConfigurableGameRule<Boolean, ModConfigSpec.BooleanValue, GameRules.BooleanValue> KEEP_SKILLS = create(
++	public static final ConfigurableGameRule<Boolean, ModConfigSpec.BooleanValue> KEEP_SKILLS = create(
+ 			  "keepSkills"
+-			, GameRules.Category.PLAYER
++			, GameRuleCategory.PLAYER
+ 			, configBuilder -> configBuilder.define("default_gamerule.keepSkills", true)
+ 			, RuleType.BOOLEAN
+ 			, false
+ 	);
+ 	
+-	public static final ConfigurableGameRule<Boolean, ModConfigSpec.BooleanValue, GameRules.BooleanValue> HAS_FALL_ANIMATION = create(
++	public static final ConfigurableGameRule<Boolean, ModConfigSpec.BooleanValue> HAS_FALL_ANIMATION = create(
+ 			  "hasFallAnimation"
+-			, GameRules.Category.PLAYER
++			, GameRuleCategory.PLAYER
+ 			, configBuilder -> configBuilder.define("default_gamerule.hasFallAnimation", true)
+ 			, RuleType.BOOLEAN
+ 			, true
+ 	);
+ 	
+-	public static final ConfigurableGameRule<Boolean, ModConfigSpec.BooleanValue, GameRules.BooleanValue> DISABLE_ENTITY_UI = create(
++	public static final ConfigurableGameRule<Boolean, ModConfigSpec.BooleanValue> DISABLE_ENTITY_UI = create(
+ 			  "disableEntityUI"
+-			, GameRules.Category.MISC
++			, GameRuleCategory.MISC
+ 			, configBuilder -> configBuilder.define("default_gamerule.disapleEntityUI", false)
+ 			, RuleType.BOOLEAN
+ 			, true
+ 	);
+ 	
+-	public static final ConfigurableGameRule<Boolean, ModConfigSpec.BooleanValue, GameRules.BooleanValue> CAN_SWITCH_PLAYER_MODE = create(
++	public static final ConfigurableGameRule<Boolean, ModConfigSpec.BooleanValue> CAN_SWITCH_PLAYER_MODE = create(
+ 			  "canSwitchPlayerMode"
+-			, GameRules.Category.PLAYER
++			, GameRuleCategory.PLAYER
+ 			, configBuilder -> configBuilder.define("default_gamerule.canSwitchPlayerMode", true)
+ 			, RuleType.BOOLEAN
+ 			, true
+ 	);
+ 	
+-	public static final ConfigurableGameRule<Boolean, ModConfigSpec.BooleanValue, GameRules.BooleanValue> STIFF_COMBO_ATTACKS = create(
++	public static final ConfigurableGameRule<Boolean, ModConfigSpec.BooleanValue> STIFF_COMBO_ATTACKS = create(
+ 			  "stiffComboAttacks"
+-			, GameRules.Category.PLAYER
++			, GameRuleCategory.PLAYER
+ 			, configBuilder -> configBuilder.define("default_gamerule.stiffComboAttacks", true)
+ 			, RuleType.BOOLEAN
+ 			, true
+ 	);
+ 	
+-	public static final ConfigurableGameRule<Boolean, ModConfigSpec.BooleanValue, GameRules.BooleanValue> NO_MOBS_IN_BOSSFIGHT = create(
++	public static final ConfigurableGameRule<Boolean, ModConfigSpec.BooleanValue> NO_MOBS_IN_BOSSFIGHT = create(
+ 			  "noMobsInBossfight"
+-			, GameRules.Category.SPAWNING
++			, GameRuleCategory.SPAWNING
+ 			, configBuilder -> configBuilder.define("default_gamerule.noMobsInBossfight", true)
+ 			, RuleType.BOOLEAN
+ 			, true
+ 	);
+ 	
+-	public static final ConfigurableGameRule<Integer, ModConfigSpec.IntValue, GameRules.IntegerValue> INITIAL_PLAYER_MODE = create(
++	public static final ConfigurableGameRule<Integer, ModConfigSpec.IntValue> INITIAL_PLAYER_MODE = create(
+ 			  "initialMode"
+-			, GameRules.Category.PLAYER
++			, GameRuleCategory.PLAYER
+ 			, configBuilder -> configBuilder.comment("0 = vanilla, 1 = epicfight").defineInRange("default_gamerule.initialMode", 1, 0, 1)
+ 			, RuleType.INTEGER
+ 			, true
+ 	);
+ 	
+-	public static final ConfigurableGameRule<Integer, ModConfigSpec.IntValue, GameRules.IntegerValue> WEIGHT_PENALTY = EpicFightGameRules.create(
++	public static final ConfigurableGameRule<Integer, ModConfigSpec.IntValue> WEIGHT_PENALTY = EpicFightGameRules.create(
+ 			  "weightPenalty"
+-			, GameRules.Category.PLAYER
++			, GameRuleCategory.PLAYER
+ 			, configBuilder -> configBuilder.defineInRange("default_gamerule.weightPenalty", 100, 0, 100)
+ 			, RuleType.INTEGER
+ 			, true
+ 	);
+ 	
+-	public static final ConfigurableGameRule<Boolean, ModConfigSpec.BooleanValue, GameRules.BooleanValue> EPIC_DROP = EpicFightGameRules.create(
++	public static final ConfigurableGameRule<Boolean, ModConfigSpec.BooleanValue> EPIC_DROP = EpicFightGameRules.create(
+ 			  "epicDrop"
+-			, GameRules.Category.DROPS
++			, GameRuleCategory.DROPS
+ 			, configBuilder -> configBuilder.define("default_gamerule.epicDrop", false)
+ 			, RuleType.BOOLEAN
+ 			, true
+ 	);
+ 	
+-	public static final ConfigurableGameRule<Integer, ModConfigSpec.IntValue, GameRules.IntegerValue> SKILL_REPLACE_COOLDOWN = EpicFightGameRules.create(
++	public static final ConfigurableGameRule<Integer, ModConfigSpec.IntValue> SKILL_REPLACE_COOLDOWN = EpicFightGameRules.create(
+ 			  "skillReplaceCooldown"
+-			, GameRules.Category.PLAYER
++			, GameRuleCategory.PLAYER
+ 			, configBuilder -> configBuilder.defineInRange("default_gamerule.skillReplaceCooldown", 6000, 0, Integer.MAX_VALUE)
+ 			, RuleType.INTEGER
+ 			, true
+ 	);
+ 
+-    public static final ConfigurableGameRule<Boolean, ModConfigSpec.BooleanValue, GameRules.BooleanValue> ALLOW_VANILLA_MELEE = EpicFightGameRules.create(
++    public static final ConfigurableGameRule<Boolean, ModConfigSpec.BooleanValue> ALLOW_VANILLA_MELEE = EpicFightGameRules.create(
+         "allowVanillaMelee"
+-        , GameRules.Category.PLAYER
++        , GameRuleCategory.PLAYER
+         , configBuilder -> configBuilder.define("default_gamerule.allow_vanilla_melee", true)
+         , RuleType.BOOLEAN
+         , true
+@@ -119,15 +123,15 @@
+     /// the legacy hard cap. Upper bound is [SkillSlots#CORE_PASSIVE_SLOT_COUNT] because that's how
+     /// many passive `SkillSlots` enum constants this mod actually declares; raising past that has
+     /// no effect.
+-    public static final ConfigurableGameRule<Integer, ModConfigSpec.IntValue, GameRules.IntegerValue> MAX_PASSIVE_SKILLS = EpicFightGameRules.create(
++    public static final ConfigurableGameRule<Integer, ModConfigSpec.IntValue> MAX_PASSIVE_SKILLS = EpicFightGameRules.create(
+           "maxPassiveSkills"
+-        , GameRules.Category.PLAYER
++        , GameRuleCategory.PLAYER
+         , configBuilder -> configBuilder.defineInRange("default_gamerule.maxPassiveSkills", 3, 0, SkillSlots.CORE_PASSIVE_SLOT_COUNT)
+         , RuleType.INTEGER
+         , true
+     );
+ 
+-	public static final Map<String, ConfigurableGameRule<?, ?, ?>> GAME_RULES = ImmutableMap.<String, ConfigurableGameRule<?, ?, ?>>builder()
++	public static final Map<String, ConfigurableGameRule<?, ?>> GAME_RULES = ImmutableMap.<String, ConfigurableGameRule<?, ?>>builder()
+ 			.put("globalStun", GLOBAL_STUN)
+ 			.put("keepSkills", KEEP_SKILLS)
+ 			.put("hasFallAnimation", HAS_FALL_ANIMATION)
+@@ -147,122 +151,103 @@
+ 		GAME_RULES.values().forEach(gamerule -> gamerule.registerGameRule());
+ 	}
+ 	
+-	public static <Type, Config extends ModConfigSpec.ConfigValue<Type>, RuleValue extends GameRules.Value<RuleValue>> ConfigurableGameRule<Type, Config, RuleValue> create(
+-		  String ruleName
+-		, GameRules.Category ruleCategory
+-		, Function<ModConfigSpec.Builder, Config> configDefinition
+-		, RuleType<Type, RuleValue> ruleType
+-		, boolean synchronize
+-	) {
+-		return new ConfigurableGameRule<> (ruleName, ruleCategory, configDefinition, ruleType, synchronize);
+-	}
+-	
+-	public static class ConfigurableGameRule<Type, Config extends ModConfigSpec.ConfigValue<Type>, RuleValue extends GameRules.Value<RuleValue>> {
+-		final String ruleName;
+-		final GameRules.Category ruleCategory;
+-		final Function<ModConfigSpec.Builder, Config> configDefinition;
+-		final RuleType<Type, RuleValue> ruleType; 
+-		final boolean synchronize;
+-		
+-		Config configValueHolder;
+-		GameRules.Key<RuleValue> gameRuleKey;
+-		
+-		private ConfigurableGameRule(
+-			  String ruleName
+-			, GameRules.Category ruleCategory
+-			, Function<ModConfigSpec.Builder, Config> configDefinition
+-			, RuleType<Type, RuleValue> ruleType
+-			, boolean synchronize
+-		) {
+-			this.ruleName = ruleName;
+-			this.ruleCategory = ruleCategory;
+-			this.configDefinition = configDefinition;
+-			this.ruleType = ruleType;
+-			this.synchronize = synchronize;
+-		}
+-		
+-		@SuppressWarnings("unchecked")
+-		public void registerGameRule() {
+-			if (this.synchronize) {
+-				this.gameRuleKey = GameRules.register(
+-						  this.ruleName
+-						, this.ruleCategory
+-						, this.ruleType.valueCreator.apply(
+-							    this.configValueHolder.get()
+-							  , (server, value) -> EpicFightNetworkManager.sendToAll(server, new SPChangeGamerule(new EpicFightGameRules.KeyValuePair((ConfigurableGameRule<Object, ?, ?>)this, this.ruleType.getRule.apply(value))))
+-						  )
+-				);
+-			} else {
+-				this.gameRuleKey = GameRules.register(
+-						  this.ruleName
+-						, this.ruleCategory
+-						, this.ruleType.valueCreatorUnsynchronized.apply(this.configValueHolder.get())
+-				);
+-			}
+-		}
+-		
+-		public boolean shouldSync() {
+-			return this.synchronize;
+-		}
+-		
+-		@SuppressWarnings("unchecked")
+-		public SPChangeGamerule getSyncPacket(ServerPlayer player) {
+-			return new SPChangeGamerule(new EpicFightGameRules.KeyValuePair((ConfigurableGameRule<Object, ?, ?>)this, this.getRuleValue(player.level())));
+-		}
+-		
+-		public void defineConfig(ModConfigSpec.Builder configBuilder) {
+-			this.configValueHolder = this.configDefinition.apply(configBuilder);
+-		}
+-		
+-		public String getRuleName() {
+-			return this.ruleName;
+-		}
+-		
+-		public RuleType<Type, RuleValue> getRuleType() {
+-			return this.ruleType;
+-		}
+-		
+-		public GameRules.Key<RuleValue> getRuleKey() {
+-			return this.gameRuleKey;
+-		}
+-		
+-		public Config getConfigHolder() {
+-			return this.configValueHolder;
+-		}
+-		
+-		public Type getRuleValue(Level level) {
+-			return this.ruleType.getRule.apply(level.getGameRules().getRule(this.gameRuleKey));
+-		}
+-		
+-		public void setRuleValue(Level level, Type value) {
+-			this.ruleType.setRule.accept(level.getGameRules().getRule(this.gameRuleKey), value);
+-		}
+-	}
+-	
+-	public static record RuleType<Type, RuleValue extends GameRules.Value<RuleValue>> (
+-		  BiFunction<Type, BiConsumer<MinecraftServer, RuleValue>, GameRules.Type<RuleValue>> valueCreator
+-		, Function<Type, GameRules.Type<RuleValue>> valueCreatorUnsynchronized
+-		, Function<RuleValue, Type> getRule
+-		, BiConsumer<RuleValue, Type> setRule
+-		, StreamCodec<ByteBuf, Type> codec
+-	) {
+-		private static final RuleType<Boolean, GameRules.BooleanValue> BOOLEAN = new RuleType<> (
+-			 GameRules.BooleanValue::create
+-		   , GameRules.BooleanValue::create
+-		   , GameRules.BooleanValue::get
+-		   , (ruleValue, value) -> ruleValue.set(value, null)
+-		   , ByteBufCodecs.BOOL
+-		);
+-
+-		private static final RuleType<Integer, GameRules.IntegerValue> INTEGER = new RuleType<> (
+-			 GameRules.IntegerValue::create
+-		   , GameRules.IntegerValue::create
+-		   , GameRules.IntegerValue::get
+-		   , (ruleValue, value) -> ruleValue.tryDeserialize(value.toString())
+-		   , ByteBufCodecs.INT
+-		);
+-	}
+-	
+-	public static record KeyValuePair(ConfigurableGameRule<Object, ?, ?> gamerule, Object value) {
+-	}
+-}
+\ No newline at end of file
++    public static <T, C extends ModConfigSpec.ConfigValue<T>> ConfigurableGameRule<T, C> create(
++            String name, GameRuleCategory category, Function<ModConfigSpec.Builder, C> configDefinition,
++            RuleType<T> type, boolean synchronize) {
++        return new ConfigurableGameRule<>(name, category, configDefinition, type, synchronize);
++    }
++
++    public static class ConfigurableGameRule<T, C extends ModConfigSpec.ConfigValue<T>> {
++        private final String ruleName;
++        private final GameRuleCategory ruleCategory;
++        private final Function<ModConfigSpec.Builder, C> configDefinition;
++        private final RuleType<T> ruleType;
++        private final boolean synchronize;
++        private final Map<Level, T> clientValues = new WeakHashMap<>();
++        private C configValueHolder;
++        private GameRule<T> gameRuleKey;
++
++        private ConfigurableGameRule(String name, GameRuleCategory category, Function<ModConfigSpec.Builder, C> configDefinition,
++                                     RuleType<T> type, boolean synchronize) {
++            this.ruleName = name;
++            this.ruleCategory = category;
++            this.configDefinition = configDefinition;
++            this.ruleType = type;
++            this.synchronize = synchronize;
++        }
++
++        public Identifier identifier() {
++            String path = CaseFormat.LOWER_CAMEL.to(CaseFormat.LOWER_UNDERSCORE, this.ruleName.replace("UI", "Ui"));
++            return Identifier.fromNamespaceAndPath("epicfight", path);
++        }
++
++        public void registerGameRule() {
++            this.gameRuleKey = this.ruleType.builder().apply(this.configValueHolder.get())
++                    .category(this.ruleCategory).buildAndRegister(this.identifier());
++            if (this.synchronize) {
++                GameRuleEvents.changeCallback(this.gameRuleKey).register((value, server) ->
++                        EpicFightNetworkManager.sendToAll(server, this.syncPacket(value)));
++            }
++        }
++
++        public boolean shouldSync() {
++            return this.synchronize;
++        }
++
++        public SPChangeGamerule getSyncPacket(ServerPlayer player) {
++            return this.syncPacket(this.getRuleValue(player.level()));
++        }
++
++        @SuppressWarnings("unchecked")
++        private SPChangeGamerule syncPacket(T value) {
++            return new SPChangeGamerule(new KeyValuePair((ConfigurableGameRule<Object, ?>)this, value));
++        }
++
++        public void defineConfig(ModConfigSpec.Builder configBuilder) {
++            this.configValueHolder = this.configDefinition.apply(configBuilder);
++        }
++
++        public String getRuleName() {
++            return this.ruleName;
++        }
++
++        public RuleType<T> getRuleType() {
++            return this.ruleType;
++        }
++
++        public GameRule<T> getRuleKey() {
++            return this.gameRuleKey;
++        }
++
++        public C getConfigHolder() {
++            return this.configValueHolder;
++        }
++
++        public T getRuleValue(Level level) {
++            if (level instanceof ServerLevel serverLevel) {
++                return serverLevel.getGameRules().get(this.gameRuleKey);
++            }
++            return this.clientValues.getOrDefault(level, this.gameRuleKey.defaultValue());
++        }
++
++        public void setRuleValue(Level level, T value) {
++            if (level instanceof ServerLevel serverLevel) {
++                serverLevel.getGameRules().set(this.gameRuleKey, value, serverLevel.getServer());
++            } else {
++                this.clientValues.put(level, value);
++            }
++        }
++
++        public void copyClientValue(Level from, Level to) {
++            this.setRuleValue(to, this.getRuleValue(from));
++        }
++    }
++
++    public record RuleType<T>(Function<T, GameRuleBuilder<T>> builder, StreamCodec<ByteBuf, T> codec) {
++        private static final RuleType<Boolean> BOOLEAN = new RuleType<>(GameRuleBuilder::forBoolean, ByteBufCodecs.BOOL);
++        private static final RuleType<Integer> INTEGER = new RuleType<>(GameRuleBuilder::forInteger, ByteBufCodecs.INT);
++    }
++
++    public record KeyValuePair(ConfigurableGameRule<Object, ?> gamerule, Object value) {
++    }
++}
+--- a/src/main/java/yesman/epicfight/network/EpicFightClientBoundPayloadHandler.java
++++ b/src/main/java/yesman/epicfight/network/EpicFightClientBoundPayloadHandler.java
+@@ -7,7 +7,6 @@
+ import net.minecraft.world.entity.LivingEntity;
+ import net.minecraft.world.entity.Mob;
+ import net.minecraft.world.entity.player.Player;
+-import net.minecraft.world.level.GameRules;
+ import yesman.epicfight.network.EpicFightPayloadContext;
+ import yesman.epicfight.api.animation.AnimationManager;
+ import yesman.epicfight.api.client.animation.ClientAnimator;
+@@ -40,7 +39,6 @@
+ import yesman.epicfight.world.capabilities.item.WeaponTypeReloadListener;
+ import yesman.epicfight.world.capabilities.skill.PlayerSkills;
+ 
+-import java.util.function.BiConsumer;
+ 
+ public interface EpicFightClientBoundPayloadHandler {
+ 	static void handleAbsorption(final SPAbsorption data, final yesman.epicfight.network.EpicFightPayloadContext context) {
+@@ -99,10 +97,8 @@
+ 		});
+ 	}
+ 	
+-	@SuppressWarnings("unchecked")
+ 	static void handleChangeGameRule(final SPChangeGamerule data, final yesman.epicfight.network.EpicFightPayloadContext context) {
+-		GameRules.Value<?> ruleValue = context.player().level().getGameRules().getRule(data.keyValuePair().gamerule().getRuleKey());
+-		((BiConsumer<GameRules.Value<?>, Object>)data.keyValuePair().gamerule().getRuleType().setRule()).accept(ruleValue, data.keyValuePair().value());
++		data.keyValuePair().gamerule().setRuleValue(context.player().level(), data.keyValuePair().value());
+ 	}
+ 	
+ 	static void handleChangeLivingMotion(final SPChangeLivingMotion data, final yesman.epicfight.network.EpicFightPayloadContext context) {
+--- a/src/main/java/yesman/epicfight/api/client/event/impl/VanillaGeneralClientEventHooks.java
++++ b/src/main/java/yesman/epicfight/api/client/event/impl/VanillaGeneralClientEventHooks.java
+@@ -72,7 +72,6 @@
+     /// Called when the player is cloned in the client side
+     ///
+     /// @see ClientPacketListener#handleRespawn
+-    @SuppressWarnings("unchecked")
+     public static void onClonedInClient(LocalPlayer oldPlayer, LocalPlayer newPlayer) {
+         LocalPlayerPatch oldCap = EpicFightCapabilities.getEntityPatch(oldPlayer, LocalPlayerPatch.class);
+         LocalPlayerPatch newCap = EpicFightCapabilities.getEntityPatch(newPlayer, LocalPlayerPatch.class);
+@@ -89,10 +88,7 @@
+             newCap.toMode(oldCap.getPlayerMode(), false);
+         }
+ 
+-        EpicFightGameRules.GAME_RULES.values().forEach(gamerule -> {
+-            Object val = gamerule.getRuleValue(oldPlayer.level());
+-            ((EpicFightGameRules.ConfigurableGameRule<Object, ?, ?>)gamerule).setRuleValue(newPlayer.level(), val);
+-        });
++        EpicFightGameRules.GAME_RULES.values().forEach(rule -> rule.copyClientValue(oldPlayer.level(), newPlayer.level()));
+ 
+         ControlEngine.getInstance().reloadPlayerPatch(newCap);
+         RenderEngine.getInstance().initHUD(newCap);
+--- a/src/main/java/yesman/epicfight/api/utils/ByteBufCodecsExtends.java
++++ b/src/main/java/yesman/epicfight/api/utils/ByteBufCodecsExtends.java
+@@ -140,7 +140,10 @@
+ 		@Override
+ 		public EpicFightGameRules.KeyValuePair decode(ByteBuf buffer) {
+ 			String ruleName = Utf8String.read(buffer, 32767);
+-			ConfigurableGameRule<Object, ?, ?> gamerule = (ConfigurableGameRule<Object, ?, ?>)EpicFightGameRules.GAME_RULES.get(ruleName);
++			ConfigurableGameRule<Object, ?> gamerule = (ConfigurableGameRule<Object, ?>)EpicFightGameRules.GAME_RULES.get(ruleName);
++			if (gamerule == null) {
++				throw new io.netty.handler.codec.DecoderException("Unknown Epic Fight game rule: " + ruleName);
++			}
+ 			Object value = gamerule.getRuleType().codec().decode(buffer);
+ 			
+ 			return new EpicFightGameRules.KeyValuePair(gamerule, value);
+--- a/src/main/java/yesman/epicfight/server/commands/PlayerModeCommand.java
++++ b/src/main/java/yesman/epicfight/server/commands/PlayerModeCommand.java
+@@ -1,4 +1,4 @@
+-package yesman.epicfight.server.commands;
++package yesman.epicfight.server.commands;
+ 
+ import com.mojang.brigadier.CommandDispatcher;
+ import com.mojang.brigadier.builder.LiteralArgumentBuilder;
+@@ -55,7 +55,7 @@
+ 		if (command.getEntity() == serverPlayer) {
+ 			command.sendSuccess(() -> Component.translatable("commands.gamemode.success.self", component), true);
+ 		} else {
+-			if (command.getLevel().getGameRules().getBoolean(GameRules.RULE_SENDCOMMANDFEEDBACK)) {
++			if (command.getLevel().getGameRules().get(GameRules.SEND_COMMAND_FEEDBACK)) {
+ 				serverPlayer.sendSystemMessage(Component.translatable("gameMode.changed", component));
+ 			}
+ 			command.sendSuccess(() -> Component.translatable("commands.gamemode.success.other", serverPlayer.getDisplayName(), component), true);
+--- a/src/main/java/yesman/epicfight/server/commands/PlayerStaminaCommand.java
++++ b/src/main/java/yesman/epicfight/server/commands/PlayerStaminaCommand.java
+@@ -85,7 +85,7 @@
+ 				command.getSource().sendSuccess(wrap(Component.translatable("commands.epicfight.stamina.success.self", players.iterator().next().getDisplayName(), ItemAttributeModifiers.ATTRIBUTE_MODIFIER_FORMAT.format(returnVal))), true);
+ 			} else {
+ 				for (ServerPlayer serverplayer : players) {
+-					if (command.getSource().getLevel().getGameRules().getBoolean(GameRules.RULE_SENDCOMMANDFEEDBACK)) {
++					if (command.getSource().getLevel().getGameRules().get(GameRules.SEND_COMMAND_FEEDBACK)) {
+ 						serverplayer.sendSystemMessage(Component.translatable("commands.epicfight.stamina.success.other", String.valueOf(i)));
+ 					}
+ 				}
+--- a/src/main/java/yesman/epicfight/api/utils/LevelUtil.java
++++ b/src/main/java/yesman/epicfight/api/utils/LevelUtil.java
+@@ -115,8 +115,8 @@
+ 					break;
+ 				}
+ 			} else {
+-				if (!level.isClientSide && aboveState.getCollisionShape(level, aboveBp, CollisionContext.empty()).isEmpty() && level.getGameRules().getBoolean(GameRules.RULE_MOBGRIEFING)) {
+-					level.destroyBlock(aboveBp, level.getGameRules().getBoolean(GameRules.RULE_DOBLOCKDROPS));
++				if (level instanceof ServerLevel serverLevel && aboveState.getCollisionShape(level, aboveBp, CollisionContext.empty()).isEmpty() && serverLevel.getGameRules().get(GameRules.MOB_GRIEFING)) {
++					level.destroyBlock(aboveBp, serverLevel.getGameRules().get(GameRules.BLOCK_DROPS));
+ 				}
+ 			}
+ 			
+--- a/src/main/java/yesman/epicfight/platform/neoforged/event/EventHooks.java
++++ b/src/main/java/yesman/epicfight/platform/neoforged/event/EventHooks.java
+@@ -7,6 +7,8 @@
+ import net.minecraft.core.BlockPos;
+ import net.minecraft.world.level.block.state.BlockState;
+ import net.minecraft.world.level.Level;
++import net.minecraft.server.level.ServerLevel;
++import net.minecraft.world.level.gamerules.GameRules;
+ 
+ /// Stub for NeoForge's EventHooks.
+ public class EventHooks {
+@@ -17,6 +19,6 @@
+     public static boolean onEntityDestroyBlock(Object boss, BlockPos pos, BlockState state) { return true; }
+     public static boolean onEntityDestroyBlock(Level level, BlockPos pos, BlockState state) { return true; }
+     public static boolean canEntityGrief(Level level, Mob mob) {
+-        return mob != null && level.getGameRules().getBoolean(net.minecraft.world.level.GameRules.RULE_MOBGRIEFING);
++        return mob != null && level instanceof ServerLevel serverLevel && serverLevel.getGameRules().get(GameRules.MOB_GRIEFING);
+     }
+ }
+--- a/src/main/java/yesman/epicfight/gameasset/Animations.java
++++ b/src/main/java/yesman/epicfight/gameasset/Animations.java
+@@ -1907,7 +1907,7 @@
+                                         }
+                                     });
+ 
+-                                    Level.ExplosionInteraction explosion$blockinteraction = witherboss.level().getGameRules().getBoolean(GameRules.RULE_MOBGRIEFING) ? Level.ExplosionInteraction.BLOCK : Level.ExplosionInteraction.NONE;
++                                    Level.ExplosionInteraction explosion$blockinteraction = (witherboss.level() instanceof ServerLevel serverLevel && serverLevel.getGameRules().get(GameRules.MOB_GRIEFING)) ? Level.ExplosionInteraction.BLOCK : Level.ExplosionInteraction.NONE;
+                                     witherboss.level().explode(witherboss, hitLocation.x, hitLocation.y, hitLocation.z, 0.0F, false, explosion$blockinteraction);
+                                 }
+                             }
+@@ -2370,7 +2370,7 @@
+                 }
+ 
+                 if (count > 0) {
+-                    if (level.getGameRules().getBoolean(GameRules.RULE_WEATHER_CYCLE) && level.random.nextFloat() < 0.08F && level.getThunderLevel(1.0F) < 1.0F) {
++                    if (level.getGameRules().get(GameRules.ADVANCE_WEATHER) && level.random.nextFloat() < 0.08F && level.getThunderLevel(1.0F) < 1.0F) {
+                         level.setWeatherParameters(0, Mth.randomBetweenInclusive(level.random, 12000, 180000), true, true);
+                     }
+ 
+--- a/src/main/java/yesman/epicfight/world/capabilities/entitypatch/boss/WitherPatch.java
++++ b/src/main/java/yesman/epicfight/world/capabilities/entitypatch/boss/WitherPatch.java
+@@ -228,7 +228,7 @@
+ 			}
+ 		}
+ 		
+-		if (this.animator.getPlayerFor(null).getAnimation().equals(Animations.WITHER_CHARGE) && this.getEntityState().attacking() && this.original.level().getGameRules().getBoolean(GameRules.RULE_MOBGRIEFING)) {
++		if (this.animator.getPlayerFor(null).getAnimation().equals(Animations.WITHER_CHARGE) && this.getEntityState().attacking() && this.original.level() instanceof ServerLevel serverLevel && serverLevel.getGameRules().get(GameRules.MOB_GRIEFING)) {
+ 			int x = Mth.floor(this.original.getX());
+ 			int y = Mth.floor(this.original.getY());
+ 			int z = Mth.floor(this.original.getZ());
+@@ -325,7 +325,7 @@
+ 	public void onDeath(DamageSource damageSource) {
+ 		super.onDeath(damageSource);
+ 		
+-		if (!this.isLogicalClient() && this.original.level().getGameRules().getBoolean(GameRules.RULE_DOMOBLOOT) && EpicFightGameRules.EPIC_DROP.getRuleValue(this.original.level())) {
++		if (this.original.level() instanceof ServerLevel serverLevel && serverLevel.getGameRules().get(GameRules.MOB_DROPS) && EpicFightGameRules.EPIC_DROP.getRuleValue(this.original.level())) {
+ 			Vec3 startMovement = this.original.getLookAngle().scale(0.4D).add(0.0D, 0.63D, 0.0D);
+ 			ItemEntity itemEntity = new DroppedNetherStar(this.original.level(), this.original.position().add(0.0D, this.original.getBbHeight() * 0.5D, 0.0D), startMovement);
+ 			this.original.level().addFreshEntity(itemEntity);
+--- a/src/main/resources/epicfight.accesswidener
++++ b/src/main/resources/epicfight.accesswidener
+@@ -111,11 +111,6 @@
+ accessible method net/minecraft/world/entity/projectile/AbstractArrow setPierceLevel (B)V
+ accessible field net/minecraft/world/entity/projectile/ThrownTrident dealtDamage Z
+ accessible method net/minecraft/world/item/ItemStack <init> (Ljava/lang/Void;)V
+-accessible method net/minecraft/world/level/GameRules register (Ljava/lang/String;Lnet/minecraft/world/level/GameRules$Category;Lnet/minecraft/world/level/GameRules$Type;)Lnet/minecraft/world/level/GameRules$Key;
+-accessible method net/minecraft/world/level/GameRules$BooleanValue create (Z)Lnet/minecraft/world/level/GameRules$Type;
+-accessible method net/minecraft/world/level/GameRules$BooleanValue create (ZLjava/util/function/BiConsumer;)Lnet/minecraft/world/level/GameRules$Type;
+-accessible method net/minecraft/world/level/GameRules$IntegerValue create (I)Lnet/minecraft/world/level/GameRules$Type;
+-accessible method net/minecraft/world/level/GameRules$IntegerValue create (ILjava/util/function/BiConsumer;)Lnet/minecraft/world/level/GameRules$Type;
+ accessible method net/minecraft/core/particles/SimpleParticleType <init> (Z)V
+ accessible field net/minecraft/client/renderer/RenderType format Lcom/mojang/blaze3d/vertex/VertexFormat;
+ accessible method net/minecraft/core/IdMapper <init> (I)V

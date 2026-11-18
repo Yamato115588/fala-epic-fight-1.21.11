@@ -1,0 +1,87 @@
+--- a/src/main/java/yesman/epicfight/world/capabilities/skill/PlayerSkills.java
++++ b/src/main/java/yesman/epicfight/world/capabilities/skill/PlayerSkills.java
+@@ -1,6 +1,7 @@
+ package yesman.epicfight.world.capabilities.skill;
+ 
+ import com.google.common.collect.HashMultimap;
++import net.minecraft.core.Holder;
+ import net.minecraft.nbt.CompoundTag;
+ import net.minecraft.resources.ResourceLocation;
+ import org.jetbrains.annotations.ApiStatus;
+@@ -13,9 +14,11 @@
+ import yesman.epicfight.skill.SkillSlot;
+ import yesman.epicfight.world.capabilities.entitypatch.player.PlayerPatch;
+ 
++import java.util.Arrays;
+ import java.util.Collection;
+ import java.util.HashMap;
+ import java.util.Map;
++import java.util.Optional;
+ import java.util.Set;
+ import java.util.stream.Stream;
+ 
+@@ -195,35 +198,34 @@
+ 	}
+ 	
+ 	public void read(CompoundTag compound) {
+-		CompoundTag skillCompound = compound.getCompound("playerSkills");
+-		
++		CompoundTag skills = compound.getCompoundOrEmpty("playerSkills");
++
+ 		for (SkillContainer container : this.skillContainers) {
+ 			String key = ParseUtil.toLowerCase(container.getSlot().toString());
+-			
+-			if (skillCompound.contains(key)) {
+-				EpicFightRegistries.SKILL.getHolder(ResourceLocation.parse(skillCompound.getString(key))).ifPresent(skill -> {
+-					container.setSkill(skill.value());
+-					this.addLearnedSkill(skill.value());
+-				});
+-			}
+-		}
+-		
++			readSavedSkill(skills, key).ifPresent(skill -> {
++				container.setSkill(skill.value());
++				this.addLearnedSkill(skill.value());
++			});
++		}
++
+ 		for (SkillCategory category : SkillCategory.ENUM_MANAGER.universalValues()) {
+-			if (skillCompound.contains("learned:" + ParseUtil.toLowerCase(category.toString()))) {
+-				CompoundTag learnedNBT = skillCompound.getCompound("learned:" + ParseUtil.toLowerCase(category.toString()));
+-				
+-				for (String key : learnedNBT.getAllKeys()) {
+-					EpicFightRegistries.SKILL.getHolder(ResourceLocation.parse(learnedNBT.getString(key))).ifPresent(skill -> {
+-						this.addLearnedSkill(skill.value());
+-					});
+-				}
+-			}
+-		}
+-		
+-		if (skillCompound.contains("playerMode")) {
+-			this.skillContainers[0].getExecutor().toMode(PlayerPatch.PlayerMode.valueOf(ParseUtil.toUpperCase(skillCompound.getString("playerMode"))), true);
+-		} else {
+-			this.skillContainers[0].getExecutor().toEpicFightMode(true);
+-		}
+-	}
+-}
+\ No newline at end of file
++			CompoundTag learned = skills.getCompoundOrEmpty("learned:" + ParseUtil.toLowerCase(category.toString()));
++			for (String key : learned.keySet()) {
++				readSavedSkill(learned, key).ifPresent(skill -> this.addLearnedSkill(skill.value()));
++			}
++		}
++
++		String savedMode = skills.getStringOr("playerMode", "");
++		var executor = this.skillContainers[0].getExecutor();
++		Arrays.stream(PlayerPatch.PlayerMode.values())
++				.filter(mode -> mode.name().equalsIgnoreCase(savedMode))
++				.findFirst()
++				.ifPresentOrElse(mode -> executor.toMode(mode, true), () -> executor.toEpicFightMode(true));
++	}
++
++	private static Optional<Holder.Reference<Skill>> readSavedSkill(CompoundTag source, String key) {
++		return source.getString(key)
++				.map(ResourceLocation::tryParse)
++				.flatMap(EpicFightRegistries.SKILL::get);
++	}
++}

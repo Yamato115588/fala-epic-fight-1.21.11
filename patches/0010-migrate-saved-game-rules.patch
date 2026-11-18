@@ -1,0 +1,72 @@
+--- /dev/null
++++ b/src/main/java/yesman/epicfight/world/gamerule/LegacyGameRules.java
+@@ -0,0 +1,37 @@
++package yesman.epicfight.world.gamerule;
++
++import com.mojang.serialization.Dynamic;
++
++/** Converts the saved Epic Fight entries left in the game_rules map by Minecraft's data fixer. */
++public final class LegacyGameRules {
++    private LegacyGameRules() {}
++
++    public static <T> Dynamic<T> migrate(Dynamic<T> levelData) {
++        Dynamic<T> original = levelData.get("game_rules").orElseEmptyMap();
++        Dynamic<T> rules = original;
++        for (var rule : EpicFightGameRules.GAME_RULES.values()) {
++            rules = migrateRule(rules, rule);
++        }
++        return rules == original ? levelData : levelData.set("game_rules", rules);
++    }
++
++    private static <T, V> Dynamic<T> migrateRule(Dynamic<T> rules, EpicFightGameRules.ConfigurableGameRule<V, ?> rule) {
++        String oldName = rule.getRuleName();
++        var oldValue = rules.get(oldName).result();
++        var key = rule.getRuleKey();
++        if (oldValue.isEmpty() || key == null) {
++            return rules;
++        }
++
++        String newName = rule.identifier().toString();
++        if (rules.get(newName).result().isPresent()) {
++            return rules.remove(oldName);
++        }
++        var ops = rules.getOps();
++        var converted = oldValue.get().asString().result()
++                .flatMap(value -> key.deserialize(value).result())
++                .flatMap(value -> key.valueCodec().encodeStart(ops, value).result());
++        Dynamic<T> cleaned = rules.remove(oldName);
++        return converted.map(value -> cleaned.set(newName, new Dynamic<>(ops, value))).orElse(cleaned);
++    }
++}
+--- /dev/null
++++ b/src/main/java/yesman/epicfight/mixin/common/MixinLevelSettings.java
+@@ -0,0 +1,19 @@
++package yesman.epicfight.mixin.common;
++
++import com.mojang.serialization.Dynamic;
++import net.minecraft.world.level.LevelSettings;
++import org.spongepowered.asm.mixin.Mixin;
++import org.spongepowered.asm.mixin.injection.At;
++import org.spongepowered.asm.mixin.injection.ModifyVariable;
++import yesman.epicfight.world.gamerule.LegacyGameRules;
++
++@Mixin(LevelSettings.class)
++abstract class MixinLevelSettings {
++    @ModifyVariable(
++            method = "parse(Lcom/mojang/serialization/Dynamic;Lnet/minecraft/world/level/WorldDataConfiguration;)Lnet/minecraft/world/level/LevelSettings;",
++            at = @At("HEAD"), argsOnly = true, ordinal = 0
++    )
++    private static Dynamic<?> epicfight$migrateGameRules(Dynamic<?> levelData) {
++        return LegacyGameRules.migrate(levelData);
++    }
++}
+--- a/src/main/resources/epicfight.mixins.json
++++ b/src/main/resources/epicfight.mixins.json
+@@ -53,6 +53,7 @@
+         "common.MixinEntity",
+         "common.MixinEntityTick",
+         "common.MixinItemStack",
++        "common.MixinLevelSettings",
+         "common.MixinLivingEntity",
+         "common.MixinLivingEntityUseItem",
+         "common.MixinMob",

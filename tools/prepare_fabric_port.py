@@ -76,7 +76,11 @@ def main():
         stage.mkdir()
         extract_code(archive, stage)
         for patch in sorted((PROJECT / 'patches').glob('*.patch')):
-            subprocess.run(['git', 'apply', '--whitespace=error', str(patch)], cwd=stage, check=True)
+            subprocess.run(
+                ['git', '-c', 'core.whitespace=trailing-space,space-before-tab,cr-at-eol',
+                 'apply', '--whitespace=error', str(patch)],
+                cwd=stage, check=True,
+            )
         migrated = migrate(stage)
         stage.rename(output)
         print(f'Prepared {output}; updated Minecraft class references in {migrated} Java files.')
