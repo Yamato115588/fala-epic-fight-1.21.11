@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "id": "fala_figura_compat",
+  "version": "${version}",
+  "name": "Fala Epic Fight – Figura Compatibility",
+  "description": "Preserves the Figura render path for players with a loaded avatar while using Epic Fight.",
+  "license": "GPL-3.0-only",
+  "environment": "client",
+  "entrypoints": {
+    "epicfight:fala_vanilla_player_model": ["th.falasiayacraft.compat.figura.FiguraPlayerModelPolicy"]
+  },
+  "depends": {
+    "fabricloader": ">=0.19.3",
+    "minecraft": "=1.21.11",
+    "java": ">=21",
+    "epicfight": "=21.17.3-fala.2",
+    "figura": "=0.1.6+1.21.11"
+  }
+}

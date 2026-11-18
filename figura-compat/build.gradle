@@ -1,0 +1,44 @@
+plugins {
+    id 'java'
+}
+
+group = 'th.falasiayacraft'
+version = '0.1.0-alpha.1'
+
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(21)
+}
+
+sourceSets {
+    bridgeApi {
+        java.srcDir '../bridge-api/src/main/java'
+    }
+}
+
+def figuraJar = providers.gradleProperty('figuraJar')
+
+dependencies {
+    compileOnly sourceSets.bridgeApi.output
+    compileOnly files(figuraJar.map { file(it) })
+}
+
+tasks.named('compileJava') {
+    doFirst {
+        if (!figuraJar.isPresent() || !file(figuraJar.get()).isFile()) {
+            throw new GradleException('Set -PfiguraJar to the CustomFigura 1.21.11 JAR from your Fala modpack.')
+        }
+    }
+}
+
+tasks.named('processResources') {
+    inputs.property('version', project.version)
+    filesMatching('fabric.mod.json') {
+        expand(version: project.version)
+    }
+}
+
+tasks.named('jar') {
+    from('../LICENSE') {
+        into 'META-INF'
+    }
+}

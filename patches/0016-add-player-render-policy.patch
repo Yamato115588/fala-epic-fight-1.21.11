@@ -1,0 +1,78 @@
+--- a/gradle.properties
++++ b/gradle.properties
+@@ -9,7 +9,7 @@
+ loader_version=0.19.3
+ 
+ # Mod Properties
+-mod_version=21.17.3-fala.1+mc1.21.11
++mod_version=21.17.3-fala.2+mc1.21.11
+ group_id=yesman.epicfight
+ mod_id=epicfight
+ display_name=Epic Fight
+--- a/src/main/java/yesman/epicfight/client/events/engine/RenderEngine.java
++++ b/src/main/java/yesman/epicfight/client/events/engine/RenderEngine.java
+@@ -81,6 +81,7 @@
+ import yesman.epicfight.client.renderer.FakeBlockRenderer;
+ import yesman.epicfight.client.renderer.FirstPersonRenderer;
+ import yesman.epicfight.client.renderer.VanillaFakeBlockRenderer;
++import yesman.epicfight.client.renderer.VanillaPlayerModelOverrides;
+ import yesman.epicfight.client.renderer.patched.entity.*;
+ import yesman.epicfight.client.renderer.patched.item.*;
+ import yesman.epicfight.client.renderer.patched.layer.WearableItemLayer;
+@@ -605,7 +606,8 @@
+             return;
+         }
+ 
+-        if (playerpatch.isEpicFightMode() && ClientConfig.enableAnimatedFirstPersonModel) {
++        if (playerpatch.isEpicFightMode() && ClientConfig.enableAnimatedFirstPersonModel
++            && !VanillaPlayerModelOverrides.keepVanillaModel(playerpatch.getOriginal().getUUID())) {
+             RenderItemBase mainhandItemSkin = this.getItemRenderer(playerpatch.getOriginal().getMainHandItem());
+             RenderItemBase offhandItemSkin = this.getItemRenderer(playerpatch.getOriginal().getOffhandItem());
+             boolean useEpicFightModel = (mainhandItemSkin == null || !mainhandItemSkin.forceVanillaFirstPerson()) && (offhandItemSkin == null || !offhandItemSkin.forceVanillaFirstPerson());
+--- a/src/main/java/yesman/epicfight/client/world/capabilites/entitypatch/player/AbstractClientPlayerPatch.java
++++ b/src/main/java/yesman/epicfight/client/world/capabilites/entitypatch/player/AbstractClientPlayerPatch.java
+@@ -26,6 +26,7 @@
+ import yesman.epicfight.api.client.event.EpicFightClientEventHooks;
+ import yesman.epicfight.api.client.event.types.entity.ModifyPlayerLivingMotionEvent;
+ import yesman.epicfight.api.client.event.types.render.ValidatePlayerModelEvent;
++import yesman.epicfight.client.renderer.VanillaPlayerModelOverrides;
+ import yesman.epicfight.api.client.physics.cloth.ClothSimulatable;
+ import yesman.epicfight.api.client.physics.cloth.ClothSimulator;
+ import yesman.epicfight.api.physics.PhysicsSimulator;
+@@ -310,7 +311,8 @@
+     public boolean overrideRender() {
+         ValidatePlayerModelEvent validatePlayerModelEvent = new ValidatePlayerModelEvent(this, !ClientConfig.enableOriginalModel || this.isEpicFightMode());
+         EpicFightClientEventHooks.Render.VALIDATE_PLAYER_MODEL_TO_RENDER.post(validatePlayerModelEvent);
+-        return validatePlayerModelEvent.getShouldRender();
++        return validatePlayerModelEvent.getShouldRender()
++            && !VanillaPlayerModelOverrides.keepVanillaModel(this.original.getUUID());
+     }
+ 
+     @Override
+--- /dev/null
++++ b/src/main/java/yesman/epicfight/client/renderer/VanillaPlayerModelOverrides.java
+@@ -0,0 +1,24 @@
++package yesman.epicfight.client.renderer;
++
++import java.util.List;
++import java.util.UUID;
++import net.fabricmc.loader.api.FabricLoader;
++import yesman.epicfight.api.client.render.VanillaPlayerModelPolicy;
++
++public final class VanillaPlayerModelOverrides {
++    private static final List<VanillaPlayerModelPolicy> POLICIES = FabricLoader.getInstance()
++        .getEntrypoints(VanillaPlayerModelPolicy.ENTRYPOINT, VanillaPlayerModelPolicy.class);
++
++    private VanillaPlayerModelOverrides() {
++    }
++
++    public static boolean keepVanillaModel(UUID playerId) {
++        for (var policy : POLICIES) {
++            if (policy.keepVanillaModel(playerId)) {
++                return true;
++            }
++        }
++
++        return false;
++    }
++}

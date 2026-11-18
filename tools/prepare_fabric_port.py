@@ -81,6 +81,8 @@ def main():
                  'apply', '--whitespace=error', str(patch)],
                 cwd=stage, check=True,
             )
+        shutil.copytree(PROJECT / 'bridge-api/src/main/java', stage / 'src/main/java',
+                        dirs_exist_ok=True)
         migrated = migrate(stage)
         stage.rename(output)
         print(f'Prepared {output}; updated Minecraft class references in {migrated} Java files.')

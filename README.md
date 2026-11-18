@@ -2,6 +2,11 @@
 
 ชุดซอร์สสำหรับพอร์ตตัวมอด Epic Fight ให้โหลดและเล่นได้บน Minecraft Java **1.21.11**, Java 21, Fabric Loader **0.19.3** และ Fabric API **0.141.6+1.21.11** ทดสอบ Epic Fight กับ Fabric ในอินสแตนซ์แยกก่อนนำไปรวมกับแพ็ก Fala ฐานคือสาขา Fabric 1.21.1 ของทีม Epic Fight ที่ commit `866a2a1e4268d0d7897c6a5be4ef1e58e47d7443` [Epic Fight Fabric ต้นทาง](https://github.com/Antikythera-Studios/epicfight/tree/866a2a1e4268d0d7897c6a5be4ef1e58e47d7443)
 
+| มอด | หน้าที่ | โปรเจกต์สำหรับบิลด์ |
+| --- | --- | --- |
+| `epicfight` | ระบบต่อสู้ Epic Fight ใช้ได้โดยอิสระจาก CustomFigura เมื่อพอร์ตเสร็จ | สร้างซอร์สด้วย `tools/prepare_fabric_port.py` |
+| `fala_figura_compat` | มอดเสริมฝั่งไคลเอนต์สำหรับ Epic Fight และ CustomFigura | `figura-compat/` |
+
 ## ส่วนที่พอร์ตแล้วในซอร์ส
 
 - ย้ายชื่อคลาสและ descriptor ตาม Mojang mappings ของ 1.21.11 รวมถึง `ResourceLocation` → `Identifier`
@@ -41,9 +46,19 @@ cd epicfight-fabric-work
 - `processResources` ของ 1.21.11 ผ่าน การคอมไพล์ทั้งมอดยังติด API เรนเดอร์, Registry, NBT ในส่วนอื่น, mixin targets และมอดเสริม และ `validateAccessWidener` ยังพบสมาชิก Minecraft ที่ต้องย้าย จึงยังไม่มี JAR สำหรับเล่น การทดสอบคอมโบ แอนิเมชันและการซิงก์ระหว่างผู้เล่นต้องทำหลังได้ build ที่เปิดเกมได้
 - Arclight ที่พบในเซิร์ฟเวอร์ Fala ฝัง Fabric Loader 0.19.2 ต้องทดสอบด้วย Arclight สำหรับ 1.21.11 ที่มี Loader ตรงตามข้อกำหนด และทดสอบร่วมกับ CustomFigura, Emotecraft และ Geyser ในเซิร์ฟเวอร์ทดสอบก่อนรวมแพ็กจริง [เวอร์ชันที่ Arclight ตรึงไว้](https://github.com/IzzelAliz/Arclight/blob/8a57510/gradle/libs.versions.toml#L34-L35)
 
-## ทดสอบร่วมกับ CustomFigura หลังพอร์ต Epic Fight
+## บิลด์มอดเสริม CustomFigura
 
-CustomFigura ในแพ็ก Fala ใช้ `extractRenderState` และมี mixin สองจุดที่ยกเลิก `LivingEntityRenderer.submit` ได้ หลังเปิดเกมด้วย Epic Fight บน Fabric ได้แล้ว ให้ตรวจการวาดอวตาร การสลับโหมดต่อสู้กับอีโมต อาวุธ และแขนมุมมองบุคคลที่หนึ่งก่อนรวมแพ็ก Roleplay การส่งท่าไปยังอวตารเป็นแนวทางสำหรับกรณีที่ผลทดสอบพบว่าต้องใช้ตัวเชื่อม [Figura ExtraFight](https://modrinth.com/mod/figura_extrafight/versions), [Fightura](https://fightura.isaacdev.org/)
+ใช้ Gradle 9.5.1, JDK 21 และ JAR ของ CustomFigura 1.21.11 จากแพ็ก Fala `bridge-api/` มีอินเทอร์เฟซที่คอมไพล์เข้า Epic Fight ส่วนมอดเสริมใช้ไฟล์เดียวกันขณะคอมไพล์ โดย Fabric เรียกอินเทอร์เฟซจาก Epic Fight ตอนเปิดเกม
+
+```sh
+gradle -p figura-compat build -PfiguraJar=/path/to/figura-custom-0.1.6+1.21.11-metadatafix.jar
+```
+
+ไฟล์ออกที่ `figura-compat/build/libs/fala-figura-compat-0.1.0-alpha.1.jar` และต้องใช้คู่กับ Epic Fight พอร์ต `21.17.3-fala.2` และ CustomFigura `0.1.6+1.21.11` ในไคลเอนต์ มอดเสริมจะให้ Minecraft และ Figura เป็นผู้วาดผู้เล่นที่โหลดอวตารและมีตัวเรนเดอร์พร้อม ทั้งตัวละครในโลกและมุมมองบุคคลที่หนึ่ง ผู้เล่นคนอื่นยังใช้การเลือกโมเดลปกติของ Epic Fight
+
+ทดสอบช่วงเริ่มต้นของ Fabric Client 1.21.11 ด้วย CustomFigura ของแพ็กและมอดทดสอบที่ใช้ API ของ Epic Fight แล้ว Fabric พบมอดเสริมเมื่อมีครบทั้งคู่ และแจ้ง dependency เมื่อขาดมอดที่ต้องใช้
+
+JAR นี้เป็นรุ่นทดสอบ การเล่นด้วยทั้งสองมอดและการวาดอวตารในเกมยังรอบิลด์ Epic Fight ตัวเต็ม ส่วนการส่งท่าต่อสู้ไปยังกระดูกของอวตารเป็นงานเพิ่มเติม [Figura ExtraFight](https://modrinth.com/mod/figura_extrafight/versions), [Fightura](https://fightura.isaacdev.org/)
 
 ## สิทธิ์การใช้งาน
 
