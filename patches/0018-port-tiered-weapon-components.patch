@@ -1,0 +1,607 @@
+--- a/src/main/java/yesman/epicfight/world/item/TieredWeaponItem.java
++++ b/src/main/java/yesman/epicfight/world/item/TieredWeaponItem.java
+@@ -4,32 +4,29 @@
+ import net.minecraft.world.entity.ai.attributes.AttributeModifier;
+ import net.minecraft.world.entity.ai.attributes.Attributes;
+ import net.minecraft.world.item.Item;
+-import net.minecraft.world.item.SwordItem;
+-import net.minecraft.world.item.Tier;
++import net.minecraft.world.item.ToolMaterial;
+ import net.minecraft.world.item.component.ItemAttributeModifiers;
+-import yesman.epicfight.world.capabilities.item.WeaponCapabilityPresets;
+ 
+-public abstract class TieredWeaponItem extends SwordItem {
+-    public static ItemAttributeModifiers createAttributes(Tier tier, float attackDamage, float attackSpeed, float attackSpeedModifier) {
+-        return createAttributes(attackDamage + tier.getAttackDamageBonus(), attackSpeed + WeaponCapabilityPresets.vanillaTierToLevel(tier) * attackSpeedModifier);
++public abstract class TieredWeaponItem extends Item {
++    private final ToolMaterial material;
++
++    protected TieredWeaponItem(ToolMaterial material, Item.Properties properties, ItemAttributeModifiers attributes) {
++        super(properties.sword(material, 0.0F, 0.0F).attributes(attributes));
++        this.material = material;
+     }
+-	
++
++    public ToolMaterial getMaterial() {
++        return this.material;
++    }
++
++    public static ItemAttributeModifiers createAttributes(ToolMaterial material, float attackDamage, float attackSpeed, float attackSpeedModifier) {
++        return createAttributes(attackDamage + material.attackDamageBonus(), attackSpeed + WeaponMaterials.level(material) * attackSpeedModifier);
++    }
++
+     public static ItemAttributeModifiers createAttributes(float attackDamage, float attackSpeed) {
+         return ItemAttributeModifiers.builder()
+-            .add(
+-                Attributes.ATTACK_DAMAGE
+-                , new AttributeModifier(BASE_ATTACK_DAMAGE_ID, (double)attackDamage, AttributeModifier.Operation.ADD_VALUE)
+-                , EquipmentSlotGroup.MAINHAND
+-            )
+-            .add(
+-                  Attributes.ATTACK_SPEED
+-                , new AttributeModifier(BASE_ATTACK_SPEED_ID, (double)attackSpeed, AttributeModifier.Operation.ADD_VALUE)
+-                , EquipmentSlotGroup.MAINHAND
+-            )
++            .add(Attributes.ATTACK_DAMAGE, new AttributeModifier(BASE_ATTACK_DAMAGE_ID, attackDamage, AttributeModifier.Operation.ADD_VALUE), EquipmentSlotGroup.MAINHAND)
++            .add(Attributes.ATTACK_SPEED, new AttributeModifier(BASE_ATTACK_SPEED_ID, attackSpeed, AttributeModifier.Operation.ADD_VALUE), EquipmentSlotGroup.MAINHAND)
+             .build();
+     }
+-    
+-	public TieredWeaponItem(Tier tier, Item.Properties properties) {
+-		super(tier, properties);
+-	}
+-}
+\ No newline at end of file
++}
+--- /dev/null
++++ b/src/main/java/yesman/epicfight/world/item/WeaponMaterials.java
+@@ -0,0 +1,84 @@
++package yesman.epicfight.world.item;
++
++import java.util.List;
++
++import net.minecraft.core.component.DataComponents;
++import net.minecraft.world.item.Item;
++import net.minecraft.world.item.ToolMaterial;
++
++public final class WeaponMaterials {
++    private static final List<ToolMaterial> VANILLA_MATERIALS = List.of(
++        ToolMaterial.WOOD, ToolMaterial.STONE, ToolMaterial.COPPER, ToolMaterial.IRON,
++        ToolMaterial.GOLD, ToolMaterial.DIAMOND, ToolMaterial.NETHERITE
++    );
++
++    private WeaponMaterials() {
++    }
++
++    public static ToolMaterial materialOf(Item item) {
++        if (item instanceof TieredWeaponItem weapon) {
++            return weapon.getMaterial();
++        }
++
++        var components = item.components();
++        var repairable = components.get(DataComponents.REPAIRABLE);
++        if (!components.has(DataComponents.TOOL) || repairable == null) {
++            return null;
++        }
++
++        var repairTag = repairable.items().unwrapKey().orElse(null);
++        int durability = components.getOrDefault(DataComponents.MAX_DAMAGE, 0);
++        for (var material : VANILLA_MATERIALS) {
++            if (material.durability() == durability && material.repairItems().equals(repairTag)) {
++                return material;
++            }
++        }
++
++        return null;
++    }
++
++    public static int level(Item item) {
++        return level(item, materialOf(item));
++    }
++
++    public static int level(Item item, ToolMaterial material) {
++        if (material != null) {
++            return level(material);
++        }
++
++        var components = item.components();
++        if (isMaterialTool(item)) {
++            return levelFromDurability(components.getOrDefault(DataComponents.MAX_DAMAGE, 0));
++        }
++        return 0;
++    }
++
++    public static boolean isMaterialTool(Item item) {
++        var components = item.components();
++        return components.has(DataComponents.TOOL) && components.has(DataComponents.REPAIRABLE);
++    }
++
++    public static int level(ToolMaterial material) {
++        if (material == ToolMaterial.WOOD || material == ToolMaterial.GOLD) {
++            return 0;
++        }
++        if (material == ToolMaterial.STONE) {
++            return 1;
++        }
++        if (material == ToolMaterial.IRON) {
++            return 2;
++        }
++        if (material == ToolMaterial.DIAMOND) {
++            return 3;
++        }
++        if (material == ToolMaterial.NETHERITE) {
++            return 4;
++        }
++        return levelFromDurability(material.durability());
++    }
++
++    private static int levelFromDurability(int durability) {
++        double sqrt = Math.sqrt(durability);
++        return sqrt < 10.0D ? 0 : (int)Math.round(sqrt / 10.0D);
++    }
++}
+--- a/src/main/java/yesman/epicfight/world/item/DaggerItem.java
++++ b/src/main/java/yesman/epicfight/world/item/DaggerItem.java
+@@ -1,15 +1,15 @@
+ package yesman.epicfight.world.item;
+ 
+ import net.minecraft.world.item.Item;
+-import net.minecraft.world.item.Tier;
++import net.minecraft.world.item.ToolMaterial;
+ import net.minecraft.world.item.component.ItemAttributeModifiers;
+ 
+ public class DaggerItem extends TieredWeaponItem {
+-	public static ItemAttributeModifiers createDaggerAttributes(Tier iter) {
+-		return TieredWeaponItem.createAttributes(iter, 1.0F, -1.6F, 0.0F);
++	public static ItemAttributeModifiers createDaggerAttributes(ToolMaterial tier) {
++		return TieredWeaponItem.createAttributes(tier, 1.0F, -1.6F, 0.0F);
+ 	}
+ 	
+-	public DaggerItem(Tier tier, Item.Properties properties) {
+-		super(tier, properties);
++	public DaggerItem(ToolMaterial tier, Item.Properties properties) {
++		super(tier, properties, createDaggerAttributes(tier));
+ 	}
+ }
+\ No newline at end of file
+--- a/src/main/java/yesman/epicfight/world/item/GreatswordItem.java
++++ b/src/main/java/yesman/epicfight/world/item/GreatswordItem.java
+@@ -5,15 +5,14 @@
+ import net.minecraft.world.entity.ai.attributes.AttributeModifier;
+ import net.minecraft.world.entity.ai.attributes.Attributes;
+ import net.minecraft.world.item.Item;
+-import net.minecraft.world.item.Tier;
++import net.minecraft.world.item.ToolMaterial;
+ import net.minecraft.world.item.component.ItemAttributeModifiers;
+-import yesman.epicfight.world.capabilities.item.WeaponCapabilityPresets;
+ 
+ public class GreatswordItem extends TieredWeaponItem {
+ 	public static final ResourceLocation GREATSWORD_MOVEMENT_SPEED_PENALTY_ID = ResourceLocation.withDefaultNamespace("greatsword_movement_speed_penalty");
+ 	
+-	public static ItemAttributeModifiers createGreatswordAttributes(Tier tier) {
+-        return createGreatswordAttributes(11.0F + tier.getAttackDamageBonus(), -2.85F + WeaponCapabilityPresets.vanillaTierToLevel(tier) * -0.05F);
++	public static ItemAttributeModifiers createGreatswordAttributes(ToolMaterial tier) {
++        return createGreatswordAttributes(11.0F + tier.attackDamageBonus(), -2.85F + WeaponMaterials.level(tier) * -0.05F);
+     }
+ 	
+ 	public static ItemAttributeModifiers createGreatswordAttributes(float attackDamage, float attackSpeed) {
+@@ -36,7 +35,7 @@
+             .build();
+     }
+ 	
+-	public GreatswordItem(Tier tier, Item.Properties properties) {
+-		super(tier, properties);
++	public GreatswordItem(ToolMaterial tier, Item.Properties properties) {
++		super(tier, properties, createGreatswordAttributes(tier));
+ 	}
+ }
+\ No newline at end of file
+--- a/src/main/java/yesman/epicfight/world/item/LongswordItem.java
++++ b/src/main/java/yesman/epicfight/world/item/LongswordItem.java
+@@ -1,15 +1,15 @@
+ package yesman.epicfight.world.item;
+ 
+ import net.minecraft.world.item.Item;
+-import net.minecraft.world.item.Tier;
++import net.minecraft.world.item.ToolMaterial;
+ import net.minecraft.world.item.component.ItemAttributeModifiers;
+ 
+ public class LongswordItem extends TieredWeaponItem {
+-	public static ItemAttributeModifiers createLongswordAttributes(Tier iter) {
+-		return TieredWeaponItem.createAttributes(iter, 4.0F, -2.8F, 0.0F);
++	public static ItemAttributeModifiers createLongswordAttributes(ToolMaterial tier) {
++		return TieredWeaponItem.createAttributes(tier, 4.0F, -2.8F, 0.0F);
+ 	}
+ 	
+-	public LongswordItem(Tier tier, Item.Properties properties) {
+-		super(tier, properties);
++	public LongswordItem(ToolMaterial tier, Item.Properties properties) {
++		super(tier, properties, createLongswordAttributes(tier));
+ 	}
+ }
+\ No newline at end of file
+--- a/src/main/java/yesman/epicfight/world/item/SpearItem.java
++++ b/src/main/java/yesman/epicfight/world/item/SpearItem.java
+@@ -1,15 +1,15 @@
+ package yesman.epicfight.world.item;
+ 
+ import net.minecraft.world.item.Item;
+-import net.minecraft.world.item.Tier;
++import net.minecraft.world.item.ToolMaterial;
+ import net.minecraft.world.item.component.ItemAttributeModifiers;
+ 
+ public class SpearItem extends TieredWeaponItem {
+-	public static ItemAttributeModifiers createSpearAttributes(Tier iter) {
+-		return TieredWeaponItem.createAttributes(iter, 3.0F, -2.8F, 0.0F);
++	public static ItemAttributeModifiers createSpearAttributes(ToolMaterial tier) {
++		return TieredWeaponItem.createAttributes(tier, 3.0F, -2.8F, 0.0F);
+ 	}
+ 	
+-	public SpearItem(Tier tier, Item.Properties properties) {
+-		super(tier, properties);
++	public SpearItem(ToolMaterial tier, Item.Properties properties) {
++		super(tier, properties, createSpearAttributes(tier));
+ 	}
+ }
+\ No newline at end of file
+--- a/src/main/java/yesman/epicfight/world/item/TachiItem.java
++++ b/src/main/java/yesman/epicfight/world/item/TachiItem.java
+@@ -1,15 +1,15 @@
+ package yesman.epicfight.world.item;
+ 
+ import net.minecraft.world.item.Item;
+-import net.minecraft.world.item.Tier;
++import net.minecraft.world.item.ToolMaterial;
+ import net.minecraft.world.item.component.ItemAttributeModifiers;
+ 
+ public class TachiItem extends TieredWeaponItem {
+-	public static ItemAttributeModifiers createTachiAttributes(Tier iter) {
+-		return TieredWeaponItem.createAttributes(iter, 4.0F, -2.8F, 0.0F);
++	public static ItemAttributeModifiers createTachiAttributes(ToolMaterial tier) {
++		return TieredWeaponItem.createAttributes(tier, 4.0F, -2.8F, 0.0F);
+ 	}
+ 	
+-	public TachiItem(Tier tier, Item.Properties properties) {
+-		super(tier, properties);
++	public TachiItem(ToolMaterial tier, Item.Properties properties) {
++		super(tier, properties, createTachiAttributes(tier));
+ 	}
+ }
+\ No newline at end of file
+--- a/src/main/java/yesman/epicfight/world/capabilities/item/WeaponCapabilityPresets.java
++++ b/src/main/java/yesman/epicfight/world/capabilities/item/WeaponCapabilityPresets.java
+@@ -1,29 +1,12 @@
+ package yesman.epicfight.world.capabilities.item;
+ 
+ import net.minecraft.world.item.Item;
+-import net.minecraft.world.item.Tier;
+-import net.minecraft.world.item.TieredItem;
+-import net.minecraft.world.item.Tiers;
++import net.minecraft.world.item.ToolMaterial;
++import yesman.epicfight.world.item.WeaponMaterials;
+ import yesman.epicfight.api.ex_cap.managers.ExCapManager;
+ import yesman.epicfight.registry.entries.EpicFightSounds;
+ 
+ public abstract class WeaponCapabilityPresets {
+-	public static int vanillaTierToLevel(Tier tier) {
+-		if (tier instanceof Tiers vanillaTier) {
+-			switch (vanillaTier) {
+-                case WOOD, GOLD -> {return 0;}
+-                case STONE -> {return 1;}
+-			    case IRON -> {return 2;}
+-			    case DIAMOND -> {return 3;}
+-                case NETHERITE -> {return 4;}
+-			}
+-		}
+-		double sqrt = Math.sqrt(tier.getUses());
+-
+-		// Custom tier mapping
+-		return sqrt < 10.0D ? 0 : (int)Math.round(sqrt / 10.0D);
+-	}
+-
+     public static CapabilityItem.Builder<?> registerPreset(CapabilityItem.Builder<?> builder, Item item)
+     {
+         if (builder instanceof WeaponCapability.Builder weaponBuilder)
+@@ -41,17 +24,14 @@
+ 
+     private static void handleItemOverrides(WeaponCapability.Builder builder, Item item)
+     {
+-        if (item instanceof TieredItem tieredItem) {
+-            int tierLevel = vanillaTierToLevel(tieredItem.getTier());
+-            builder.modifyTierAttributes(tierLevel);
+-            if (tieredItem.getTier() == Tiers.WOOD)
+-            {
+-                builder.hitSound(EpicFightSounds.BLUNT_HIT);
+-            }
+-            if (tieredItem.getTier() == Tiers.STONE)
+-            {
+-                builder.hitSound(EpicFightSounds.BLUNT_HIT_HARD);
+-            }
++        ToolMaterial material = WeaponMaterials.materialOf(item);
++        if (material != null || WeaponMaterials.isMaterialTool(item)) {
++            builder.modifyTierAttributes(WeaponMaterials.level(item, material));
++        }
++        if (material == ToolMaterial.WOOD) {
++            builder.hitSound(EpicFightSounds.BLUNT_HIT);
++        } else if (material == ToolMaterial.STONE) {
++            builder.hitSound(EpicFightSounds.BLUNT_HIT_HARD);
+         }
+         builder.handleOverrides(item);
+     }
+--- a/src/main/java/yesman/epicfight/world/damagesource/ExtraDamageInstance.java
++++ b/src/main/java/yesman/epicfight/world/damagesource/ExtraDamageInstance.java
+@@ -6,44 +6,35 @@
+ import net.minecraft.network.chat.MutableComponent;
+ import net.minecraft.world.entity.LivingEntity;
+ import net.minecraft.world.item.ItemStack;
+-import net.minecraft.world.item.TieredItem;
+ import net.minecraft.world.item.component.ItemAttributeModifiers;
+ import net.minecraft.world.item.enchantment.Enchantments;
+ import net.minecraft.world.level.LevelReader;
+ 
+ import yesman.epicfight.registry.entries.EpicFightSkills;
+-import yesman.epicfight.world.capabilities.item.WeaponCapabilityPresets;
++import yesman.epicfight.world.item.WeaponMaterials;
+ 
+ public class ExtraDamageInstance {
+ 	public static final ExtraDamage EVISCERATE_LOST_HEALTH = new ExtraDamage(
+ 		(attacker, itemstack, target, baseDamage, params) -> {
+-			int tier = 0;
+-			
+-			if (itemstack.getItem() instanceof TieredItem tieredItem) {
+-				tier += WeaponCapabilityPresets.vanillaTierToLevel(tieredItem.getTier());
+-			}
++			int tier = WeaponMaterials.level(itemstack.getItem());
+ 			
+             // Bad implementation: add parameter to ExtraDamageFunction to accept skill parameters
+             return Math.min((target.getMaxHealth() - target.getHealth()) * (params[0] + 0.05F * tier), (EpicFightSkills.EVISCERATE.get()).getDamageCap());
+ 		},
+ 		(levelReader, itemstack, tooltips, baseDamage, params) -> {
+-			int tier = 0;
+-			
+-			if (itemstack.getItem() instanceof TieredItem tieredItem) {
+-				tier += WeaponCapabilityPresets.vanillaTierToLevel(tieredItem.getTier());
+-			}
++			int tier = WeaponMaterials.level(itemstack.getItem());
+ 			
+ 			tooltips.append(Component.translatable("damage_source.epicfight.target_lost_health", Component.literal(ItemAttributeModifiers.ATTRIBUTE_MODIFIER_FORMAT.format((params[0] + tier * 0.05F) * 100F) + "%").withStyle(ChatFormatting.RED)).withStyle(ChatFormatting.DARK_GRAY));
+ 		});
+ 	
+ 	public static final ExtraDamage SWEEPING_EDGE_ENCHANTMENT = new ExtraDamage(
+ 		(attacker, itemstack, target, baseDamage, params) -> {
+-			int i = EnchantmentHelper.getItemEnchantmentLevel(attacker.level().registryAccess().registryOrThrow(net.minecraft.core.registries.Registries.ENCHANTMENT).getHolder(Enchantments.SWEEPING_EDGE).orElseThrow(), itemstack);
++			int i = EnchantmentHelper.getItemEnchantmentLevel(attacker.level().registryAccess().lookupOrThrow(net.minecraft.core.registries.Registries.ENCHANTMENT).getOrThrow(Enchantments.SWEEPING_EDGE), itemstack);
+ 			float modifier = (i > 0) ? (float)i / (i + 1.0F) : 0.0F;
+ 			
+ 			return baseDamage * modifier;
+ 		}, (levelReader, itemstack, tooltips, baseDamage, params) -> {
+-			int i = EnchantmentHelper.getItemEnchantmentLevel(levelReader.registryAccess().registryOrThrow(net.minecraft.core.registries.Registries.ENCHANTMENT).getHolder(Enchantments.SWEEPING_EDGE).orElseThrow(), itemstack);
++			int i = EnchantmentHelper.getItemEnchantmentLevel(levelReader.registryAccess().lookupOrThrow(net.minecraft.core.registries.Registries.ENCHANTMENT).getOrThrow(Enchantments.SWEEPING_EDGE), itemstack);
+ 			
+ 			if (i > 0) {
+ 				double modifier = (double)i / (i + 1.0D);
+--- a/src/main/java/yesman/epicfight/registry/entries/EpicFightItems.java
++++ b/src/main/java/yesman/epicfight/registry/entries/EpicFightItems.java
+@@ -1,15 +1,16 @@
+ package yesman.epicfight.registry.entries;
+ import yesman.epicfight.EpicFight;
+ 
++import java.util.function.Function;
++
+ import net.minecraft.core.registries.Registries;
++import net.minecraft.resources.ResourceKey;
+ import net.minecraft.world.item.ArmorItem;
+ import net.minecraft.world.item.Item;
+ import net.minecraft.world.item.Rarity;
+-import net.minecraft.world.item.SwordItem;
+-import net.minecraft.world.item.Tiers;
++import net.minecraft.world.item.ToolMaterial;
+ import yesman.epicfight.registry.deferred_shim.DeferredHolderShim;
+ import yesman.epicfight.registry.deferred_shim.DeferredRegisterShim;
+-import yesman.epicfight.main.EpicFightMod;
+ import yesman.epicfight.world.item.DaggerItem;
+ import yesman.epicfight.world.item.GloveItem;
+ import yesman.epicfight.world.item.GreatswordItem;
+@@ -24,127 +25,129 @@
+ 	private EpicFightItems() {}
+ 	
+ 	public static final DeferredRegisterShim<Item> REGISTRY = new DeferredRegisterShim<>(Registries.ITEM, EpicFight.MODID);
++
++	private static <T extends Item> DeferredHolderShim<Item, T> registerItem(String name, Function<Item.Properties, T> factory) {
++		return REGISTRY.register(name, id -> factory.apply(new Item.Properties().setId(ResourceKey.create(Registries.ITEM, id))));
++	}
+ 	
+ 	// Uchigatana & sheath
+-	public static final DeferredHolderShim<Item, UchigatanaItem> UCHIGATANA = REGISTRY.register("uchigatana",
+-		() -> new UchigatanaItem(new Item.Properties().rarity(Rarity.RARE).durability(1625).attributes(UchigatanaItem.createUchigatanaAttributes()))
++	public static final DeferredHolderShim<Item, UchigatanaItem> UCHIGATANA = registerItem("uchigatana", properties -> new UchigatanaItem(properties.rarity(Rarity.RARE).durability(1625).attributes(UchigatanaItem.createUchigatanaAttributes()))
+ 	);
+-	public static final DeferredHolderShim<Item, Item> UCHIGATANA_SHEATH = REGISTRY.register("uchigatana_sheath",
+-		() -> new Item(new Item.Properties().rarity(Rarity.EPIC))
++	public static final DeferredHolderShim<Item, Item> UCHIGATANA_SHEATH = registerItem("uchigatana_sheath", properties -> new Item(properties.rarity(Rarity.EPIC))
+ 	);
+ 	
+ 	// Greatsword variants
+-	public static final DeferredHolderShim<Item, GreatswordItem> WOODEN_GREATSWORD = REGISTRY.register("wooden_greatsword", () ->
+-		new GreatswordItem(Tiers.WOOD, new Item.Properties().attributes(GreatswordItem.createGreatswordAttributes(Tiers.WOOD)))
++	public static final DeferredHolderShim<Item, GreatswordItem> WOODEN_GREATSWORD = registerItem("wooden_greatsword", properties ->
++		new GreatswordItem(ToolMaterial.WOOD, properties)
+ 	);
+-	public static final DeferredHolderShim<Item, GreatswordItem> STONE_GREATSWORD = REGISTRY.register("stone_greatsword", () ->
+-		new GreatswordItem(Tiers.STONE, new Item.Properties().attributes(GreatswordItem.createGreatswordAttributes(Tiers.STONE)))
++	public static final DeferredHolderShim<Item, GreatswordItem> STONE_GREATSWORD = registerItem("stone_greatsword", properties ->
++		new GreatswordItem(ToolMaterial.STONE, properties)
+ 	);
+-	public static final DeferredHolderShim<Item, GreatswordItem> IRON_GREATSWORD = REGISTRY.register("iron_greatsword", () ->
+-		new GreatswordItem(Tiers.IRON, new Item.Properties().attributes(GreatswordItem.createGreatswordAttributes(Tiers.IRON)))
++	public static final DeferredHolderShim<Item, GreatswordItem> IRON_GREATSWORD = registerItem("iron_greatsword", properties ->
++		new GreatswordItem(ToolMaterial.IRON, properties)
+ 	);
+-	public static final DeferredHolderShim<Item, GreatswordItem> GOLDEN_GREATSWORD = REGISTRY.register("golden_greatsword", () ->
+-		new GreatswordItem(Tiers.GOLD, new Item.Properties().attributes(GreatswordItem.createGreatswordAttributes(Tiers.GOLD)))
++	public static final DeferredHolderShim<Item, GreatswordItem> GOLDEN_GREATSWORD = registerItem("golden_greatsword", properties ->
++		new GreatswordItem(ToolMaterial.GOLD, properties)
+ 	);
+-	public static final DeferredHolderShim<Item, GreatswordItem> DIAMOND_GREATSWORD = REGISTRY.register("diamond_greatsword", () ->
+-		new GreatswordItem(Tiers.DIAMOND, new Item.Properties().attributes(GreatswordItem.createGreatswordAttributes(Tiers.DIAMOND)))
++	public static final DeferredHolderShim<Item, GreatswordItem> DIAMOND_GREATSWORD = registerItem("diamond_greatsword", properties ->
++		new GreatswordItem(ToolMaterial.DIAMOND, properties)
+ 	);
+-	public static final DeferredHolderShim<Item, GreatswordItem> NETHERITE_GREATSWORD = REGISTRY.register("netherite_greatsword", () ->
+-		new GreatswordItem(Tiers.NETHERITE, new Item.Properties().fireResistant().attributes(GreatswordItem.createGreatswordAttributes(Tiers.NETHERITE)))
++	public static final DeferredHolderShim<Item, GreatswordItem> NETHERITE_GREATSWORD = registerItem("netherite_greatsword", properties ->
++		new GreatswordItem(ToolMaterial.NETHERITE, properties.fireResistant())
+ 	);
+ 	
+ 	// Spear variants
+-	public static final DeferredHolderShim<Item, SpearItem> WOODEN_SPEAR = REGISTRY.register("wooden_spear", () ->
+-		new SpearItem(Tiers.WOOD, new Item.Properties().attributes(SpearItem.createSpearAttributes(Tiers.WOOD)))
++	public static final DeferredHolderShim<Item, SpearItem> WOODEN_SPEAR = registerItem("wooden_spear", properties ->
++		new SpearItem(ToolMaterial.WOOD, properties)
+ 	);
+-	public static final DeferredHolderShim<Item, SpearItem> STONE_SPEAR = REGISTRY.register("stone_spear", () ->
+-		new SpearItem(Tiers.STONE, new Item.Properties().attributes(SpearItem.createSpearAttributes(Tiers.STONE)))
++	public static final DeferredHolderShim<Item, SpearItem> STONE_SPEAR = registerItem("stone_spear", properties ->
++		new SpearItem(ToolMaterial.STONE, properties)
+ 	);
+-	public static final DeferredHolderShim<Item, SpearItem> IRON_SPEAR = REGISTRY.register("iron_spear", () ->
+-		new SpearItem(Tiers.IRON, new Item.Properties().attributes(SpearItem.createSpearAttributes(Tiers.IRON)))
++	public static final DeferredHolderShim<Item, SpearItem> IRON_SPEAR = registerItem("iron_spear", properties ->
++		new SpearItem(ToolMaterial.IRON, properties)
+ 	);
+-	public static final DeferredHolderShim<Item, SpearItem> GOLDEN_SPEAR = REGISTRY.register("golden_spear", () ->
+-		new SpearItem(Tiers.GOLD, new Item.Properties().attributes(SpearItem.createSpearAttributes(Tiers.GOLD)))
++	public static final DeferredHolderShim<Item, SpearItem> GOLDEN_SPEAR = registerItem("golden_spear", properties ->
++		new SpearItem(ToolMaterial.GOLD, properties)
+ 	);
+-	public static final DeferredHolderShim<Item, SpearItem> DIAMOND_SPEAR = REGISTRY.register("diamond_spear", () ->
+-		new SpearItem(Tiers.DIAMOND, new Item.Properties().attributes(SpearItem.createSpearAttributes(Tiers.DIAMOND)))
++	public static final DeferredHolderShim<Item, SpearItem> DIAMOND_SPEAR = registerItem("diamond_spear", properties ->
++		new SpearItem(ToolMaterial.DIAMOND, properties)
+ 	);
+-	public static final DeferredHolderShim<Item, SpearItem> NETHERITE_SPEAR = REGISTRY.register("netherite_spear", () ->
+-		new SpearItem(Tiers.NETHERITE, new Item.Properties().fireResistant().attributes(SpearItem.createSpearAttributes(Tiers.NETHERITE)))
++	public static final DeferredHolderShim<Item, SpearItem> NETHERITE_SPEAR = registerItem("netherite_spear", properties ->
++		new SpearItem(ToolMaterial.NETHERITE, properties.fireResistant())
+ 	);
+ 	
+ 	// Tachi variants
+-	public static final DeferredHolderShim<Item, TachiItem> WOODEN_TACHI = REGISTRY.register("wooden_tachi", () ->
+-		new TachiItem(Tiers.WOOD, new Item.Properties().attributes(TachiItem.createTachiAttributes(Tiers.WOOD)))
++	public static final DeferredHolderShim<Item, TachiItem> WOODEN_TACHI = registerItem("wooden_tachi", properties ->
++		new TachiItem(ToolMaterial.WOOD, properties)
+ 	);
+-	public static final DeferredHolderShim<Item, TachiItem> STONE_TACHI = REGISTRY.register("stone_tachi", () ->
+-		new TachiItem(Tiers.STONE, new Item.Properties().attributes(TachiItem.createTachiAttributes(Tiers.STONE)))
++	public static final DeferredHolderShim<Item, TachiItem> STONE_TACHI = registerItem("stone_tachi", properties ->
++		new TachiItem(ToolMaterial.STONE, properties)
+ 	);
+-	public static final DeferredHolderShim<Item, TachiItem> IRON_TACHI = REGISTRY.register("iron_tachi", () ->
+-		new TachiItem(Tiers.IRON, new Item.Properties().attributes(TachiItem.createTachiAttributes(Tiers.IRON)))
++	public static final DeferredHolderShim<Item, TachiItem> IRON_TACHI = registerItem("iron_tachi", properties ->
++		new TachiItem(ToolMaterial.IRON, properties)
+ 	);
+-	public static final DeferredHolderShim<Item, TachiItem> GOLDEN_TACHI = REGISTRY.register("golden_tachi", () ->
+-		new TachiItem(Tiers.GOLD, new Item.Properties().attributes(TachiItem.createTachiAttributes(Tiers.GOLD)))
++	public static final DeferredHolderShim<Item, TachiItem> GOLDEN_TACHI = registerItem("golden_tachi", properties ->
++		new TachiItem(ToolMaterial.GOLD, properties)
+ 	);
+-	public static final DeferredHolderShim<Item, TachiItem> DIAMOND_TACHI = REGISTRY.register("diamond_tachi", () ->
+-		new TachiItem(Tiers.DIAMOND, new Item.Properties().attributes(TachiItem.createTachiAttributes(Tiers.DIAMOND)))
++	public static final DeferredHolderShim<Item, TachiItem> DIAMOND_TACHI = registerItem("diamond_tachi", properties ->
++		new TachiItem(ToolMaterial.DIAMOND, properties)
+ 	);
+-	public static final DeferredHolderShim<Item, TachiItem> NETHERITE_TACHI = REGISTRY.register("netherite_tachi", () ->
+-		new TachiItem(Tiers.NETHERITE, new Item.Properties().fireResistant().attributes(TachiItem.createTachiAttributes(Tiers.NETHERITE)))
++	public static final DeferredHolderShim<Item, TachiItem> NETHERITE_TACHI = registerItem("netherite_tachi", properties ->
++		new TachiItem(ToolMaterial.NETHERITE, properties.fireResistant())
+ 	);
+ 	
+ 	// Longsword variants
+-	public static final DeferredHolderShim<Item, LongswordItem> WOODEN_LONGSWORD = REGISTRY.register("wooden_longsword", () ->
+-		new LongswordItem(Tiers.WOOD, new Item.Properties().attributes(LongswordItem.createLongswordAttributes(Tiers.WOOD)))
++	public static final DeferredHolderShim<Item, LongswordItem> WOODEN_LONGSWORD = registerItem("wooden_longsword", properties ->
++		new LongswordItem(ToolMaterial.WOOD, properties)
+ 	);
+-	public static final DeferredHolderShim<Item, LongswordItem> STONE_LONGSWORD = REGISTRY.register("stone_longsword", () ->
+-		new LongswordItem(Tiers.STONE, new Item.Properties().attributes(LongswordItem.createLongswordAttributes(Tiers.STONE)))
++	public static final DeferredHolderShim<Item, LongswordItem> STONE_LONGSWORD = registerItem("stone_longsword", properties ->
++		new LongswordItem(ToolMaterial.STONE, properties)
+ 	);
+-	public static final DeferredHolderShim<Item, LongswordItem> IRON_LONGSWORD = REGISTRY.register("iron_longsword", () ->
+-		new LongswordItem(Tiers.IRON, new Item.Properties().attributes(LongswordItem.createLongswordAttributes(Tiers.IRON)))
++	public static final DeferredHolderShim<Item, LongswordItem> IRON_LONGSWORD = registerItem("iron_longsword", properties ->
++		new LongswordItem(ToolMaterial.IRON, properties)
+ 	);
+-	public static final DeferredHolderShim<Item, LongswordItem> GOLDEN_LONGSWORD = REGISTRY.register("golden_longsword", () ->
+-		new LongswordItem(Tiers.GOLD, new Item.Properties().attributes(LongswordItem.createLongswordAttributes(Tiers.GOLD)))
++	public static final DeferredHolderShim<Item, LongswordItem> GOLDEN_LONGSWORD = registerItem("golden_longsword", properties ->
++		new LongswordItem(ToolMaterial.GOLD, properties)
+ 	);
+-	public static final DeferredHolderShim<Item, LongswordItem> DIAMOND_LONGSWORD = REGISTRY.register("diamond_longsword", () ->
+-		new LongswordItem(Tiers.DIAMOND, new Item.Properties().attributes(LongswordItem.createLongswordAttributes(Tiers.DIAMOND)))
++	public static final DeferredHolderShim<Item, LongswordItem> DIAMOND_LONGSWORD = registerItem("diamond_longsword", properties ->
++		new LongswordItem(ToolMaterial.DIAMOND, properties)
+ 	);
+-	public static final DeferredHolderShim<Item, LongswordItem> NETHERITE_LONGSWORD = REGISTRY.register("netherite_longsword", () ->
+-		new LongswordItem(Tiers.NETHERITE, new Item.Properties().fireResistant().attributes(LongswordItem.createLongswordAttributes(Tiers.NETHERITE)))
++	public static final DeferredHolderShim<Item, LongswordItem> NETHERITE_LONGSWORD = registerItem("netherite_longsword", properties ->
++		new LongswordItem(ToolMaterial.NETHERITE, properties.fireResistant())
+ 	);
+ 	
+ 	// Dagger variants
+-	public static final DeferredHolderShim<Item, DaggerItem> WOODEN_DAGGER = REGISTRY.register("wooden_dagger", () ->
+-		new DaggerItem(Tiers.WOOD, new Item.Properties().attributes(DaggerItem.createDaggerAttributes(Tiers.WOOD)))
++	public static final DeferredHolderShim<Item, DaggerItem> WOODEN_DAGGER = registerItem("wooden_dagger", properties ->
++		new DaggerItem(ToolMaterial.WOOD, properties)
+ 	);
+-	public static final DeferredHolderShim<Item, DaggerItem> STONE_DAGGER = REGISTRY.register("stone_dagger", () ->
+-		new DaggerItem(Tiers.STONE, new Item.Properties().attributes(DaggerItem.createDaggerAttributes(Tiers.STONE)))
++	public static final DeferredHolderShim<Item, DaggerItem> STONE_DAGGER = registerItem("stone_dagger", properties ->
++		new DaggerItem(ToolMaterial.STONE, properties)
+ 	);
+-	public static final DeferredHolderShim<Item, DaggerItem> IRON_DAGGER = REGISTRY.register("iron_dagger", () ->
+-		new DaggerItem(Tiers.IRON, new Item.Properties().attributes(DaggerItem.createDaggerAttributes(Tiers.IRON)))
++	public static final DeferredHolderShim<Item, DaggerItem> IRON_DAGGER = registerItem("iron_dagger", properties ->
++		new DaggerItem(ToolMaterial.IRON, properties)
+ 	);
+-	public static final DeferredHolderShim<Item, DaggerItem> GOLDEN_DAGGER = REGISTRY.register("golden_dagger", () ->
+-		new DaggerItem(Tiers.GOLD, new Item.Properties().attributes(DaggerItem.createDaggerAttributes(Tiers.GOLD)))
++	public static final DeferredHolderShim<Item, DaggerItem> GOLDEN_DAGGER = registerItem("golden_dagger", properties ->
++		new DaggerItem(ToolMaterial.GOLD, properties)
+ 	);
+-	public static final DeferredHolderShim<Item, DaggerItem> DIAMOND_DAGGER = REGISTRY.register("diamond_dagger", () ->
+-		new DaggerItem(Tiers.DIAMOND, new Item.Properties().attributes(DaggerItem.createDaggerAttributes(Tiers.DIAMOND)))
++	public static final DeferredHolderShim<Item, DaggerItem> DIAMOND_DAGGER = registerItem("diamond_dagger", properties ->
++		new DaggerItem(ToolMaterial.DIAMOND, properties)
+ 	);
+-	public static final DeferredHolderShim<Item, DaggerItem> NETHERITE_DAGGER = REGISTRY.register("netherite_dagger", () ->
+-		new DaggerItem(Tiers.NETHERITE, new Item.Properties().fireResistant().attributes(DaggerItem.createDaggerAttributes(Tiers.NETHERITE)))
++	public static final DeferredHolderShim<Item, DaggerItem> NETHERITE_DAGGER = registerItem("netherite_dagger", properties ->
++		new DaggerItem(ToolMaterial.NETHERITE, properties.fireResistant())
+ 	);
+ 	
+ 	// Weapons etc
+-	public static final DeferredHolderShim<Item, GloveItem> GLOVE = REGISTRY.register("glove", () ->
+-		new GloveItem(new Item.Properties().durability(1625).attributes(TieredWeaponItem.createAttributes(2.0F, 0.0F)))
++	public static final DeferredHolderShim<Item, GloveItem> GLOVE = registerItem("glove", properties ->
++		new GloveItem(properties.durability(1625).attributes(TieredWeaponItem.createAttributes(2.0F, 0.0F)))
+ 	);
+-	public static final DeferredHolderShim<Item, SwordItem> BOKKEN = REGISTRY.register("bokken", () ->
+-		new SwordItem(Tiers.WOOD, new Item.Properties().attributes(SwordItem.createAttributes(Tiers.WOOD, 3, -2.4F)))
++	public static final DeferredHolderShim<Item, Item> BOKKEN = registerItem("bokken", properties ->
++		new Item(properties.sword(ToolMaterial.WOOD, 3.0F, -2.4F))
+ 	);
+ 	
+ 	// Stray armor
+-	public static final DeferredHolderShim<Item, ArmorItem> STRAY_HAT = REGISTRY.register("stray_hat", () -> new ArmorItem(EpicFightArmorMaterials.STRAY_CLOTH, ArmorItem.Type.HELMET, new Item.Properties()));
+-	public static final DeferredHolderShim<Item, ArmorItem> STRAY_ROBE = REGISTRY.register("stray_robe", () -> new ArmorItem(EpicFightArmorMaterials.STRAY_CLOTH, ArmorItem.Type.CHESTPLATE, new Item.Properties()));
+-	public static final DeferredHolderShim<Item, ArmorItem> STRAY_PANTS = REGISTRY.register("stray_pants", () -> new ArmorItem(EpicFightArmorMaterials.STRAY_CLOTH, ArmorItem.Type.LEGGINGS, new Item.Properties()));
++	public static final DeferredHolderShim<Item, ArmorItem> STRAY_HAT = registerItem("stray_hat", properties -> new ArmorItem(EpicFightArmorMaterials.STRAY_CLOTH, ArmorItem.Type.HELMET, properties));
++	public static final DeferredHolderShim<Item, ArmorItem> STRAY_ROBE = registerItem("stray_robe", properties -> new ArmorItem(EpicFightArmorMaterials.STRAY_CLOTH, ArmorItem.Type.CHESTPLATE, properties));
++	public static final DeferredHolderShim<Item, ArmorItem> STRAY_PANTS = registerItem("stray_pants", properties -> new ArmorItem(EpicFightArmorMaterials.STRAY_CLOTH, ArmorItem.Type.LEGGINGS, properties));
+ 	
+-	public static final DeferredHolderShim<Item, SkillBookItem> SKILLBOOK = REGISTRY.register("skillbook", () -> new SkillBookItem(new Item.Properties().rarity(Rarity.RARE).stacksTo(1)));
++	public static final DeferredHolderShim<Item, SkillBookItem> SKILLBOOK = registerItem("skillbook", properties -> new SkillBookItem(properties.rarity(Rarity.RARE).stacksTo(1)));
+ }
+\ No newline at end of file

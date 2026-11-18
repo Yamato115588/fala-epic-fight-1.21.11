@@ -21,6 +21,7 @@
 - ย้ายตัวลงทะเบียนไอเทมและสกิลไปใช้ Registry API ของ 1.21.11 ทั้งการค้นหา Holder และการเพิ่มรายการภายหลังใน Registry ที่ล็อกแล้ว ตัวเพิ่มรายการภายหลังรักษาแท็กของรายการเดิมไว้
 - ย้ายจุดเรียกตัวสร้าง RenderType มาตรฐาน 36 จุดไปที่ `RenderTypes` ของ 1.21.11 ตรวจลายเซ็นที่ใช้ครบ 14 แบบด้วย `javac` กับคลาสเกมรุ่นเป้าหมาย
 - ย้ายการวาดแถบ Stamina แถบชาร์จสกิล และแถบเกราะบอสไปใช้ GUI render pipeline ของ 1.21.11 ใช้เมทริกซ์ 2 มิติกับการเลื่อน HUD และส่งสีแถบ Stamina แยกในแต่ละคำสั่งวาด
+- ย้ายอาวุธที่มีระดับวัสดุ 30 รายการและ Bokken ไปใช้ `ToolMaterial` และ item components คง ID เดิม ค่าพลังโจมตี ความเร็ว ความทน การซ่อม และระดับวัสดุที่ Epic Fight ใช้คำนวณโบนัสต่อสู้
 
 ## เตรียมและตรวจซอร์ส
 
@@ -29,10 +30,12 @@
 ```sh
 python3 tools/prepare_fabric_port.py epicfight-fabric-work
 cd epicfight-fabric-work
-./gradlew compileJava
+./gradlew clean build
 ```
 
-บน Windows ใช้ `py -3 tools\prepare_fabric_port.py epicfight-fabric-work` แล้วรัน `gradlew.bat compileJava` จากโฟลเดอร์ที่สร้าง สคริปต์รับ `--upstream-archive` สำหรับ archive ที่ดาวน์โหลดไว้แล้ว โดยตรวจ checksum เดียวกัน
+บน Windows ใช้ `py -3 tools\prepare_fabric_port.py epicfight-fabric-work` แล้วรัน `gradlew.bat clean build` จากโฟลเดอร์ที่สร้าง สคริปต์รับ `--upstream-archive` สำหรับ archive ที่ดาวน์โหลดไว้แล้ว โดยตรวจ checksum เดียวกัน Gradle Wrapper ใช้ Gradle 9.5.1 และตรวจ SHA-256 ของไฟล์ Gradle ที่ดาวน์โหลด
+
+GitHub Actions ชื่อ **Fabric 1.21.11 code build** รันบนสาขา `fabric-1.21.11` เมื่อบิลด์สำเร็จ เปิดหน้า Actions แล้วดาวน์โหลด `epicfight-fabric-1.21.11-code-only` จากส่วน Artifacts ได้ ไฟล์นี้ใช้ตรวจบิลด์ซอร์ส ส่วนแพ็กพร้อมเล่นต้องมีแอสเซตที่ได้รับอนุญาตและผ่านการทดสอบในเกม
 
 ## ผลทดสอบและสถานะ
 
@@ -45,6 +48,7 @@ cd epicfight-fabric-work
 - ตัวอ่านสกิลผ่านการทดสอบบันทึกและอ่านกลับด้วย NBT และ registry จริง รวมถึงกรณีข้อมูลขาดหายและ ID ที่ไม่ถูกต้อง
 - ทดสอบตัวลงทะเบียนและ Holder ด้วยมอดทดสอบบน Fabric 1.21.11 ผ่านทั้งการเริ่มลงทะเบียน การเพิ่มหลังล็อก Registry การรักษาแท็กเก่า และการปฏิเสธ ID ซ้ำ
 - `compileJava` ตรวจผ่าน `BattleModeGui` และคำสั่งวาดแถบเกราะที่แก้ การแสดงตำแหน่ง สี และภาพในเกมยังรอทดสอบกับ Epic Fight ตัวเต็ม
+- GameTest บน Fabric 1.21.11 ลงทะเบียนชนิดอาวุธ Greatsword, Dagger, Longsword, Spear และ Tachi จากซอร์สจริง ตรวจค่าวัสดุ ความทน การซ่อม ค่าเสริมพลัง และค่าปรับของ Greatsword ผ่าน การใช้คอมโบในเกมต้องทดสอบกับมอดตัวเต็ม
 - `processResources` ของ 1.21.11 ผ่าน การคอมไพล์ทั้งมอดยังติด API เรนเดอร์, Registry, NBT ในส่วนอื่น, mixin targets และมอดเสริม และ `validateAccessWidener` ยังพบสมาชิก Minecraft ที่ต้องย้าย จึงยังไม่มี JAR สำหรับเล่น การทดสอบคอมโบ แอนิเมชันและการซิงก์ระหว่างผู้เล่นต้องทำหลังได้ build ที่เปิดเกมได้
 - Arclight ที่พบในเซิร์ฟเวอร์ Fala ฝัง Fabric Loader 0.19.2 ต้องทดสอบด้วย Arclight สำหรับ 1.21.11 ที่มี Loader ตรงตามข้อกำหนด และทดสอบร่วมกับ CustomFigura, Emotecraft และ Geyser ในเซิร์ฟเวอร์ทดสอบก่อนรวมแพ็กจริง [เวอร์ชันที่ Arclight ตรึงไว้](https://github.com/IzzelAliz/Arclight/blob/8a57510/gradle/libs.versions.toml#L34-L35)
 
