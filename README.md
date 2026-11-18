@@ -12,6 +12,13 @@
 - ย้าย Game Rules ทั้ง 13 รายการไปใช้ Fabric Game Rule API โดยใช้ชื่อแบบ `epicfight:weight_penalty` ในคำสั่งของเกม เก็บชื่อที่ใช้ในแพ็กเก็ตซิงก์เดิมไว้ และแปลงค่าในเซฟจากกฎรุ่นเก่าเมื่อเปิดเวิลด์
 - อ่านสกิลที่ติดตั้ง สกิลที่เรียนไว้ และโหมดผู้เล่นด้วย NBT และ registry API ของ 1.21.11 เก็บคีย์และรูปแบบเซฟเดิมไว้
 - ย้ายตัวลงทะเบียนไอเทมและสกิลไปใช้ Registry API ของ 1.21.11 ทั้งการค้นหา Holder และการเพิ่มรายการภายหลังใน Registry ที่ล็อกแล้ว ตัวเพิ่มรายการภายหลังรักษาแท็กของรายการเดิมไว้
+- ย้ายจุดเรียกตัวสร้าง RenderType มาตรฐาน 36 จุดไปที่ `RenderTypes` ของ 1.21.11 ตรวจลายเซ็นที่ใช้ครบ 14 แบบด้วย `javac` กับคลาสเกมรุ่นเป้าหมาย
+
+## เรนเดอร์ร่วมกับ CustomFigura
+
+Figura ExtraFight มีรุ่น Forge 1.20.1 และ NeoForge 1.21.1 ส่วน Fightura มีรุ่น Forge 1.20.1 ทั้งคู่ใช้ท่าจากกระดูกของ Epic Fight ขับโมเดล Figura ฝั่งไคลเอนต์ ใช้เป็นแนวทางสำหรับตัวเชื่อม Fabric 1.21.11 ของ Fala ได้ [Figura ExtraFight](https://modrinth.com/mod/figura_extrafight/versions), [Fightura](https://fightura.isaacdev.org/)
+
+CustomFigura ในแพ็ก Fala ใช้ `extractRenderState` และมี mixin สองจุดที่ยกเลิก `LivingEntityRenderer.submit` ได้ จุดเชื่อมควรเก็บท่าของ Epic Fight ใน render state ของผู้เล่น แล้วส่งท่านั้นให้ CustomFigura วาดอวตารในโหมดต่อสู้ ส่วนผู้เล่นที่ไม่มีอวตารใช้ทางวาดโมเดลของ Epic Fight ทั้งสองทางต้องทดสอบสลับโหมดต่อสู้กับอีโมต ท่าโจมตี อาวุธ หมวกหรือผม และแขนมุมมองบุคคลที่หนึ่ง ก่อนนำลงแพ็ก Roleplay
 
 ## เตรียมและตรวจซอร์ส
 
