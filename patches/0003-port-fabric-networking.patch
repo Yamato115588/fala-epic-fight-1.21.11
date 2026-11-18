@@ -1,0 +1,105 @@
+diff --git a/src/main/java/yesman/epicfight/network/EpicFightNetworkManager.java b/src/main/java/yesman/epicfight/network/EpicFightNetworkManager.java
+index a8da2ea..d0517bb 100644
+--- a/src/main/java/yesman/epicfight/network/EpicFightNetworkManager.java
++++ b/src/main/java/yesman/epicfight/network/EpicFightNetworkManager.java
+@@ -3,6 +3,7 @@ package yesman.epicfight.network;
+ import io.netty.buffer.ByteBuf;
+ import io.netty.buffer.Unpooled;
+ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
++import net.fabricmc.fabric.api.networking.v1.PlayerLookup;
+ import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+ import net.minecraft.network.FriendlyByteBuf;
+ import net.minecraft.network.codec.StreamEncoder;
+@@ -12,12 +13,6 @@ import net.minecraft.server.level.ServerLevel;
+ import net.minecraft.server.level.ServerPlayer;
+ import net.minecraft.world.entity.Entity;
+ import net.minecraft.world.level.ChunkPos;
+-import yesman.epicfight.EpicFight;
+-import yesman.epicfight.network.client.*;
+-import yesman.epicfight.network.common.BiDirectionalAnimationVariable;
+-import yesman.epicfight.network.common.BiDirectionalSyncAnimationPositionPacket;
+-import yesman.epicfight.network.common.BiDirectionalSyncEmoteSlots;
+-import yesman.epicfight.network.server.*;
+ 
+ import java.util.ArrayList;
+ import java.util.List;
+@@ -49,14 +44,9 @@ public class EpicFightNetworkManager {
+     }
+ 
+     public static void sendToAllPlayerTrackingThisEntity(CustomPacketPayload message, Entity entity, CustomPacketPayload... others) {
+-        // Iterate tracking players manually
+         if (entity.level() instanceof ServerLevel serverLevel) {
+-            serverLevel.getChunkSource().chunkMap.getPlayers(entity.chunkPosition(), false).forEach(player -> {
+-                ServerPlayNetworking.send(player, message);
+-                for (CustomPacketPayload other : others) {
+-                    ServerPlayNetworking.send(player, other);
+-                }
+-            });
++            PlayerLookup.tracking(serverLevel, entity.chunkPosition())
++                    .forEach(player -> sendToPlayer(message, player, others));
+         }
+     }
+ 
+@@ -70,33 +60,18 @@ public class EpicFightNetworkManager {
+     public static void sendToAllPlayerTrackingThisEntityWithSelf(CustomPacketPayload message, ServerPlayer entity, CustomPacketPayload... others) {
+         // Send to self — guard against null connection during early player placement (Entity.load)
+         if (entity.connection != null) {
+-            ServerPlayNetworking.send(entity, message);
+-            for (CustomPacketPayload other : others) {
+-                ServerPlayNetworking.send(entity, other);
+-            }
++            sendToPlayer(message, entity, others);
+         }
+-        // Send to tracking players (excluding self)
+-        if (entity.level() instanceof ServerLevel serverLevel) {
+-            serverLevel.getChunkSource().chunkMap.getPlayers(entity.chunkPosition(), false).forEach(player -> {
+-                if (player != entity) {
+-                    ServerPlayNetworking.send(player, message);
+-                    for (CustomPacketPayload other : others) {
+-                        ServerPlayNetworking.send(player, other);
+-                    }
+-                }
+-            });
++
++        for (ServerPlayer player : PlayerLookup.tracking(entity.level(), entity.chunkPosition())) {
++            if (player != entity) {
++                sendToPlayer(message, player, others);
++            }
+         }
+     }
+ 
+     public static void sendToAllPlayerTrackingThisChunkWithSelf(CustomPacketPayload message, ServerLevel serverLevel, ChunkPos chunkPos, CustomPacketPayload... others) {
+-        serverLevel.getServer().getPlayerList().getPlayers().forEach(player -> {
+-            if (player.level().hasChunk(chunkPos.x, chunkPos.z)) {
+-                ServerPlayNetworking.send(player, message);
+-                for (CustomPacketPayload other : others) {
+-                    ServerPlayNetworking.send(player, other);
+-                }
+-            }
+-        });
++        PlayerLookup.tracking(serverLevel, chunkPos).forEach(player -> sendToPlayer(message, player, others));
+     }
+ 
+     public static class PayloadBundleBuilder {
+diff --git a/src/main/java/yesman/epicfight/network/ManagedCustomPacketPayload.java b/src/main/java/yesman/epicfight/network/ManagedCustomPacketPayload.java
+index 58b259c..4dfbfa7 100644
+--- a/src/main/java/yesman/epicfight/network/ManagedCustomPacketPayload.java
++++ b/src/main/java/yesman/epicfight/network/ManagedCustomPacketPayload.java
+@@ -2,7 +2,7 @@ package yesman.epicfight.network;
+ 
+ import com.google.common.collect.Maps;
+ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+-import net.minecraft.resources.ResourceLocation;
++import net.minecraft.resources.Identifier;
+ import yesman.epicfight.EpicFight;
+ import yesman.epicfight.network.client.*;
+ import yesman.epicfight.network.common.BiDirectionalAnimationVariable;
+@@ -63,7 +63,7 @@ public interface ManagedCustomPacketPayload extends CustomPacketPayload {
+     CustomPacketPayload.Type<BiDirectionalSyncEmoteSlots> BI_DIRECTIONAL_SYNC_EMOTE_SLOTS = registerPayloadType(BiDirectionalSyncEmoteSlots.class, EpicFight.MODID, "bi_directional_emote_slots");
+ 
+ 	static <T extends ManagedCustomPacketPayload> CustomPacketPayload.Type<T> registerPayloadType(Class<T> type, String modid, String payloadId) {
+-		CustomPacketPayload.Type<T> packet = new CustomPacketPayload.Type<T> (ResourceLocation.fromNamespaceAndPath(modid, payloadId));
++		CustomPacketPayload.Type<T> packet = new CustomPacketPayload.Type<>(Identifier.fromNamespaceAndPath(modid, payloadId));
+ 		PAYLOAD_TYPES.put(type, packet);
+ 		
+ 		return packet;

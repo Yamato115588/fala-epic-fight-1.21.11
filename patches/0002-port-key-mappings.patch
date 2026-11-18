@@ -1,0 +1,322 @@
+diff --git a/src/main/java/yesman/epicfight/client/input/CombatKeyMapping.java b/src/main/java/yesman/epicfight/client/input/CombatKeyMapping.java
+index 3b0ef0e..ac699f9 100644
+--- a/src/main/java/yesman/epicfight/client/input/CombatKeyMapping.java
++++ b/src/main/java/yesman/epicfight/client/input/CombatKeyMapping.java
+@@ -45,17 +45,17 @@ public class CombatKeyMapping extends KeyMapping {
+         return COMBAT_KEY_MAPPINGS;
+     }
+ 
+-    public CombatKeyMapping(String description, int code, String category) {
++    public CombatKeyMapping(String description, int code, KeyMapping.Category category) {
+         this(description, InputConstants.Type.KEYSYM, code, category);
+     }
+ 
+     /// This key mapping only applies [KeyConflictContext#IN_GAME] since it represents player moves.
+-    public CombatKeyMapping(String description, InputConstants.Type type, int code, String category) {
++    public CombatKeyMapping(String description, InputConstants.Type type, int code, KeyMapping.Category category) {
+         super(description, type, code, category);
+         COMBAT_KEY_MAPPINGS.add(this);
+     }
+ 
+-        public boolean isActiveAndMatches(@NotNull InputConstants.Key keyCode) {
+-        return super.matches(keyCode.getValue(), 0) && ClientEngine.getInstance().isEpicFightMode();
++    public boolean isActiveAndMatches(@NotNull InputConstants.Key keyCode) {
++        return InputUtils.getKey(this).equals(keyCode) && ClientEngine.getInstance().isEpicFightMode();
+     }
+ }
+\ No newline at end of file
+diff --git a/src/main/java/yesman/epicfight/client/input/EpicFightInputCategories.java b/src/main/java/yesman/epicfight/client/input/EpicFightInputCategories.java
+index 627fbd7..44bcc9d 100644
+--- a/src/main/java/yesman/epicfight/client/input/EpicFightInputCategories.java
++++ b/src/main/java/yesman/epicfight/client/input/EpicFightInputCategories.java
+@@ -1,6 +1,9 @@
+ package yesman.epicfight.client.input;
+ 
++import net.minecraft.client.KeyMapping;
++import net.minecraft.resources.Identifier;
+ import org.jetbrains.annotations.ApiStatus;
++import yesman.epicfight.EpicFight;
+ import yesman.epicfight.generated.LangKeys;
+ 
+ @ApiStatus.Internal
+@@ -12,4 +15,13 @@ public final class EpicFightInputCategories {
+     public static final String GUI = LangKeys.KEY_GUI;
+     public static final String SYSTEM = LangKeys.KEY_SYSTEM;
+     public static final String CAMERA = LangKeys.KEY_CAMERA;
++
++    public static final KeyMapping.Category COMBAT_CATEGORY = register("combat");
++    public static final KeyMapping.Category GUI_CATEGORY = register("gui");
++    public static final KeyMapping.Category SYSTEM_CATEGORY = register("system");
++    public static final KeyMapping.Category CAMERA_CATEGORY = register("camera");
++
++    private static KeyMapping.Category register(String path) {
++        return KeyMapping.Category.register(Identifier.fromNamespaceAndPath(EpicFight.MODID, path));
++    }
+ }
+diff --git a/src/main/java/yesman/epicfight/client/input/EpicFightKeyMappings.java b/src/main/java/yesman/epicfight/client/input/EpicFightKeyMappings.java
+index 1c0ae69..e864726 100644
+--- a/src/main/java/yesman/epicfight/client/input/EpicFightKeyMappings.java
++++ b/src/main/java/yesman/epicfight/client/input/EpicFightKeyMappings.java
+@@ -18,7 +18,7 @@ public class EpicFightKeyMappings {
+                     LangKeys.KEY_SHOW_TOOLTIP,
+                     InputConstants.Type.KEYSYM,
+                     InputConstants.KEY_LSHIFT,
+-                    EpicFightInputCategories.GUI
++                    EpicFightInputCategories.GUI_CATEGORY
+             ));
+ 
+     public static final KeyMapping SKILL_EDIT =
+@@ -26,7 +26,7 @@ public class EpicFightKeyMappings {
+                     LangKeys.KEY_SKILL_GUI,
+                     InputConstants.Type.KEYSYM,
+                     InputConstants.KEY_K,
+-                    EpicFightInputCategories.GUI
++                    EpicFightInputCategories.GUI_CATEGORY
+             ));
+ 
+     public static final KeyMapping OPEN_CONFIG_SCREEN =
+@@ -34,7 +34,7 @@ public class EpicFightKeyMappings {
+                     LangKeys.KEY_CONFIG,
+                     InputConstants.Type.KEYSYM,
+                     -1,
+-                    EpicFightInputCategories.GUI
++                    EpicFightInputCategories.GUI_CATEGORY
+             ));
+ 
+     public static final KeyMapping OPEN_EMOTE_WHEEL =
+@@ -42,7 +42,7 @@ public class EpicFightKeyMappings {
+                     LangKeys.KEY_EMOTE,
+                     InputConstants.Type.KEYSYM,
+                     InputConstants.KEY_Y,
+-                    EpicFightInputCategories.GUI
++                    EpicFightInputCategories.GUI_CATEGORY
+             ));
+ 
+     // In-game keymappings
+@@ -50,7 +50,7 @@ public class EpicFightKeyMappings {
+             registerKey(new CombatKeyMapping(
+                     LangKeys.KEY_DODGE,
+                     InputConstants.KEY_LALT,
+-                    EpicFightInputCategories.COMBAT
++                    EpicFightInputCategories.COMBAT_CATEGORY
+             ));
+ 
+     public static final KeyMapping GUARD =
+@@ -58,7 +58,7 @@ public class EpicFightKeyMappings {
+                     LangKeys.KEY_GUARD,
+                     InputConstants.Type.MOUSE,
+                     InputConstants.MOUSE_BUTTON_RIGHT,
+-                    EpicFightInputCategories.COMBAT
++                    EpicFightInputCategories.COMBAT_CATEGORY
+             ));
+ 
+     public static final KeyMapping ATTACK =
+@@ -66,7 +66,7 @@ public class EpicFightKeyMappings {
+                     LangKeys.KEY_ATTACK,
+                     InputConstants.Type.MOUSE,
+                     InputConstants.MOUSE_BUTTON_LEFT,
+-                    EpicFightInputCategories.COMBAT
++                    EpicFightInputCategories.COMBAT_CATEGORY
+             ));
+ 
+     public static final KeyMapping WEAPON_INNATE_SKILL =
+@@ -74,14 +74,14 @@ public class EpicFightKeyMappings {
+                     LangKeys.KEY_WEAPON_INNATE_SKILL,
+                     InputConstants.Type.MOUSE,
+                     InputConstants.MOUSE_BUTTON_LEFT,
+-                    EpicFightInputCategories.COMBAT
++                    EpicFightInputCategories.COMBAT_CATEGORY
+             ));
+ 
+     public static final KeyMapping MOVER_SKILL =
+             registerKey(new CombatKeyMapping(
+                     LangKeys.KEY_MOVER_SKILL,
+                     InputConstants.KEY_SPACE,
+-                    EpicFightInputCategories.COMBAT
++                    EpicFightInputCategories.COMBAT_CATEGORY
+             ));
+ 
+     public static final KeyMapping SWITCH_MODE =
+@@ -89,7 +89,7 @@ public class EpicFightKeyMappings {
+                     LangKeys.KEY_SWITCH_MODE,
+                     InputConstants.Type.KEYSYM,
+                     InputConstants.KEY_R,
+-                    EpicFightInputCategories.COMBAT
++                    EpicFightInputCategories.COMBAT_CATEGORY
+             ));
+ 
+     public static final KeyMapping LOCK_ON =
+@@ -97,7 +97,7 @@ public class EpicFightKeyMappings {
+                     LangKeys.KEY_LOCK_ON,
+                     InputConstants.Type.KEYSYM,
+                     InputConstants.KEY_G,
+-                    EpicFightInputCategories.CAMERA
++                    EpicFightInputCategories.CAMERA_CATEGORY
+             ));
+ 
+     public static final KeyMapping LOCK_ON_SHIFT_LEFT =
+@@ -105,7 +105,7 @@ public class EpicFightKeyMappings {
+                     LangKeys.KEY_LOCK_ON_SHIFT_LEFT,
+                     InputConstants.Type.KEYSYM,
+                     InputConstants.KEY_LEFT,
+-                    EpicFightInputCategories.CAMERA
++                    EpicFightInputCategories.CAMERA_CATEGORY
+             ));
+ 
+     public static final KeyMapping LOCK_ON_SHIFT_RIGHT =
+@@ -113,7 +113,7 @@ public class EpicFightKeyMappings {
+                     LangKeys.KEY_LOCK_ON_SHIFT_RIGHT,
+                     InputConstants.Type.KEYSYM,
+                     InputConstants.KEY_RIGHT,
+-                    EpicFightInputCategories.CAMERA
++                    EpicFightInputCategories.CAMERA_CATEGORY
+             ));
+ 
+     public static final KeyMapping LOCK_ON_SHIFT_FREELY =
+@@ -121,7 +121,7 @@ public class EpicFightKeyMappings {
+                     LangKeys.KEY_LOCK_ON_SHIFT_FREELY,
+                     InputConstants.Type.MOUSE,
+                     InputConstants.MOUSE_BUTTON_MIDDLE,
+-                    EpicFightInputCategories.CAMERA
++                    EpicFightInputCategories.CAMERA_CATEGORY
+             ));
+ 
+     // Systemical key mappings especially for debugging
+@@ -130,7 +130,7 @@ public class EpicFightKeyMappings {
+                     LangKeys.KEY_SWITCH_VANILLA_MODEL_DEBUG,
+                     InputConstants.Type.KEYSYM,
+                     -1,
+-                    EpicFightInputCategories.SYSTEM
++                    EpicFightInputCategories.SYSTEM_CATEGORY
+             ));
+ 
+ 
+diff --git a/src/main/java/yesman/epicfight/mixin/client/KeyMappingAccessor.java b/src/main/java/yesman/epicfight/mixin/client/KeyMappingAccessor.java
+index 9723f62..0214309 100644
+--- a/src/main/java/yesman/epicfight/mixin/client/KeyMappingAccessor.java
++++ b/src/main/java/yesman/epicfight/mixin/client/KeyMappingAccessor.java
+@@ -5,26 +5,8 @@ import net.minecraft.client.KeyMapping;
+ import org.spongepowered.asm.mixin.Mixin;
+ import org.spongepowered.asm.mixin.gen.Accessor;
+ 
+-import java.util.Map;
+-
+ @Mixin(KeyMapping.class)
+ public interface KeyMappingAccessor {
+-    @Accessor("clickCount")
+-    int epicfight$getClickCount();
+-
+-    @Accessor("clickCount")
+-    void epicfight$setClickCount(int value);
+-
+     @Accessor("key")
+     InputConstants.Key epicfight$getKey();
+-
+-    @Accessor("ALL")
+-    static Map<String, KeyMapping> epicfight$getAll() {
+-        throw new RuntimeException("Mixin stub");
+-    }
+-
+-    @Accessor("MAP")
+-    static Map<InputConstants.Key, KeyMapping> epicfight$getMap() {
+-        throw new RuntimeException("Mixin stub");
+-    }
+ }
+diff --git a/src/main/java/yesman/epicfight/mixin/client/MixinKeyMappingClick.java b/src/main/java/yesman/epicfight/mixin/client/MixinKeyMappingClick.java
+index 5975fa1..67911f4 100644
+--- a/src/main/java/yesman/epicfight/mixin/client/MixinKeyMappingClick.java
++++ b/src/main/java/yesman/epicfight/mixin/client/MixinKeyMappingClick.java
+@@ -3,6 +3,7 @@ package yesman.epicfight.mixin.client;
+ import com.mojang.blaze3d.platform.InputConstants;
+ import net.minecraft.client.KeyMapping;
+ import org.spongepowered.asm.mixin.Mixin;
++import org.spongepowered.asm.mixin.Unique;
+ import org.spongepowered.asm.mixin.injection.At;
+ import org.spongepowered.asm.mixin.injection.Inject;
+ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+@@ -10,74 +11,24 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+ import java.util.HashSet;
+ import java.util.Set;
+ 
+-/// Restores multi-binding key dispatch, which Epic Fight relies on but vanilla Fabric lacks.
+-///
+-/// Vanilla [KeyMapping#click] and [KeyMapping#set] both resolve a *single* mapping via the
+-/// static `MAP`, and `MAP` keeps only the last [KeyMapping] constructed for a given key.
+-/// Epic Fight binds both `ATTACK` and `WEAPON_INNATE_SKILL` to the left mouse button, so
+-/// `MAP[LMB]` ends up owned by `key.epicfight.weapon_innate_skill` and vanilla's `key.attack`
+-/// stops receiving clicks *and* press state entirely — which silently breaks block breaking,
+-/// because [net.minecraft.client.Minecraft#continueAttack] is driven by `keyAttack.isDown()`
+-/// and calls `stopDestroyBlock()` every tick while it reads `false`.
+-///
+-/// NeoForge does not have this problem: it replaces `MAP` with a `KeyBindingMap` whose
+-/// `lookupAll` returns *every* mapping bound to a key, so vanilla and modded mappings both
+-/// observe the input. This mixin reproduces that behaviour — after vanilla has updated the
+-/// single `MAP` owner, the same event is propagated to every other mapping bound to the key.
+-///
+-/// Suppressing vanilla actions in Epic Fight mode is *not* this class's job; that is handled
+-/// by [yesman.epicfight.mixin.client.MixinMinecraft], matching upstream.
++/// Keeps one click per physical press. Minecraft 1.21.11 dispatches to every bound mapping.
+ @Mixin(KeyMapping.class)
+ public abstract class MixinKeyMappingClick {
+-
+-    /// Keys currently held, used to tell a GLFW PRESS from the REPEAT events that follow it.
+-    /// Vanilla [net.minecraft.client.KeyboardHandler] calls [KeyMapping#set] before
+-    /// [KeyMapping#click], so [KeyMapping#isDown] cannot distinguish the two on its own.
++    @Unique
+     private static final Set<InputConstants.Key> EPICFIGHT_PRESSED_KEYS = new HashSet<>();
+ 
+-    private static boolean epicfight$boundTo(KeyMapping mapping, InputConstants.Key key) {
+-        // Compare against the live "key" field rather than getDefaultKey(): MAP is never
+-        // updated on rebind, so the default key would match the wrong binding afterwards.
+-        return ((KeyMappingAccessor) mapping).epicfight$getKey().equals(key);
+-    }
+-
+-    @Inject(method = "click(Lcom/mojang/blaze3d/platform/InputConstants$Key;)V", at = @At("TAIL"))
+-    private static void epicfight$distributeClick(InputConstants.Key key, CallbackInfo ci) {
+-        KeyMapping vanillaClicked = KeyMappingAccessor.epicfight$getMap().get(key);
+-        boolean isRepeat = EPICFIGHT_PRESSED_KEYS.contains(key);
+-
+-        for (KeyMapping mapping : KeyMappingAccessor.epicfight$getAll().values()) {
+-            KeyMappingAccessor accessor = (KeyMappingAccessor) mapping;
+-
+-            if (mapping == vanillaClicked) {
+-                // Vanilla already incremented this one. Undo it when the increment was wrong:
+-                // either MAP is stale (this mapping was rebound away), or this is a REPEAT.
+-                if (!epicfight$boundTo(mapping, key) || isRepeat) {
+-                    accessor.epicfight$setClickCount(accessor.epicfight$getClickCount() - 1);
+-                }
+-            } else if (epicfight$boundTo(mapping, key) && !isRepeat) {
+-                accessor.epicfight$setClickCount(accessor.epicfight$getClickCount() + 1);
+-            }
+-        }
+-
+-        if (!isRepeat) {
+-            EPICFIGHT_PRESSED_KEYS.add(key);
+-        }
++    @Inject(method = "click(Lcom/mojang/blaze3d/platform/InputConstants$Key;)V", at = @At("HEAD"), cancellable = true)
++    private static void epicfight$suppressRepeat(InputConstants.Key key, CallbackInfo callback) {
++        if (!EPICFIGHT_PRESSED_KEYS.add(key)) callback.cancel();
+     }
+ 
+-    /// Propagates press state, so a mapping displaced from `MAP` still reports [KeyMapping#isDown].
+     @Inject(method = "set(Lcom/mojang/blaze3d/platform/InputConstants$Key;Z)V", at = @At("TAIL"))
+-    private static void epicfight$distributeSet(InputConstants.Key key, boolean pressed, CallbackInfo ci) {
+-        KeyMapping vanillaSet = KeyMappingAccessor.epicfight$getMap().get(key);
+-
+-        for (KeyMapping mapping : KeyMappingAccessor.epicfight$getAll().values()) {
+-            if (mapping != vanillaSet && epicfight$boundTo(mapping, key)) {
+-                mapping.setDown(pressed);
+-            }
+-        }
++    private static void epicfight$releaseKey(InputConstants.Key key, boolean pressed, CallbackInfo callback) {
++        if (!pressed) EPICFIGHT_PRESSED_KEYS.remove(key);
++    }
+ 
+-        if (!pressed) {
+-            EPICFIGHT_PRESSED_KEYS.remove(key);
+-        }
++    @Inject(method = "releaseAll()V", at = @At("TAIL"))
++    private static void epicfight$releaseKeys(CallbackInfo callback) {
++        EPICFIGHT_PRESSED_KEYS.clear();
+     }
+ }

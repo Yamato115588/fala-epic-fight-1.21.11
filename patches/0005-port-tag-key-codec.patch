@@ -1,0 +1,22 @@
+--- a/src/main/java/yesman/epicfight/api/utils/ByteBufCodecsExtends.java
++++ b/src/main/java/yesman/epicfight/api/utils/ByteBufCodecsExtends.java
+@@ -204,15 +204,15 @@
+ 		return new StreamCodec<FriendlyByteBuf, TagKey<T>> () {
+ 			@Override
+ 			public TagKey<T> decode(FriendlyByteBuf buffer) {
+-				ResourceLocation registry = buffer.readResourceLocation();
+-				ResourceLocation tagName = buffer.readResourceLocation();
++				ResourceLocation registry = buffer.readIdentifier();
++				ResourceLocation tagName = buffer.readIdentifier();
+ 				return TagKey.create(ResourceKey.createRegistryKey(registry), tagName);
+ 			}
+ 			
+ 			@Override
+ 			public void encode(FriendlyByteBuf buffer, TagKey<T> tagKey) {
+-				buffer.writeResourceLocation(tagKey.registry().location());
+-				buffer.writeResourceLocation(tagKey.location());
++				buffer.writeIdentifier(tagKey.registry().identifier());
++				buffer.writeIdentifier(tagKey.location());
+ 			}
+ 		};
+ 	}

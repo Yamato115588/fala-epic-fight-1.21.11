@@ -1,0 +1,87 @@
+--- a/src/main/java/yesman/epicfight/world/capabilities/emote/PlayerEmoteSlots.java
++++ b/src/main/java/yesman/epicfight/world/capabilities/emote/PlayerEmoteSlots.java
+@@ -8,17 +8,14 @@
+ import net.minecraft.nbt.StringTag;
+ import net.minecraft.nbt.Tag;
+ import net.minecraft.resources.ResourceKey;
+-import net.minecraft.resources.ResourceLocation;
+-import org.apache.commons.lang3.mutable.MutableInt;
++import net.minecraft.resources.Identifier;
+ import org.jetbrains.annotations.Nullable;
+ import yesman.epicfight.client.online.cosmetics.Emote;
+-import yesman.epicfight.main.EpicFightMod;
+ import yesman.epicfight.registry.EpicFightRegistries;
+ import yesman.epicfight.util.TagUtils;
+ 
+ import java.util.ArrayList;
+ import java.util.List;
+-import java.util.Optional;
+ 
+ public class PlayerEmoteSlots {
+     private final List<EmoteTab> emoteTabs = new ArrayList<>();
+@@ -44,30 +41,28 @@
+     }
+ 
+     public void deserialize(CompoundTag compoundTag, RegistryAccess registryAccess) {
+-        ListTag listTag = compoundTag.getList("emotes", CompoundTag.TAG_LIST);
++        ListTag listTag = compoundTag.getListOrEmpty("emotes");
++        var registry = registryAccess.lookupOrThrow(EpicFightRegistries.Keys.EMOTE);
+         this.emoteTabs.clear();
+ 
+         for (Tag pageTag : listTag) {
++            if (!(pageTag instanceof ListTag slots)) {
++                continue;
++            }
+             EmoteTab page = new EmoteTab();
+-            MutableInt slotIndex = new MutableInt();
+-
+-            for (Tag registyNameTag : (ListTag)pageTag) {
+-                String emoteName = registyNameTag.getAsString();
+-
+-                if (emoteName.isEmpty()) {
+-                    page.emotes[slotIndex.getValue()] = null;
++            for (int slot = 0; slot < Math.min(slots.size(), page.emotes.length); slot++) {
++                String name = slots.get(slot).asString().orElse("");
++                Identifier id = name.isEmpty() ? null : Identifier.tryParse(name);
++                if (id == null) {
++                    continue;
++                }
++                ResourceKey<Emote> key = ResourceKey.create(EpicFightRegistries.Keys.EMOTE, id);
++                var emote = registry.get(key);
++                if (emote.isPresent()) {
++                    page.emotes[slot] = emote.get();
+                 } else {
+-                    ResourceKey<Emote> emoteResourceKey = ResourceKey.create(EpicFightRegistries.Keys.EMOTE, ResourceLocation.parse(emoteName));
+-                    Optional<Holder.Reference<Emote>> emoteHolder = registryAccess.registryOrThrow(yesman.epicfight.registry.EpicFightRegistries.Keys.EMOTE).getHolder(emoteResourceKey);
+-
+-                    emoteHolder.ifPresentOrElse(emote -> {
+-                        page.emotes[slotIndex.getValue()] = emote;
+-                    }, () -> {
+-                        EpicFight.LOGGER.error("Unknown emote: {}. Ignored.", registyNameTag.getAsString());
+-                    });
++                    EpicFight.LOGGER.error("Unknown emote: {}. Ignored.", name);
+                 }
+-
+-                slotIndex.increment();
+             }
+ 
+             if (page.hasAny()) {
+@@ -78,12 +73,12 @@
+         // When emote tab is empty, add default emotes
+         if (this.emoteTabs.isEmpty()) {
+             EmoteTab defaultPage = new EmoteTab();
+-            registryAccess.registryOrThrow(yesman.epicfight.registry.EpicFightRegistries.Keys.EMOTE).getHolder(BuiltInEmotes.FRUSTRATED).ifPresent(emote -> defaultPage.emotes[0] = emote);
+-            registryAccess.registryOrThrow(yesman.epicfight.registry.EpicFightRegistries.Keys.EMOTE).getHolder(BuiltInEmotes.HOPAK).ifPresent(emote -> defaultPage.emotes[1] = emote);
+-            registryAccess.registryOrThrow(yesman.epicfight.registry.EpicFightRegistries.Keys.EMOTE).getHolder(BuiltInEmotes.LAUGH).ifPresent(emote -> defaultPage.emotes[2] = emote);
+-            registryAccess.registryOrThrow(yesman.epicfight.registry.EpicFightRegistries.Keys.EMOTE).getHolder(BuiltInEmotes.SALUTE).ifPresent(emote -> defaultPage.emotes[3] = emote);
+-            registryAccess.registryOrThrow(yesman.epicfight.registry.EpicFightRegistries.Keys.EMOTE).getHolder(BuiltInEmotes.SLIT_THROAT).ifPresent(emote -> defaultPage.emotes[4] = emote);
+-            registryAccess.registryOrThrow(yesman.epicfight.registry.EpicFightRegistries.Keys.EMOTE).getHolder(BuiltInEmotes.WAVE_HAND).ifPresent(emote -> defaultPage.emotes[5] = emote);
++            registry.get(BuiltInEmotes.FRUSTRATED).ifPresent(emote -> defaultPage.emotes[0] = emote);
++            registry.get(BuiltInEmotes.HOPAK).ifPresent(emote -> defaultPage.emotes[1] = emote);
++            registry.get(BuiltInEmotes.LAUGH).ifPresent(emote -> defaultPage.emotes[2] = emote);
++            registry.get(BuiltInEmotes.SALUTE).ifPresent(emote -> defaultPage.emotes[3] = emote);
++            registry.get(BuiltInEmotes.SLIT_THROAT).ifPresent(emote -> defaultPage.emotes[4] = emote);
++            registry.get(BuiltInEmotes.WAVE_HAND).ifPresent(emote -> defaultPage.emotes[5] = emote);
+ 
+             this.emoteTabs.add(defaultPage);
+         }

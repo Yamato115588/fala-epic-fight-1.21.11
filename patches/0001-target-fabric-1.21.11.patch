@@ -1,0 +1,46 @@
+--- a/gradle.properties
++++ b/gradle.properties
+@@ -5,13 +5,11 @@
+ org.gradle.configuration-cache=false
+ 
+ # Fabric Properties — check at https://fabricmc.net/develop
+-minecraft_version=1.21.1
+-yarn_mappings=1.21.1+build.3
++minecraft_version=1.21.11
+ loader_version=0.19.3
+-loom_version=1.17-SNAPSHOT
+ 
+ # Mod Properties
+-mod_version=fabric-21.17.3
++mod_version=21.17.3-fala.1+mc1.21.11
+ group_id=yesman.epicfight
+ mod_id=epicfight
+ display_name=Epic Fight
+@@ -24,7 +22,7 @@
+ credits=https://epicfight-docs.readthedocs.io/Misc/credits/
+ 
+ # Dependencies
+-fabric_api_version=0.116.15+1.21.1
++fabric_api_version=0.141.6+1.21.11
+ 
+ # Compat mods (CurseMaven file IDs)
+ azurelib_file_id=8367231
+--- a/src/main/resources/fabric.mod.json
++++ b/src/main/resources/fabric.mod.json
+@@ -13,7 +13,6 @@
+         "issues": "${issueTracker}"
+     },
+     "license": "${license}",
+-    "icon": "assets/epicfight/logo.png",
+     "environment": "*",
+     "entrypoints": {
+         "main": [
+@@ -34,7 +33,7 @@
+     "accessWidener": "epicfight.accesswidener",
+     "depends": {
+         "fabricloader": ">=0.19.3",
+-        "minecraft": "~1.21.1",
++        "minecraft": "=${minecraft}",
+         "java": ">=21",
+         "fabric-api": "*"
+     },
