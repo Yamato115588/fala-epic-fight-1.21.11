@@ -1,0 +1,725 @@
+diff --git a/src/main/java/yesman/epicfight/client/particle/AirBurstParticle.java b/src/main/java/yesman/epicfight/client/particle/AirBurstParticle.java
+--- a/src/main/java/yesman/epicfight/client/particle/AirBurstParticle.java
++++ b/src/main/java/yesman/epicfight/client/particle/AirBurstParticle.java
+@@ -1,6 +1,7 @@
+ package yesman.epicfight.client.particle;
+ 
+ import net.minecraft.client.multiplayer.ClientLevel;
++import net.minecraft.util.RandomSource;
+ import net.minecraft.client.particle.Particle;
+ import net.minecraft.client.particle.ParticleProvider;
+ import net.minecraft.client.particle.ParticleRenderType;
+@@ -39,7 +40,7 @@
+ 	
+ 	public static class Provider implements ParticleProvider<SimpleParticleType> {
+ 		@Override
+-		public Particle createParticle(SimpleParticleType typeIn, ClientLevel level, double x, double y, double z, double xSpeed, double ySpeed, double zSpeed) {
++		public Particle createParticle(SimpleParticleType typeIn, ClientLevel level, double x, double y, double z, double xSpeed, double ySpeed, double zSpeed, RandomSource random) {
+ 			return new AirBurstParticle(level, x, y, z, xSpeed, ySpeed, zSpeed, Meshes.AIR_BURST, AIR_BURST_PARTICLE);
+ 		}
+ 	}
+diff --git a/src/main/java/yesman/epicfight/client/particle/AnimationTrailParticle.java b/src/main/java/yesman/epicfight/client/particle/AnimationTrailParticle.java
+--- a/src/main/java/yesman/epicfight/client/particle/AnimationTrailParticle.java
++++ b/src/main/java/yesman/epicfight/client/particle/AnimationTrailParticle.java
+@@ -10,6 +10,7 @@
+ import com.mojang.blaze3d.systems.RenderSystem;
+ 
+ import net.minecraft.client.Minecraft;
++import net.minecraft.util.RandomSource;
+ import net.minecraft.client.multiplayer.ClientLevel;
+ import net.minecraft.client.particle.Particle;
+ import net.minecraft.client.particle.ParticleProvider;
+@@ -268,7 +269,7 @@
+ 	public static class Provider implements ParticleProvider<SimpleParticleType> {
+ 
+ 		@Override
+-		public Particle createParticle(SimpleParticleType typeIn, ClientLevel level, double x, double y, double z, double xSpeed, double ySpeed, double zSpeed) {
++		public Particle createParticle(SimpleParticleType typeIn, ClientLevel level, double x, double y, double z, double xSpeed, double ySpeed, double zSpeed, RandomSource random) {
+ 			int eid = (int)Double.doubleToRawLongBits(x);
+ 			int animid = (int)Double.doubleToRawLongBits(z);
+ 			int jointId = (int)Double.doubleToRawLongBits(xSpeed);
+diff --git a/src/main/java/yesman/epicfight/client/particle/AshDirectionalParticle.java b/src/main/java/yesman/epicfight/client/particle/AshDirectionalParticle.java
+--- a/src/main/java/yesman/epicfight/client/particle/AshDirectionalParticle.java
++++ b/src/main/java/yesman/epicfight/client/particle/AshDirectionalParticle.java
+@@ -1,6 +1,7 @@
+-package yesman.epicfight.client.particle;
++package yesman.epicfight.client.particle;
+ 
+ import net.minecraft.client.multiplayer.ClientLevel;
++import net.minecraft.util.RandomSource;
+ import net.minecraft.client.particle.BaseAshSmokeParticle;
+ import net.minecraft.client.particle.Particle;
+ import net.minecraft.client.particle.ParticleProvider;
+@@ -19,7 +20,7 @@
+ 			this.sprites = pSprites;
+ 		}
+ 
+-		public Particle createParticle(SimpleParticleType pType, ClientLevel pLevel, double pX, double pY, double pZ, double pXSpeed, double pYSpeed, double pZSpeed) {
++		public Particle createParticle(SimpleParticleType pType, ClientLevel pLevel, double pX, double pY, double pZ, double pXSpeed, double pYSpeed, double pZSpeed, RandomSource random) {
+ 			return new AshDirectionalParticle(pLevel, pX, pY, pZ, pXSpeed, pYSpeed, pZSpeed, 2.0F, this.sprites);
+ 		}
+ 	}
+diff --git a/src/main/java/yesman/epicfight/client/particle/BladeRushParticle.java b/src/main/java/yesman/epicfight/client/particle/BladeRushParticle.java
+--- a/src/main/java/yesman/epicfight/client/particle/BladeRushParticle.java
++++ b/src/main/java/yesman/epicfight/client/particle/BladeRushParticle.java
+@@ -1,6 +1,7 @@
+-package yesman.epicfight.client.particle;
++package yesman.epicfight.client.particle;
+ 
+ import net.minecraft.client.multiplayer.ClientLevel;
++import net.minecraft.util.RandomSource;
+ import net.minecraft.client.particle.Particle;
+ import net.minecraft.client.particle.ParticleProvider;
+ import net.minecraft.client.particle.SpriteSet;
+@@ -24,7 +25,7 @@
+ 	    }
+ 	    
+ 		@Override
+-		public Particle createParticle(SimpleParticleType typeIn, ClientLevel worldIn, double x, double y, double z, double xSpeed, double ySpeed, double zSpeed) {
++		public Particle createParticle(SimpleParticleType typeIn, ClientLevel worldIn, double x, double y, double z, double xSpeed, double ySpeed, double zSpeed, RandomSource random) {
+ 			BladeRushParticle particle = new BladeRushParticle(worldIn, x, y, z, this.spriteSet);
+ 			return particle;
+ 		}
+diff --git a/src/main/java/yesman/epicfight/client/particle/BlastParticle.java b/src/main/java/yesman/epicfight/client/particle/BlastParticle.java
+--- a/src/main/java/yesman/epicfight/client/particle/BlastParticle.java
++++ b/src/main/java/yesman/epicfight/client/particle/BlastParticle.java
+@@ -1,8 +1,9 @@
+-package yesman.epicfight.client.particle;
++package yesman.epicfight.client.particle;
+ 
+ import com.mojang.blaze3d.vertex.VertexConsumer;
+ 
+ import net.minecraft.client.Camera;
++import net.minecraft.util.RandomSource;
+ import net.minecraft.client.multiplayer.ClientLevel;
+ import net.minecraft.client.particle.Particle;
+ import net.minecraft.client.particle.ParticleProvider;
+@@ -45,7 +46,7 @@
+ 	    }
+ 	    
+ 		@Override
+-		public Particle createParticle(SimpleParticleType typeIn, ClientLevel worldIn, double x, double y, double z, double xSpeed, double ySpeed, double zSpeed) {
++		public Particle createParticle(SimpleParticleType typeIn, ClientLevel worldIn, double x, double y, double z, double xSpeed, double ySpeed, double zSpeed, RandomSource random) {
+ 			BlastParticle particle = new BlastParticle(worldIn, x, y, z, spriteSet);
+ 			return particle;
+ 		}
+diff --git a/src/main/java/yesman/epicfight/client/particle/BloodParticle.java b/src/main/java/yesman/epicfight/client/particle/BloodParticle.java
+--- a/src/main/java/yesman/epicfight/client/particle/BloodParticle.java
++++ b/src/main/java/yesman/epicfight/client/particle/BloodParticle.java
+@@ -1,20 +1,21 @@
+-package yesman.epicfight.client.particle;
++package yesman.epicfight.client.particle;
+ 
+ import java.util.Random;
+ 
+ import net.minecraft.client.multiplayer.ClientLevel;
++import net.minecraft.util.RandomSource;
+ import net.minecraft.client.particle.Particle;
+ import net.minecraft.client.particle.ParticleProvider;
+-import net.minecraft.client.particle.ParticleRenderType;
+ import net.minecraft.client.particle.SpriteSet;
+-import net.minecraft.client.particle.TextureSheetParticle;
++import net.minecraft.client.particle.SingleQuadParticle;
++import net.minecraft.client.renderer.texture.TextureAtlasSprite;
+ import net.minecraft.core.particles.SimpleParticleType;
+ import net.minecraft.util.Mth;
+ import yesman.epicfight.config.ClientConfig;
+ 
+-public class BloodParticle extends TextureSheetParticle {
+-	protected BloodParticle(ClientLevel world, double x, double y, double z, double motionX, double motionY, double motionZ) {
+-		super(world, x, y, z, motionX, motionY, motionZ);
++public class BloodParticle extends SingleQuadParticle {
++	protected BloodParticle(ClientLevel world, double x, double y, double z, double motionX, double motionY, double motionZ, TextureAtlasSprite sprite) {
++		super(world, x, y, z, motionX, motionY, motionZ, sprite);
+ 		this.x = x + (this.random.nextDouble() - 0.5D) * this.bbWidth;
+ 		this.y = y + (this.random.nextDouble() + this.bbHeight) * 0.5D;
+ 		this.z = z + (this.random.nextDouble() - 0.5D) * this.bbWidth;
+@@ -24,8 +25,8 @@
+ 	}
+ 	
+ 	@Override
+-	public ParticleRenderType getRenderType() {
+-		return ParticleRenderType.PARTICLE_SHEET_OPAQUE;
++	protected Layer getLayer() {
++		return Layer.OPAQUE;
+ 	}
+ 	
+ 	public static class Provider implements ParticleProvider<SimpleParticleType> {
+@@ -36,8 +37,8 @@
+ 		}
+ 		
+ 		@Override
+-		public Particle createParticle(SimpleParticleType typeIn, ClientLevel worldIn, double x, double y, double z, double xSpeed, double ySpeed, double zSpeed) {
+-			BloodParticle particle = new BloodParticle(worldIn, x, y, z, xSpeed, ySpeed, zSpeed);
++		public Particle createParticle(SimpleParticleType typeIn, ClientLevel worldIn, double x, double y, double z, double xSpeed, double ySpeed, double zSpeed, RandomSource randomSource) {
++			BloodParticle particle = new BloodParticle(worldIn, x, y, z, xSpeed, ySpeed, zSpeed, this.spriteSet.get(randomSource));
+ 			Random random = new Random();
+ 			particle.move(0, 0.5F, 0);
+ 			
+@@ -46,7 +47,6 @@
+ 			particle.gravity = mass * 4.0F;
+ 			particle.yd = (0.9F - mass) * 0.4F;
+ 			particle.setSize(mass, mass);
+-			particle.pickSprite(this.spriteSet);
+ 			
+ 			float green = ClientConfig.bloodEffects ? 0.0F : Mth.clamp(random.nextFloat(), 0.6F, 0.4F);
+ 			particle.setColor(Mth.clamp(random.nextFloat(), 0.6F, 0.4F), green, 0.0F);
+diff --git a/src/main/java/yesman/epicfight/client/particle/CatharsisParticle.java b/src/main/java/yesman/epicfight/client/particle/CatharsisParticle.java
+--- a/src/main/java/yesman/epicfight/client/particle/CatharsisParticle.java
++++ b/src/main/java/yesman/epicfight/client/particle/CatharsisParticle.java
+@@ -1,18 +1,18 @@
+-package yesman.epicfight.client.particle;
++package yesman.epicfight.client.particle;
+ 
+ import net.minecraft.client.multiplayer.ClientLevel;
++import net.minecraft.util.RandomSource;
+ import net.minecraft.client.particle.Particle;
+ import net.minecraft.client.particle.ParticleProvider;
+-import net.minecraft.client.particle.ParticleRenderType;
+ import net.minecraft.client.particle.SpriteSet;
+-import net.minecraft.client.particle.TextureSheetParticle;
++import net.minecraft.client.particle.SingleQuadParticle;
+ import net.minecraft.core.particles.SimpleParticleType;
+ 
+-public class CatharsisParticle extends TextureSheetParticle {
++public class CatharsisParticle extends SingleQuadParticle {
+ 	private final SpriteSet sprites;
+ 	
+ 	protected CatharsisParticle(ClientLevel pLevel, double pX, double pY, double pZ, SpriteSet sprites) {
+-		super(pLevel, pX, pY, pZ);
++		super(pLevel, pX, pY, pZ, sprites.first());
+ 		
+ 		this.yd = 0.1D;
+ 		this.quadSize = 0.75F;
+@@ -28,8 +28,8 @@
+ 	}
+ 	
+ 	@Override
+-	public ParticleRenderType getRenderType() {
+-		return ParticleRenderType.PARTICLE_SHEET_TRANSLUCENT;
++	protected Layer getLayer() {
++		return Layer.TRANSLUCENT;
+ 	}
+ 	
+ 	public static class Provider implements ParticleProvider<SimpleParticleType> {
+@@ -40,7 +40,7 @@
+ 		}
+ 
+ 		@Override
+-		public Particle createParticle(SimpleParticleType pType, ClientLevel pLevel, double pX, double pY, double pZ, double pXSpeed, double pYSpeed, double pZSpeed) {
++		public Particle createParticle(SimpleParticleType pType, ClientLevel pLevel, double pX, double pY, double pZ, double pXSpeed, double pYSpeed, double pZSpeed, RandomSource random) {
+ 			CatharsisParticle catharsisparticle = new CatharsisParticle(pLevel, pX, pY, pZ, this.sprites);
+ 			catharsisparticle.setAlpha(0.8F);
+ 			catharsisparticle.setLifetime(12);
+diff --git a/src/main/java/yesman/epicfight/client/particle/CutParticle.java b/src/main/java/yesman/epicfight/client/particle/CutParticle.java
+--- a/src/main/java/yesman/epicfight/client/particle/CutParticle.java
++++ b/src/main/java/yesman/epicfight/client/particle/CutParticle.java
+@@ -1,8 +1,9 @@
+-package yesman.epicfight.client.particle;
++package yesman.epicfight.client.particle;
+ 
+ import java.util.Random;
+ 
+ import net.minecraft.client.multiplayer.ClientLevel;
++import net.minecraft.util.RandomSource;
+ import net.minecraft.client.particle.Particle;
+ import net.minecraft.client.particle.ParticleProvider;
+ import net.minecraft.client.particle.SpriteSet;
+@@ -32,7 +33,7 @@
+ 	    }
+ 	    
+ 		@Override
+-		public Particle createParticle(SimpleParticleType typeIn, ClientLevel worldIn, double x, double y, double z, double xSpeed, double ySpeed, double zSpeed) {
++		public Particle createParticle(SimpleParticleType typeIn, ClientLevel worldIn, double x, double y, double z, double xSpeed, double ySpeed, double zSpeed, RandomSource random) {
+ 			if (!ClientConfig.bloodEffects) {
+ 				return null;
+ 			}
+diff --git a/src/main/java/yesman/epicfight/client/particle/DustParticle.java b/src/main/java/yesman/epicfight/client/particle/DustParticle.java
+--- a/src/main/java/yesman/epicfight/client/particle/DustParticle.java
++++ b/src/main/java/yesman/epicfight/client/particle/DustParticle.java
+@@ -1,21 +1,22 @@
+ package yesman.epicfight.client.particle;
+ 
+ import net.minecraft.client.multiplayer.ClientLevel;
++import net.minecraft.util.RandomSource;
+ import net.minecraft.client.particle.NoRenderParticle;
+ import net.minecraft.client.particle.Particle;
+ import net.minecraft.client.particle.ParticleProvider;
+-import net.minecraft.client.particle.ParticleRenderType;
+ import net.minecraft.client.particle.SpriteSet;
+-import net.minecraft.client.particle.TextureSheetParticle;
++import net.minecraft.client.particle.SingleQuadParticle;
++import net.minecraft.client.renderer.texture.TextureAtlasSprite;
+ import net.minecraft.core.particles.SimpleParticleType;
+ import net.minecraft.world.phys.Vec3;
+ import yesman.epicfight.registry.entries.EpicFightParticles;
+ 
+-public class DustParticle extends TextureSheetParticle {
++public class DustParticle extends SingleQuadParticle {
+ 	private final DustParticle.PhysicsType physicsType;
+ 	
+-	public DustParticle(ClientLevel level, double x, double y, double z, double xd, double yd, double zd, DustParticle.PhysicsType physicsType) {
+-		super(level, x, y, z);
++	public DustParticle(ClientLevel level, double x, double y, double z, double xd, double yd, double zd, DustParticle.PhysicsType physicsType, TextureAtlasSprite sprite) {
++		super(level, x, y, z, sprite);
+ 		this.x = x;
+ 		this.y = y;
+ 		this.z = z;
+@@ -37,8 +38,8 @@
+ 	}
+ 	
+ 	@Override
+-	public ParticleRenderType getRenderType() {
+-		return ParticleRenderType.PARTICLE_SHEET_TRANSLUCENT;
++	protected Layer getLayer() {
++		return Layer.TRANSLUCENT;
+ 	}
+ 	
+ 	@Override
+@@ -72,7 +73,7 @@
+ 		
+ 		public static class Provider implements ParticleProvider<SimpleParticleType> {
+ 			@Override
+-			public Particle createParticle(SimpleParticleType typeIn, ClientLevel worldIn, double x, double y, double z, double xSpeed, double ySpeed, double zSpeed) {
++			public Particle createParticle(SimpleParticleType typeIn, ClientLevel worldIn, double x, double y, double z, double xSpeed, double ySpeed, double zSpeed, RandomSource randomSource) {
+ 				ExpansiveMetaParticle particle = new ExpansiveMetaParticle(worldIn, x, y, z, xSpeed, (int)Double.doubleToLongBits(ySpeed));
+ 				return particle;
+ 			}
+@@ -108,7 +109,7 @@
+ 		
+ 		public static class Provider implements ParticleProvider<SimpleParticleType> {
+ 			@Override
+-			public Particle createParticle(SimpleParticleType typeIn, ClientLevel worldIn, double x, double y, double z, double xSpeed, double ySpeed, double zSpeed) {
++			public Particle createParticle(SimpleParticleType typeIn, ClientLevel worldIn, double x, double y, double z, double xSpeed, double ySpeed, double zSpeed, RandomSource randomSource) {
+ 				ContractiveMetaParticle particle = new ContractiveMetaParticle(worldIn, x, y, z, xSpeed, (int)Double.doubleToLongBits(ySpeed), (int)Double.doubleToLongBits(zSpeed));
+ 				return particle;
+ 			}
+@@ -123,9 +124,8 @@
+ 		}
+ 		
+ 		@Override
+-		public Particle createParticle(SimpleParticleType typeIn, ClientLevel worldIn, double x, double y, double z, double xSpeed, double ySpeed, double zSpeed) {
+-			DustParticle dustParticle = new DustParticle(worldIn, x, y, z, xSpeed, ySpeed, zSpeed, DustParticle.PhysicsType.EXPANSIVE);
+-			dustParticle.pickSprite(this.sprite);
++		public Particle createParticle(SimpleParticleType typeIn, ClientLevel worldIn, double x, double y, double z, double xSpeed, double ySpeed, double zSpeed, RandomSource randomSource) {
++			DustParticle dustParticle = new DustParticle(worldIn, x, y, z, xSpeed, ySpeed, zSpeed, DustParticle.PhysicsType.EXPANSIVE, this.sprite.get(randomSource));
+ 			return dustParticle;
+ 		}
+ 	}
+@@ -138,9 +138,8 @@
+ 		}
+ 		
+ 		@Override
+-		public Particle createParticle(SimpleParticleType typeIn, ClientLevel worldIn, double x, double y, double z, double xSpeed, double ySpeed, double zSpeed) {
+-			DustParticle dustParticle = new DustParticle(worldIn, x, y, z, xSpeed, ySpeed, zSpeed, DustParticle.PhysicsType.CONTRACTIVE);
+-			dustParticle.pickSprite(this.sprite);
++		public Particle createParticle(SimpleParticleType typeIn, ClientLevel worldIn, double x, double y, double z, double xSpeed, double ySpeed, double zSpeed, RandomSource randomSource) {
++			DustParticle dustParticle = new DustParticle(worldIn, x, y, z, xSpeed, ySpeed, zSpeed, DustParticle.PhysicsType.CONTRACTIVE, this.sprite.get(randomSource));
+ 			return dustParticle;
+ 		}
+ 	}
+@@ -153,9 +152,8 @@
+ 		}
+ 		
+ 		@Override
+-		public Particle createParticle(SimpleParticleType typeIn, ClientLevel worldIn, double x, double y, double z, double xSpeed, double ySpeed, double zSpeed) {
+-			DustParticle dustParticle = new DustParticle(worldIn, x, y, z, xSpeed, ySpeed, zSpeed, DustParticle.PhysicsType.NORMAL);
+-			dustParticle.pickSprite(this.sprite);
++		public Particle createParticle(SimpleParticleType typeIn, ClientLevel worldIn, double x, double y, double z, double xSpeed, double ySpeed, double zSpeed, RandomSource randomSource) {
++			DustParticle dustParticle = new DustParticle(worldIn, x, y, z, xSpeed, ySpeed, zSpeed, DustParticle.PhysicsType.NORMAL, this.sprite.get(randomSource));
+ 			return dustParticle;
+ 		}
+ 	}
+diff --git a/src/main/java/yesman/epicfight/client/particle/EnderParticle.java b/src/main/java/yesman/epicfight/client/particle/EnderParticle.java
+--- a/src/main/java/yesman/epicfight/client/particle/EnderParticle.java
++++ b/src/main/java/yesman/epicfight/client/particle/EnderParticle.java
+@@ -1,18 +1,19 @@
+-package yesman.epicfight.client.particle;
++package yesman.epicfight.client.particle;
+ 
+ import net.minecraft.client.multiplayer.ClientLevel;
++import net.minecraft.util.RandomSource;
+ import net.minecraft.client.particle.Particle;
+ import net.minecraft.client.particle.ParticleProvider;
+-import net.minecraft.client.particle.ParticleRenderType;
+ import net.minecraft.client.particle.SpriteSet;
+-import net.minecraft.client.particle.TextureSheetParticle;
++import net.minecraft.client.particle.SingleQuadParticle;
++import net.minecraft.client.renderer.texture.TextureAtlasSprite;
+ import net.minecraft.core.particles.SimpleParticleType;
+ 
+-public class EnderParticle extends TextureSheetParticle {
++public class EnderParticle extends SingleQuadParticle {
+ 	private EnderParticle.Usage usage;
+ 	
+-	public EnderParticle(ClientLevel worldIn, double x, double y, double z, double xd, double yd, double dz) {
+-		super(worldIn, x, y, z);
++	public EnderParticle(ClientLevel worldIn, double x, double y, double z, double xd, double yd, double dz, TextureAtlasSprite sprite) {
++		super(worldIn, x, y, z, sprite);
+ 	    this.xd = xd;
+ 	    this.yd = yd;
+ 	    this.zd = dz;
+@@ -29,8 +30,8 @@
+ 	}
+ 	
+ 	@Override
+-	public ParticleRenderType getRenderType() {
+-		return ParticleRenderType.PARTICLE_SHEET_OPAQUE;
++	protected Layer getLayer() {
++		return Layer.OPAQUE;
+ 	}
+ 	
+ 	@Override
+@@ -60,9 +61,8 @@
+ 	    }
+ 		
+ 		@Override
+-		public Particle createParticle(SimpleParticleType typeIn, ClientLevel worldIn, double x, double y, double z, double xSpeed, double ySpeed, double zSpeed) {
+-			EnderParticle particle = new EnderParticle(worldIn, x, y, z, xSpeed, ySpeed, zSpeed);
+-			particle.pickSprite(this.spriteSet);
++		public Particle createParticle(SimpleParticleType typeIn, ClientLevel worldIn, double x, double y, double z, double xSpeed, double ySpeed, double zSpeed, RandomSource randomSource) {
++			EnderParticle particle = new EnderParticle(worldIn, x, y, z, xSpeed, ySpeed, zSpeed, this.spriteSet.get(randomSource));
+ 			particle.setUsage(EnderParticle.Usage.ENDERMAN_DEATH);
+ 			return particle;
+ 		}
+@@ -76,9 +76,8 @@
+ 	    }
+ 		
+ 		@Override
+-		public Particle createParticle(SimpleParticleType typeIn, ClientLevel worldIn, double x, double y, double z, double xSpeed, double ySpeed, double zSpeed) {
+-			EnderParticle particle = new EnderParticle(worldIn, x, y, z, xSpeed, ySpeed, zSpeed);
+-			particle.pickSprite(this.spriteSet);
++		public Particle createParticle(SimpleParticleType typeIn, ClientLevel worldIn, double x, double y, double z, double xSpeed, double ySpeed, double zSpeed, RandomSource randomSource) {
++			EnderParticle particle = new EnderParticle(worldIn, x, y, z, xSpeed, ySpeed, zSpeed, this.spriteSet.get(randomSource));
+ 			particle.quadSize *= 2.0F;
+ 			particle.setUsage(EnderParticle.Usage.DRAGON_BREATH_FLAME);
+ 			return particle;
+diff --git a/src/main/java/yesman/epicfight/client/particle/EntityAfterimageParticle.java b/src/main/java/yesman/epicfight/client/particle/EntityAfterimageParticle.java
+--- a/src/main/java/yesman/epicfight/client/particle/EntityAfterimageParticle.java
++++ b/src/main/java/yesman/epicfight/client/particle/EntityAfterimageParticle.java
+@@ -3,6 +3,7 @@
+ import com.mojang.blaze3d.vertex.PoseStack;
+ import com.mojang.blaze3d.vertex.VertexConsumer;
+ import net.minecraft.client.Camera;
++import net.minecraft.util.RandomSource;
+ import net.minecraft.client.Minecraft;
+ import net.minecraft.client.multiplayer.ClientLevel;
+ import net.minecraft.client.particle.Particle;
+@@ -127,7 +128,7 @@
+ 	}
+ 
+ 	public static class AdrenalineParticleProvider implements ParticleProvider<SimpleParticleType> {
+-		public Particle createParticle(SimpleParticleType type, ClientLevel level, double x, double y, double z, double xSpeed, double ySpeed, double zSpeed) {
++		public Particle createParticle(SimpleParticleType type, ClientLevel level, double x, double y, double z, double xSpeed, double ySpeed, double zSpeed, RandomSource random) {
+ 			Entity entity = level.getEntity((int) Double.doubleToLongBits(xSpeed));
+ 			LivingEntityPatch<?> entitypatch = EpicFightCapabilities.getEntityPatch(entity, LivingEntityPatch.class);
+ 			
+@@ -155,7 +156,7 @@
+ 
+ 	public static class WhiteAfterimageProvider implements ParticleProvider<SimpleParticleType> {
+ 		@Override
+-		public Particle createParticle(SimpleParticleType typeIn, ClientLevel level, double x, double y, double z, double xSpeed, double ySpeed, double zSpeed) {
++		public Particle createParticle(SimpleParticleType typeIn, ClientLevel level, double x, double y, double z, double xSpeed, double ySpeed, double zSpeed, RandomSource random) {
+ 			Entity entity = level.getEntity((int)Double.doubleToLongBits(xSpeed));
+ 			LivingEntityPatch<?> entitypatch = EpicFightCapabilities.getEntityPatch(entity, LivingEntityPatch.class);
+ 			
+diff --git a/src/main/java/yesman/epicfight/client/particle/EviscerateParticle.java b/src/main/java/yesman/epicfight/client/particle/EviscerateParticle.java
+--- a/src/main/java/yesman/epicfight/client/particle/EviscerateParticle.java
++++ b/src/main/java/yesman/epicfight/client/particle/EviscerateParticle.java
+@@ -1,6 +1,7 @@
+ package yesman.epicfight.client.particle;
+ 
+ import net.minecraft.client.multiplayer.ClientLevel;
++import net.minecraft.util.RandomSource;
+ import net.minecraft.client.particle.NoRenderParticle;
+ import net.minecraft.client.particle.Particle;
+ import net.minecraft.client.particle.ParticleProvider;
+@@ -23,7 +24,7 @@
+ 	
+ 	public static class Provider implements ParticleProvider<SimpleParticleType> {
+ 		@Override
+-		public Particle createParticle(SimpleParticleType typeIn, ClientLevel worldIn, double x, double y, double z, double xSpeed, double ySpeed, double zSpeed) {
++		public Particle createParticle(SimpleParticleType typeIn, ClientLevel worldIn, double x, double y, double z, double xSpeed, double ySpeed, double zSpeed, RandomSource randomSource) {
+ 			return new EviscerateParticle(worldIn, x, y, z, xSpeed, ySpeed, zSpeed);
+ 		}
+ 	}
+diff --git a/src/main/java/yesman/epicfight/client/particle/FeatherParticle.java b/src/main/java/yesman/epicfight/client/particle/FeatherParticle.java
+--- a/src/main/java/yesman/epicfight/client/particle/FeatherParticle.java
++++ b/src/main/java/yesman/epicfight/client/particle/FeatherParticle.java
+@@ -1,16 +1,17 @@
+-package yesman.epicfight.client.particle;
++package yesman.epicfight.client.particle;
+ 
+ import net.minecraft.client.multiplayer.ClientLevel;
++import net.minecraft.util.RandomSource;
+ import net.minecraft.client.particle.Particle;
+ import net.minecraft.client.particle.ParticleProvider;
+-import net.minecraft.client.particle.ParticleRenderType;
+ import net.minecraft.client.particle.SpriteSet;
+-import net.minecraft.client.particle.TextureSheetParticle;
++import net.minecraft.client.particle.SingleQuadParticle;
++import net.minecraft.client.renderer.texture.TextureAtlasSprite;
+ import net.minecraft.core.particles.SimpleParticleType;
+ 
+-public class FeatherParticle extends TextureSheetParticle {
+-	protected FeatherParticle(ClientLevel level, double x, double y, double z, double dx, double dy, double dz) {
+-		super(level, x, y, z, dx, dy, dz);
++public class FeatherParticle extends SingleQuadParticle {
++	protected FeatherParticle(ClientLevel level, double x, double y, double z, double dx, double dy, double dz, TextureAtlasSprite sprite) {
++		super(level, x, y, z, dx, dy, dz, sprite);
+ 		
+ 		this.lifetime = 8 + this.random.nextInt(22);
+ 		this.hasPhysics = true;
+@@ -27,8 +28,8 @@
+ 	}
+ 	
+ 	@Override
+-	public ParticleRenderType getRenderType() {
+-		return ParticleRenderType.PARTICLE_SHEET_OPAQUE;
++	protected Layer getLayer() {
++		return Layer.OPAQUE;
+ 	}
+ 	
+ 	public static class Provider implements ParticleProvider<SimpleParticleType> {
+@@ -39,9 +40,8 @@
+ 		}
+ 		
+ 		@Override
+-		public Particle createParticle(SimpleParticleType particleType, ClientLevel level, double x, double y, double z, double dx, double dy, double dz) {
+-			FeatherParticle featuerparticle = new FeatherParticle(level, x, y, z, dx, dy, dz);
+-			featuerparticle.pickSprite(this.sprite);
++		public Particle createParticle(SimpleParticleType particleType, ClientLevel level, double x, double y, double z, double dx, double dy, double dz, RandomSource randomSource) {
++			FeatherParticle featuerparticle = new FeatherParticle(level, x, y, z, dx, dy, dz, this.sprite.get(randomSource));
+ 			return featuerparticle;
+ 		}
+ 	}
+diff --git a/src/main/java/yesman/epicfight/client/particle/ForceFieldEndParticle.java b/src/main/java/yesman/epicfight/client/particle/ForceFieldEndParticle.java
+--- a/src/main/java/yesman/epicfight/client/particle/ForceFieldEndParticle.java
++++ b/src/main/java/yesman/epicfight/client/particle/ForceFieldEndParticle.java
+@@ -4,6 +4,7 @@
+ import com.mojang.blaze3d.vertex.VertexConsumer;
+ 
+ import net.minecraft.client.Camera;
++import net.minecraft.util.RandomSource;
+ import net.minecraft.client.Minecraft;
+ import net.minecraft.client.multiplayer.ClientLevel;
+ import net.minecraft.client.particle.Particle;
+@@ -51,7 +52,7 @@
+ 	
+ 	public static class Provider implements ParticleProvider<SimpleParticleType> {
+ 		@Override
+-		public Particle createParticle(SimpleParticleType typeIn, ClientLevel level, double x, double y, double z, double xSpeed, double ySpeed, double zSpeed) {
++		public Particle createParticle(SimpleParticleType typeIn, ClientLevel level, double x, double y, double z, double xSpeed, double ySpeed, double zSpeed, RandomSource random) {
+ 			return new ForceFieldEndParticle(level, x, y, z);
+ 		}
+ 	}
+diff --git a/src/main/java/yesman/epicfight/client/particle/ForceFieldParticle.java b/src/main/java/yesman/epicfight/client/particle/ForceFieldParticle.java
+--- a/src/main/java/yesman/epicfight/client/particle/ForceFieldParticle.java
++++ b/src/main/java/yesman/epicfight/client/particle/ForceFieldParticle.java
+@@ -1,6 +1,7 @@
+ package yesman.epicfight.client.particle;
+ 
+ import net.minecraft.client.multiplayer.ClientLevel;
++import net.minecraft.util.RandomSource;
+ import net.minecraft.client.particle.Particle;
+ import net.minecraft.client.particle.ParticleProvider;
+ import net.minecraft.client.particle.ParticleRenderType;
+@@ -67,7 +68,7 @@
+ 	
+ 	public static class Provider implements ParticleProvider<SimpleParticleType> {
+ 		@Override
+-		public Particle createParticle(SimpleParticleType typeIn, ClientLevel level, double x, double y, double z, double xSpeed, double ySpeed, double zSpeed) {
++		public Particle createParticle(SimpleParticleType typeIn, ClientLevel level, double x, double y, double z, double xSpeed, double ySpeed, double zSpeed, RandomSource randomSource) {
+ 			return new ForceFieldParticle(level, x, y, z, xSpeed, ySpeed, zSpeed, Meshes.FORCE_FIELD, EnderDragonRenderer.CRYSTAL_BEAM_LOCATION);
+ 		}
+ 	}
+diff --git a/src/main/java/yesman/epicfight/client/particle/GroundSlamParticle.java b/src/main/java/yesman/epicfight/client/particle/GroundSlamParticle.java
+--- a/src/main/java/yesman/epicfight/client/particle/GroundSlamParticle.java
++++ b/src/main/java/yesman/epicfight/client/particle/GroundSlamParticle.java
+@@ -1,6 +1,7 @@
+ package yesman.epicfight.client.particle;
+ 
+ import net.minecraft.client.Minecraft;
++import net.minecraft.util.RandomSource;
+ import net.minecraft.client.multiplayer.ClientLevel;
+ import net.minecraft.client.particle.NoRenderParticle;
+ import net.minecraft.client.particle.Particle;
+@@ -62,7 +63,7 @@
+ 	
+ 	public static class Provider implements ParticleProvider<SimpleParticleType> {
+ 		@Override
+-		public Particle createParticle(SimpleParticleType particleOption, ClientLevel level, double x, double y, double z, double xSpeed, double ySpeed, double zSpeed) {
++		public Particle createParticle(SimpleParticleType particleOption, ClientLevel level, double x, double y, double z, double xSpeed, double ySpeed, double zSpeed, RandomSource randomSource) {
+ 			BlockPos blockpos = new BlockPos.MutableBlockPos(x, y, z);
+ 			BlockState blockstate = level.getBlockState(blockpos);
+ 			if (blockstate == null) return null; 
+@@ -73,7 +74,7 @@
+ 
+     public static class BlockParticleProvider implements ParticleProvider<BlockParticleOption> {
+         @Override
+-        public @Nullable Particle createParticle(BlockParticleOption particleOption, ClientLevel clientLevel, double x, double y, double z, double dx, double dy, double dz) {
++        public @Nullable Particle createParticle(BlockParticleOption particleOption, ClientLevel clientLevel, double x, double y, double z, double dx, double dy, double dz, RandomSource randomSource) {
+             TerrainParticle blockParticle = new TerrainParticle(clientLevel, x, y, z, dx, dy, dz, particleOption.getState(), new net.minecraft.core.BlockPos((int)x, (int)y, (int)z));
+             blockParticle.setParticleSpeed((Math.random() - 0.5D) * 0.3D, Math.random() * 0.5D, (Math.random() - 0.5D) * 0.3D);
+             blockParticle.setLifetime(10 + new Random().nextInt(60));
+diff --git a/src/main/java/yesman/epicfight/client/particle/HitBluntParticle.java b/src/main/java/yesman/epicfight/client/particle/HitBluntParticle.java
+--- a/src/main/java/yesman/epicfight/client/particle/HitBluntParticle.java
++++ b/src/main/java/yesman/epicfight/client/particle/HitBluntParticle.java
+@@ -1,6 +1,7 @@
+ package yesman.epicfight.client.particle;
+ 
+ import net.minecraft.client.multiplayer.ClientLevel;
++import net.minecraft.util.RandomSource;
+ import net.minecraft.client.particle.Particle;
+ import net.minecraft.client.particle.ParticleProvider;
+ import net.minecraft.client.particle.SpriteSet;
+@@ -33,7 +34,7 @@
+ 	    }
+ 	    
+ 		@Override
+-		public Particle createParticle(SimpleParticleType typeIn, ClientLevel worldIn, double x, double y, double z, double xSpeed, double ySpeed, double zSpeed) {
++		public Particle createParticle(SimpleParticleType typeIn, ClientLevel worldIn, double x, double y, double z, double xSpeed, double ySpeed, double zSpeed, RandomSource randomSource) {
+ 			HitBluntParticle particle = new HitBluntParticle(worldIn, x, y, z, xSpeed, ySpeed, zSpeed, this.spriteSet);
+ 			return particle;
+ 		}
+diff --git a/src/main/java/yesman/epicfight/client/particle/HitCutParticle.java b/src/main/java/yesman/epicfight/client/particle/HitCutParticle.java
+--- a/src/main/java/yesman/epicfight/client/particle/HitCutParticle.java
++++ b/src/main/java/yesman/epicfight/client/particle/HitCutParticle.java
+@@ -1,6 +1,7 @@
+ package yesman.epicfight.client.particle;
+ 
+ import net.minecraft.client.multiplayer.ClientLevel;
++import net.minecraft.util.RandomSource;
+ import net.minecraft.client.particle.NoRenderParticle;
+ import net.minecraft.client.particle.Particle;
+ import net.minecraft.client.particle.ParticleProvider;
+@@ -27,7 +28,7 @@
+ 	
+ 	public static class Provider implements ParticleProvider<SimpleParticleType> {
+ 		@Override
+-		public Particle createParticle(SimpleParticleType typeIn, ClientLevel worldIn, double x, double y, double z, double xSpeed, double ySpeed, double zSpeed) {
++		public Particle createParticle(SimpleParticleType typeIn, ClientLevel worldIn, double x, double y, double z, double xSpeed, double ySpeed, double zSpeed, RandomSource randomSource) {
+ 			HitCutParticle particle = new HitCutParticle(worldIn, x, y, z, xSpeed, ySpeed, zSpeed);
+ 			return particle;
+ 		}
+diff --git a/src/main/java/yesman/epicfight/client/particle/HitParticle.java b/src/main/java/yesman/epicfight/client/particle/HitParticle.java
+--- a/src/main/java/yesman/epicfight/client/particle/HitParticle.java
++++ b/src/main/java/yesman/epicfight/client/particle/HitParticle.java
+@@ -1,15 +1,14 @@
+-package yesman.epicfight.client.particle;
++package yesman.epicfight.client.particle;
+ 
+ import net.minecraft.client.multiplayer.ClientLevel;
+-import net.minecraft.client.particle.ParticleRenderType;
+ import net.minecraft.client.particle.SpriteSet;
+-import net.minecraft.client.particle.TextureSheetParticle;
++import net.minecraft.client.particle.SingleQuadParticle;
+ 
+-public abstract class HitParticle extends TextureSheetParticle {
++public abstract class HitParticle extends SingleQuadParticle {
+ 	protected final SpriteSet animatedSprite;
+ 	
+ 	public HitParticle(ClientLevel world, double x, double y, double z, SpriteSet animatedSprite) {
+-		super(world, x, y, z);
++		super(world, x, y, z, animatedSprite.first());
+ 	    this.rCol = 1.0F;
+ 	    this.gCol = 1.0F;
+ 	    this.bCol = 1.0F;
+@@ -31,8 +30,8 @@
+ 	}
+ 	
+ 	@Override
+-	public ParticleRenderType getRenderType() {
+-		return ParticleRenderType.PARTICLE_SHEET_TRANSLUCENT;
++	protected Layer getLayer() {
++		return Layer.TRANSLUCENT;
+ 	}
+ 	
+ 	@Override
+diff --git a/src/main/java/yesman/epicfight/client/particle/LaserParticle.java b/src/main/java/yesman/epicfight/client/particle/LaserParticle.java
+--- a/src/main/java/yesman/epicfight/client/particle/LaserParticle.java
++++ b/src/main/java/yesman/epicfight/client/particle/LaserParticle.java
+@@ -3,6 +3,7 @@
+ import com.mojang.blaze3d.vertex.PoseStack;
+ 
+ import net.minecraft.client.Camera;
++import net.minecraft.util.RandomSource;
+ import net.minecraft.client.multiplayer.ClientLevel;
+ import net.minecraft.client.particle.Particle;
+ import net.minecraft.client.particle.ParticleProvider;
+@@ -73,7 +74,7 @@
+ 	
+ 	public static class Provider implements ParticleProvider<SimpleParticleType> {
+ 		@Override
+-		public Particle createParticle(SimpleParticleType typeIn, ClientLevel level, double startX, double startY, double startZ, double endX, double endY, double endZ) {
++		public Particle createParticle(SimpleParticleType typeIn, ClientLevel level, double startX, double startY, double startZ, double endX, double endY, double endZ, RandomSource random) {
+ 			return new LaserParticle(level, startX, startY, startZ, endX, endY, endZ);
+ 		}
+ 	}
+diff --git a/src/main/java/yesman/epicfight/client/particle/ProjectileTrailParticle.java b/src/main/java/yesman/epicfight/client/particle/ProjectileTrailParticle.java
+--- a/src/main/java/yesman/epicfight/client/particle/ProjectileTrailParticle.java
++++ b/src/main/java/yesman/epicfight/client/particle/ProjectileTrailParticle.java
+@@ -5,6 +5,7 @@
+ import com.google.common.collect.Lists;
+ 
+ import net.minecraft.client.multiplayer.ClientLevel;
++import net.minecraft.util.RandomSource;
+ import net.minecraft.client.particle.Particle;
+ import net.minecraft.client.particle.ParticleProvider;
+ import net.minecraft.core.particles.SimpleParticleType;
+@@ -195,7 +196,7 @@
+ 		
+ 		@SuppressWarnings("unchecked")
+ 		@Override
+-		public Particle createParticle(SimpleParticleType type, ClientLevel level, double x, double y, double z, double xSpeed, double ySpeed, double zSpeed) {
++		public Particle createParticle(SimpleParticleType type, ClientLevel level, double x, double y, double z, double xSpeed, double ySpeed, double zSpeed, RandomSource random) {
+ 			int eid = (int)Double.doubleToRawLongBits(x);
+ 			Entity entity = level.getEntity(eid);
+ 			
+diff --git a/src/main/java/yesman/epicfight/client/particle/TsunamiSplashParticle.java b/src/main/java/yesman/epicfight/client/particle/TsunamiSplashParticle.java
+--- a/src/main/java/yesman/epicfight/client/particle/TsunamiSplashParticle.java
++++ b/src/main/java/yesman/epicfight/client/particle/TsunamiSplashParticle.java
+@@ -1,18 +1,18 @@
+-package yesman.epicfight.client.particle;
++package yesman.epicfight.client.particle;
+ 
+ import net.minecraft.client.multiplayer.ClientLevel;
++import net.minecraft.util.RandomSource;
+ import net.minecraft.client.particle.Particle;
+ import net.minecraft.client.particle.ParticleProvider;
+-import net.minecraft.client.particle.ParticleRenderType;
+ import net.minecraft.client.particle.SpriteSet;
+-import net.minecraft.client.particle.TextureSheetParticle;
++import net.minecraft.client.particle.SingleQuadParticle;
+ import net.minecraft.core.particles.SimpleParticleType;
+ 
+-public class TsunamiSplashParticle extends TextureSheetParticle {
++public class TsunamiSplashParticle extends SingleQuadParticle {
+ 	private final SpriteSet sprites;
+ 
+ 	TsunamiSplashParticle(ClientLevel p_108407_, double p_108408_, double p_108409_, double p_108410_, double p_108411_, double p_108412_, double p_108413_, SpriteSet p_108414_) {
+-		super(p_108407_, p_108408_, p_108409_, p_108410_, 0.0D, 0.0D, 0.0D);
++		super(p_108407_, p_108408_, p_108409_, p_108410_, 0.0D, 0.0D, 0.0D, p_108414_.first());
+ 		this.sprites = p_108414_;
+ 		this.lifetime = 16;
+ 		this.setSprite(this.sprites.get(this.random));
+@@ -23,8 +23,8 @@
+ 		this.zd = p_108413_;
+ 	}
+ 
+-	public ParticleRenderType getRenderType() {
+-		return ParticleRenderType.PARTICLE_SHEET_OPAQUE;
++	protected Layer getLayer() {
++		return Layer.OPAQUE;
+ 	}
+ 
+ 	public void tick() {
+@@ -38,7 +38,7 @@
+ 			this.sprites = p_108429_;
+ 		}
+ 
+-		public Particle createParticle(SimpleParticleType p_108440_, ClientLevel p_108441_, double p_108442_, double p_108443_, double p_108444_, double p_108445_, double p_108446_, double p_108447_) {
++		public Particle createParticle(SimpleParticleType p_108440_, ClientLevel p_108441_, double p_108442_, double p_108443_, double p_108444_, double p_108445_, double p_108446_, double p_108447_, RandomSource randomSource) {
+ 			return new TsunamiSplashParticle(p_108441_, p_108442_, p_108443_, p_108444_, p_108445_, p_108446_, p_108447_, this.sprites);
+ 		}
+ 	}

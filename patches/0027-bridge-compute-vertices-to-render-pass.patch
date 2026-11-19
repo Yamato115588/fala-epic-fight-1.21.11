@@ -1,0 +1,671 @@
+diff --git a/src/main/java/yesman/epicfight/client/renderer/shader/compute/ComputeShaderSetup.java b/src/main/java/yesman/epicfight/client/renderer/shader/compute/ComputeShaderSetup.java
+--- a/src/main/java/yesman/epicfight/client/renderer/shader/compute/ComputeShaderSetup.java
++++ b/src/main/java/yesman/epicfight/client/renderer/shader/compute/ComputeShaderSetup.java
+@@ -2,17 +2,13 @@
+ 
+ import com.google.common.collect.Lists;
+ import com.mojang.blaze3d.opengl.GlStateManager;
+-import com.mojang.blaze3d.platform.Window;
+-import com.mojang.blaze3d.systems.RenderSystem;
+ import com.mojang.blaze3d.vertex.PoseStack;
+-import com.mojang.blaze3d.vertex.VertexFormat;
+-import net.minecraft.client.Minecraft;
+ import net.minecraft.client.renderer.MultiBufferSource;
+ import net.minecraft.client.renderer.OutlineBufferSource;
+ import net.minecraft.client.renderer.RenderType;
+-import net.minecraft.client.renderer.ShaderInstance;
+ import net.minecraft.util.ARGB;
+ import org.apache.commons.lang3.mutable.MutableInt;
++import org.lwjgl.opengl.GL20C;
+ import org.lwjgl.opengl.GL30C;
+ import org.lwjgl.opengl.GL33C;
+ import org.lwjgl.opengl.GL43C;
+@@ -33,8 +29,6 @@
+ import java.util.List;
+ import java.util.Map;
+ 
+-import static org.lwjgl.opengl.GL11C.glDrawArrays;
+-import static org.lwjgl.opengl.GL20C.glUseProgram;
+ 
+ public abstract class ComputeShaderSetup {
+     protected static final int WORK_GROUP_SIZE = 128;
+@@ -61,6 +55,8 @@
+     protected final StaticSSBO<WeightInfo> jointBO;
+     protected final StaticSSBO<ElemInfo> elementsBO; // ElementsPool
+     protected OutputSSBO outVertexAttrBO;
++    private final int sourceStride;
++    private final ComputeVertexBuffer vertexBuffer = new ComputeVertexBuffer();
+ 
+     //protected final IArrayBufferProxy hiddenFlagsBO;
+     protected final Integer[] hiddenFlags;
+@@ -123,6 +119,7 @@
+         this.vObjBO = new StaticSSBO<> (Lists.newArrayList(vertexObjs), 10, VertexObj::store);
+         this.jointBO = new StaticSSBO<> (jointList, 2, WeightInfo::store);
+ 
++        this.sourceStride = outBufferSize * Integer.BYTES;
+         this.outVertexAttrBO = new OutputSSBO((short) outBufferSize, elements.size(), DynamicSSBO.DataMode.STREAM);
+ 
+         GlStateManager._glBindVertexArray(currentBoundVao);
+@@ -132,68 +129,9 @@
+     protected void initAttachmentSSBO(List<ElemInfo> elements, List<Float> uvList) {
+     }
+ 
+-    public static void setShaderDefaultUniforms(ShaderInstance shader, VertexFormat.Mode mode, Window window) {
+-        for (int i = 0; i < 12; i++) {
+-            int j = RenderSystem.getShaderTexture(i);
+-            shader.setSampler("Sampler" + i, j);
+-        }
+-
+-        if (shader.MODEL_VIEW_MATRIX != null) {
+-            shader.MODEL_VIEW_MATRIX.set(RenderSystem.getModelViewMatrix());
+-        }
+-
+-        if (shader.PROJECTION_MATRIX != null) {
+-            shader.PROJECTION_MATRIX.set(RenderSystem.getProjectionMatrix());
+-        }
+-
+-        if (shader.COLOR_MODULATOR != null) {
+-            shader.COLOR_MODULATOR.set(RenderSystem.getShaderColor());
+-        }
+-
+-        if (shader.GLINT_ALPHA != null) {
+-            shader.GLINT_ALPHA.set(RenderSystem.getShaderGlintAlpha());
+-        }
+-
+-        if (shader.FOG_START != null) {
+-            shader.FOG_START.set(RenderSystem.getShaderFogStart());
+-        }
+-
+-        if (shader.FOG_END != null) {
+-            shader.FOG_END.set(RenderSystem.getShaderFogEnd());
+-        }
+-
+-        if (shader.FOG_COLOR != null) {
+-            shader.FOG_COLOR.set(RenderSystem.getShaderFogColor());
+-        }
+-
+-        if (shader.FOG_SHAPE != null) {
+-            shader.FOG_SHAPE.set(RenderSystem.getShaderFogShape().getIndex());
+-        }
+-
+-        if (shader.TEXTURE_MATRIX != null) {
+-            shader.TEXTURE_MATRIX.set(RenderSystem.getTextureMatrix());
+-        }
+-
+-        if (shader.GAME_TIME != null) {
+-            shader.GAME_TIME.set(RenderSystem.getShaderGameTime());
+-        }
+-
+-        if (shader.SCREEN_SIZE != null) {
+-            shader.SCREEN_SIZE.set((float)window.getWidth(), (float)window.getHeight());
+-        }
+-
+-        if (shader.LINE_WIDTH != null && (mode == VertexFormat.Mode.LINES || mode == VertexFormat.Mode.LINE_STRIP)) {
+-            shader.LINE_WIDTH.set(RenderSystem.getShaderLineWidth());
+-        }
+-
+-        RenderSystem.setupShaderLights(shader);
+-    }
+-
+-    static void clearBufferState(VertexFormat vertexFormat) {
+-        vertexFormat.clearBufferState();
+-    }
+-
+-    public abstract void bindBufferFormat(VertexFormat vertexFormat);
++    protected int midUvBuffer() {
++        return 0;
++    }
+ 
+     public abstract void applyComputeShader(PoseStack poseStack, float r, float g, float b, float a, int overlay, int light, int jointCount);
+ 
+@@ -209,6 +147,7 @@
+         this.elementsBO.close();
+         //this.hiddenFlagsBO.close();
+         this.outVertexAttrBO.close();
++        this.vertexBuffer.close();
+         GL30C.glDeleteVertexArrays(this.arrayObjectId);
+     }
+ 
+@@ -218,31 +157,17 @@
+     }
+ 
+     protected void draw(PoseStack poseStack, RenderType renderType, float r, float g, float b, float a, int overlay, int packedLight, int joints) {
+-        renderType.setupRenderState();
+-
+-        var mode = renderType.mode();
+-        ShaderInstance shader = RenderSystem.getShader();
+-        var format = shader.getVertexFormat();
+-
+-        this.bindBufferFormat(format);
+-
+-        ComputeShaderSetup.setShaderDefaultUniforms(shader, mode, Minecraft.getInstance().getWindow());
+-        shader.apply();
+-
+-        this.applyComputeShader(poseStack, r, g, b, a, overlay, packedLight, joints);
+-        // draw call
+-
+-        //GL43C.glMemoryBarrier(GL43C.GL_ALL_BARRIER_BITS);
+-        //GlStateManager._glBindVertexArray(this.arrayObjectId);
+-        glUseProgram(RenderSystem.getShader().getId());
+-        glDrawArrays(VertexFormat.Mode.TRIANGLES.asGLMode, 0, this.vcount);
+-        //GL33C.glFinish();
+-
+-        // state restore
+-        RenderSystem.getShader().clear();
+-        renderType.clearRenderState();
+-        format.clearBufferState();
+-
++        if (this.vcount == 0) {
++            return;
++        }
++        int previousProgram = GlStateManager._getInteger(GL20C.GL_CURRENT_PROGRAM);
++        try {
++            this.applyComputeShader(poseStack, r, g, b, a, overlay, packedLight, joints);
++            this.vertexBuffer.draw(ComputeShaderProvider.vertexPacker(), renderType, this.outVertexAttrBO.glSSBO,
++                this.sourceStride, this.midUvBuffer(), this.vcount);
++        } finally {
++            GlStateManager._glUseProgram(previousProgram);
++        }
+     }
+ 
+     public interface BufferUploadable {
+diff --git a/src/main/java/yesman/epicfight/client/renderer/shader/compute/ComputeVertexBuffer.java b/src/main/java/yesman/epicfight/client/renderer/shader/compute/ComputeVertexBuffer.java
+new file mode 100644
+--- /dev/null
++++ b/src/main/java/yesman/epicfight/client/renderer/shader/compute/ComputeVertexBuffer.java
+@@ -0,0 +1,190 @@
++package yesman.epicfight.client.renderer.shader.compute;
++
++import java.util.Arrays;
++import java.util.IdentityHashMap;
++import java.util.Map;
++import java.util.OptionalDouble;
++import java.util.OptionalInt;
++
++import org.joml.Vector3f;
++import org.joml.Vector4f;
++import org.lwjgl.opengl.GL15C;
++import org.lwjgl.opengl.GL20C;
++import org.lwjgl.opengl.GL30C;
++import org.lwjgl.opengl.GL43C;
++
++import com.mojang.blaze3d.buffers.GpuBuffer;
++import com.mojang.blaze3d.opengl.GlBuffer;
++import com.mojang.blaze3d.systems.RenderSystem;
++import com.mojang.blaze3d.vertex.VertexFormat;
++import com.mojang.blaze3d.vertex.VertexFormatElement;
++
++import net.minecraft.client.renderer.rendertype.RenderSetup;
++import net.minecraft.client.renderer.rendertype.RenderType;
++import yesman.epicfight.client.renderer.shader.compute.backend.program.ComputeProgram;
++
++final class ComputeVertexBuffer implements AutoCloseable {
++    private static final int MAX_VERTEX_BYTES = 128;
++    private static final int MID_UV_BASE = 64;
++    private static final int PACKED_COLOR_BASE = 80;
++    private static final int SSBO = GL43C.GL_SHADER_STORAGE_BUFFER;
++    private static final int GROUP_SIZE = 128;
++    private static final Vector4f WHITE = new Vector4f(1.0F);
++    private static final Vector3f ZERO = new Vector3f();
++
++    private final Map<VertexFormat, int[]> layouts = new IdentityHashMap<>();
++    private GpuBuffer vertices;
++
++    static int[] mapLayout(VertexFormat format, int sourceStride, boolean iris) {
++        int stride = format.getVertexSize();
++        if (stride == 0 || stride > MAX_VERTEX_BYTES) {
++            throw new IllegalArgumentException("Unsupported compute vertex stride: " + stride);
++        }
++        int[] layout = new int[stride];
++        Arrays.fill(layout, -1);
++        for (VertexFormatElement element : format.getElements()) {
++            int source;
++            int size;
++            if (element == VertexFormatElement.POSITION) {
++                source = 0;
++                size = 12;
++            } else if (element == VertexFormatElement.COLOR) {
++                source = PACKED_COLOR_BASE;
++                size = 4;
++            } else if (element == VertexFormatElement.UV0) {
++                source = 28;
++                size = 8;
++            } else if (element == VertexFormatElement.NORMAL) {
++                source = 36;
++                size = 3;
++            } else if (element == VertexFormatElement.UV1) {
++                source = 40;
++                size = 4;
++            } else if (element == VertexFormatElement.UV2) {
++                source = 44;
++                size = 4;
++            } else if (iris) {
++                String name = format.getElementName(element);
++                switch (name) {
++                    case "iris_Entity" -> {
++                        source = 48;
++                        size = 6;
++                    }
++                    case "mc_midTexCoord" -> {
++                        source = MID_UV_BASE;
++                        size = 8;
++                    }
++                    case "at_tangent" -> {
++                        source = 56;
++                        size = 4;
++                    }
++                    default -> throw new IllegalArgumentException("Unsupported Iris compute vertex attribute: " + name);
++                }
++            } else {
++                throw new IllegalArgumentException("Unsupported compute vertex attribute: " + format.getElementName(element));
++            }
++            if (element.byteSize() != size || (source < MID_UV_BASE && source + size > sourceStride)) {
++                throw new IllegalArgumentException("Unexpected compute vertex attribute layout: " + element);
++            }
++            int offset = format.getOffset(element);
++            for (int index = 0; index < size; index++) {
++                layout[offset + index] = source + index;
++            }
++        }
++        return layout;
++    }
++
++    void draw(ComputeProgram packer, RenderType type, int source, int sourceStride, int irisMidUv, int count) {
++        if (type.mode() != VertexFormat.Mode.TRIANGLES) {
++            throw new IllegalArgumentException("GPU skinning requires triangle geometry: " + type);
++        }
++        int[] layout = this.layouts.computeIfAbsent(type.format(), format -> mapLayout(format, sourceStride, irisMidUv != 0));
++        long byteCount = (long) layout.length * count;
++        long wordCount = (byteCount + Integer.BYTES - 1) / Integer.BYTES;
++        long allocation = wordCount * Integer.BYTES;
++        if (this.vertices == null || this.vertices.size() < allocation) {
++            GpuBuffer replacement = RenderSystem.getDevice().createBuffer(() -> "Epic Fight skinned vertices", GpuBuffer.USAGE_VERTEX, allocation);
++            this.close();
++            this.vertices = replacement;
++        }
++
++        // This buffer belongs to Minecraft's OpenGL device. SSBO writes target
++        // the same allocation that RenderPass uses for vertex attribute fetch.
++        int oldSource = GL30C.glGetIntegeri(GL43C.GL_SHADER_STORAGE_BUFFER_BINDING, 0);
++        int oldDestination = GL30C.glGetIntegeri(GL43C.GL_SHADER_STORAGE_BUFFER_BINDING, 1);
++        int oldMidUv = GL30C.glGetIntegeri(GL43C.GL_SHADER_STORAGE_BUFFER_BINDING, 2);
++        int oldBinding = GL15C.glGetInteger(GL43C.GL_SHADER_STORAGE_BUFFER_BINDING);
++        try {
++            packer.useProgram();
++            packer.getUniform("vertexCount").uploadUnsignedInt(count);
++            packer.getUniform("sourceWords").uploadUnsignedInt(sourceStride / Integer.BYTES);
++            packer.getUniform("targetStride").uploadUnsignedInt(layout.length);
++            GL20C.glUniform1iv(packer.getUniformLocation("byteSources"), layout);
++            GL30C.glBindBufferBase(SSBO, 0, source);
++            GL30C.glBindBufferBase(SSBO, 1, ((GlBuffer) this.vertices).handle);
++            GL30C.glBindBufferBase(SSBO, 2, irisMidUv == 0 ? source : irisMidUv);
++            // The skinning dispatch writes the raw SSBO. It must be visible
++            // before this dispatch reads it, and before a previous draw is reused.
++            GL43C.glMemoryBarrier(GL43C.GL_SHADER_STORAGE_BARRIER_BIT);
++            packer.dispatch(Math.toIntExact((wordCount + GROUP_SIZE - 1) / GROUP_SIZE), 1, 1);
++            // Vertex fetch sees the newly packed bytes without a CPU transfer.
++            packer.memBarriers();
++        } finally {
++            GL30C.glBindBufferBase(SSBO, 0, oldSource);
++            GL30C.glBindBufferBase(SSBO, 1, oldDestination);
++            GL30C.glBindBufferBase(SSBO, 2, oldMidUv);
++            GL15C.glBindBuffer(SSBO, oldBinding);
++        }
++        this.render(type, count);
++    }
++
++    private void render(RenderType type, int count) {
++        RenderSetup setup = type.state;
++        var matrix = RenderSystem.getModelViewStack();
++        var layering = setup.layeringTransform.getModifier();
++        if (layering != null) {
++            matrix.pushMatrix();
++        }
++        try {
++            if (layering != null) {
++                layering.accept(matrix);
++            }
++            var transform = RenderSystem.getDynamicUniforms()
++                .writeTransform(matrix, WHITE, ZERO, setup.textureTransform.getMatrix());
++            var target = setup.outputTarget.getRenderTarget();
++            var color = RenderSystem.outputColorTextureOverride != null
++                ? RenderSystem.outputColorTextureOverride : target.getColorTextureView();
++            var depth = target.useDepth
++                ? RenderSystem.outputDepthTextureOverride != null
++                    ? RenderSystem.outputDepthTextureOverride : target.getDepthTextureView()
++                : null;
++            var scissor = RenderSystem.getScissorStateForRenderTypeDraws();
++            try (var pass = RenderSystem.getDevice().createCommandEncoder()
++                    .createRenderPass(type::toString, color, OptionalInt.empty(), depth, OptionalDouble.empty())) {
++                pass.setPipeline(type.pipeline());
++                if (scissor.enabled()) {
++                    pass.enableScissor(scissor.x(), scissor.y(), scissor.width(), scissor.height());
++                }
++                RenderSystem.bindDefaultUniforms(pass);
++                pass.setUniform("DynamicTransforms", transform);
++                setup.getTextures().forEach((name, binding) -> pass.bindTexture(name, binding.textureView(), binding.sampler()));
++                pass.setVertexBuffer(0, this.vertices);
++                // The mesh transformer emits every vertex of every triangle in
++                // final draw order, so there is no index buffer to reconstruct.
++                pass.draw(0, count);
++            }
++        } finally {
++            if (layering != null) {
++                matrix.popMatrix();
++            }
++        }
++    }
++
++    @Override
++    public void close() {
++        if (this.vertices != null) {
++            this.vertices.close();
++            this.vertices = null;
++        }
++    }
++}
+diff --git a/src/main/java/yesman/epicfight/client/renderer/shader/compute/VanillaComputeShaderSetup.java b/src/main/java/yesman/epicfight/client/renderer/shader/compute/VanillaComputeShaderSetup.java
+--- a/src/main/java/yesman/epicfight/client/renderer/shader/compute/VanillaComputeShaderSetup.java
++++ b/src/main/java/yesman/epicfight/client/renderer/shader/compute/VanillaComputeShaderSetup.java
+@@ -2,8 +2,6 @@
+ 
+ import com.mojang.blaze3d.opengl.GlStateManager;
+ import com.mojang.blaze3d.vertex.PoseStack;
+-import com.mojang.blaze3d.vertex.VertexFormat;
+-import com.mojang.blaze3d.vertex.VertexFormatElement;
+ import net.minecraft.client.renderer.MultiBufferSource;
+ import net.minecraft.client.renderer.OutlineBufferSource;
+ import net.minecraft.client.renderer.RenderType;
+@@ -25,12 +23,6 @@
+ import javax.annotation.Nullable;
+ import java.util.Arrays;
+ 
+-import static org.lwjgl.opengl.GL11C.*;
+-import static org.lwjgl.opengl.GL15C.GL_ARRAY_BUFFER;
+-import static org.lwjgl.opengl.GL15C.glBindBuffer;
+-import static org.lwjgl.opengl.GL20C.glEnableVertexAttribArray;
+-import static org.lwjgl.opengl.GL20C.glVertexAttribPointer;
+-import static org.lwjgl.opengl.GL30C.glVertexAttribIPointer;
+ 
+ public class VanillaComputeShaderSetup extends ComputeShaderSetup {
+ 	
+@@ -38,38 +30,6 @@
+         super(skinnedMesh, 12);
+     }
+ 	
+-	@Override
+-	public void bindBufferFormat(VertexFormat vertexFormat) {
+-		var elems = vertexFormat.getElements();
+-		glBindBuffer(GL_ARRAY_BUFFER, this.outVertexAttrBO.glSSBO);
+-		
+-		for (int i = 0; i < elems.size(); ++i) {
+-			VertexFormatElement elem = elems.get(i);
+-			
+-			if (elem == VertexFormatElement.POSITION) {
+-				glVertexAttribPointer(i, 3, GL_FLOAT, false, 48, 0);
+-				glEnableVertexAttribArray(i);
+-			} else if (elem == VertexFormatElement.UV0) {
+-				glVertexAttribPointer(i, 2, GL_FLOAT, false, 48, 28);
+-				glEnableVertexAttribArray(i);
+-			} else if (elem == VertexFormatElement.COLOR) {
+-				glVertexAttribPointer(i, 4, GL_FLOAT, true, 48, 12);
+-				glEnableVertexAttribArray(i);
+-			} else if (elem == VertexFormatElement.NORMAL) {
+-				glVertexAttribPointer(i, 3, GL_BYTE, true, 48, 36);
+-				glEnableVertexAttribArray(i);
+-			} else if (elem == VertexFormatElement.UV1) {
+-				glVertexAttribIPointer(i, 2, GL_UNSIGNED_SHORT, 48, 40);
+-				glEnableVertexAttribArray(i);
+-			} else if (elem == VertexFormatElement.UV2) {
+-				glVertexAttribIPointer(i, 2, GL_UNSIGNED_SHORT, 48, 44);
+-				glEnableVertexAttribArray(i);
+-			}
+-		}
+-		
+-		glBindBuffer(GL_ARRAY_BUFFER, 0);
+-	}
+-
+ 	@Override
+ 	public void applyComputeShader(PoseStack poseStack, float r, float g, float b, float a, int overlay, int light, int jointCount) {
+ 		ComputeProgram shader = ComputeShaderProvider.meshComputeVanilla;
+diff --git a/src/main/java/yesman/epicfight/client/renderer/shader/compute/backend/program/ComputeProgram.java b/src/main/java/yesman/epicfight/client/renderer/shader/compute/backend/program/ComputeProgram.java
+--- a/src/main/java/yesman/epicfight/client/renderer/shader/compute/backend/program/ComputeProgram.java
++++ b/src/main/java/yesman/epicfight/client/renderer/shader/compute/backend/program/ComputeProgram.java
+@@ -1,4 +1,6 @@
+ package yesman.epicfight.client.renderer.shader.compute.backend.program;
++
++import com.mojang.blaze3d.opengl.GlStateManager;
+ 
+ import org.lwjgl.opengl.GL11;
+ import org.lwjgl.opengl.GL20;
+@@ -27,11 +29,11 @@
+     }
+ 
+     public void useProgram() {
+-    	GL46.glUseProgram(this.programHandle);
++        GlStateManager._glUseProgram(this.programHandle);
+     }
+ 
+     public void resetProgram() {
+-    	GL46.glUseProgram(0);
++        GlStateManager._glUseProgram(0);
+     }
+ 
+     public void attachShader(ComputeShader computeShader) {
+diff --git a/src/main/java/yesman/epicfight/client/renderer/shader/compute/iris/IrisComputeShaderSetup.java b/src/main/java/yesman/epicfight/client/renderer/shader/compute/iris/IrisComputeShaderSetup.java
+--- a/src/main/java/yesman/epicfight/client/renderer/shader/compute/iris/IrisComputeShaderSetup.java
++++ b/src/main/java/yesman/epicfight/client/renderer/shader/compute/iris/IrisComputeShaderSetup.java
+@@ -1,13 +1,5 @@
+ package yesman.epicfight.client.renderer.shader.compute.iris;
+ 
+-import static org.lwjgl.opengl.GL11C.GL_BYTE;
+-import static org.lwjgl.opengl.GL11C.GL_FLOAT;
+-import static org.lwjgl.opengl.GL11C.GL_UNSIGNED_SHORT;
+-import static org.lwjgl.opengl.GL15C.GL_ARRAY_BUFFER;
+-import static org.lwjgl.opengl.GL15C.glBindBuffer;
+-import static org.lwjgl.opengl.GL20C.glEnableVertexAttribArray;
+-import static org.lwjgl.opengl.GL20C.glVertexAttribPointer;
+-import static org.lwjgl.opengl.GL30C.glVertexAttribIPointer;
+ 
+ import java.util.Arrays;
+ import java.util.List;
+@@ -17,12 +9,9 @@
+ import com.google.common.collect.Lists;
+ import com.mojang.blaze3d.opengl.GlStateManager;
+ import com.mojang.blaze3d.vertex.PoseStack;
+-import com.mojang.blaze3d.vertex.VertexFormat;
+-import com.mojang.blaze3d.vertex.VertexFormatElement;
+ 
+ import net.irisshaders.iris.layer.BufferSourceWrapper;
+ import net.irisshaders.iris.uniforms.CapturedRenderingState;
+-import net.irisshaders.iris.vertices.IrisVertexFormats;
+ import net.minecraft.client.renderer.MultiBufferSource;
+ import net.minecraft.client.renderer.OutlineBufferSource;
+ import net.minecraft.client.renderer.RenderType;
+@@ -79,54 +68,8 @@
+ 	}
+ 	
+ 	@Override
+-	public void bindBufferFormat(VertexFormat vertexFormat) {
+-		var elems = vertexFormat.getElements();
+-		
+-		glBindBuffer(GL_ARRAY_BUFFER, outVertexAttrBO.glSSBO);
+-		
+-		int midUvPos = -1;
+-		
+-		for (int i = 0; i < elems.size(); ++i) {
+-			VertexFormatElement elem = elems.get(i);
+-			
+-			if (elem == VertexFormatElement.POSITION) {
+-				glVertexAttribPointer(i, 3, GL_FLOAT, false, 60, 0);
+-				glEnableVertexAttribArray(i);
+-			} else if (elem == VertexFormatElement.UV0) {
+-				glVertexAttribPointer(i, 2, GL_FLOAT, false, 60, 28);
+-				glEnableVertexAttribArray(i);
+-			} else if (elem == VertexFormatElement.COLOR) {
+-				glVertexAttribPointer(i, 4, GL_FLOAT, true, 60, 12);
+-				glEnableVertexAttribArray(i);
+-			} else if (elem == VertexFormatElement.NORMAL) {
+-				glVertexAttribPointer(i, 3, GL_BYTE, true, 60, 36);
+-				glEnableVertexAttribArray(i);
+-			} else if (elem == VertexFormatElement.UV1) {
+-				glVertexAttribIPointer(i, 2, GL_UNSIGNED_SHORT, 60, 40);
+-				glEnableVertexAttribArray(i);
+-			} else if (elem == VertexFormatElement.UV2) {
+-				glVertexAttribIPointer(i, 2, GL_UNSIGNED_SHORT, 60, 44);
+-				glEnableVertexAttribArray(i);
+-			}
+-			// iris part
+-			else if (elem == IrisVertexFormats.ENTITY_ID_ELEMENT) {
+-				glVertexAttribIPointer(i, 3, GL_UNSIGNED_SHORT, 60, 48);
+-				glEnableVertexAttribArray(i);
+-			} else if (elem == IrisVertexFormats.MID_TEXTURE_ELEMENT) {
+-				midUvPos = i;
+-			} else if (elem == IrisVertexFormats.TANGENT_ELEMENT) {
+-				glVertexAttribPointer(i, 4, GL_BYTE, false, 60, 56);
+-				glEnableVertexAttribArray(i);
+-			}
+-		}
+-		
+-		if (midUvPos >= 0) {
+-			glBindBuffer(GL_ARRAY_BUFFER, midUVBO.glSSBO);
+-			glVertexAttribPointer(midUvPos, 2, GL_FLOAT, false, 0, 0);
+-			glEnableVertexAttribArray(midUvPos);
+-		}
+-		
+-		glBindBuffer(GL_ARRAY_BUFFER, 0);
++	protected int midUvBuffer() {
++		return this.midUVBO.glSSBO;
+ 	}
+ 
+ 	@Override
+diff --git a/src/main/java/yesman/epicfight/client/renderer/shader/compute/loader/ComputeShaderProvider.java b/src/main/java/yesman/epicfight/client/renderer/shader/compute/loader/ComputeShaderProvider.java
+--- a/src/main/java/yesman/epicfight/client/renderer/shader/compute/loader/ComputeShaderProvider.java
++++ b/src/main/java/yesman/epicfight/client/renderer/shader/compute/loader/ComputeShaderProvider.java
+@@ -26,6 +26,11 @@
+     public static ComputeProgram meshComputeVanilla;
+     public static ComputeProgram batchedMeshComputeVanilla;
+     public static ComputeProgram meshComputeIris;
++    private static ComputeProgram vertexPacker;
++
++    public static ComputeProgram vertexPacker() {
++        return vertexPacker;
++    }
+ 
+     public static BuffersPool posesBufferPool;
+     public static BuffersPool hiddenFlagPool;
+@@ -77,6 +82,9 @@
+         clear();
+         
+         try {
++            vertexPacker = ComputeShaderLoader.loadComputeShaderProgram(resources,
++                    EpicFight.identifier("shaders/compute/vertex_buffer_pack.comp"),
++                    BarrierFlags.SHADER_STORAGE, BarrierFlags.VERTEX_ATTRIB_ARRAY);
+             meshComputeVanilla = ComputeShaderLoader.loadComputeShaderProgram(resources,
+                     EpicFight.identifier("shaders/compute/vanilla_mesh_transformer.comp"),
+                     BarrierFlags.SHADER_STORAGE, BarrierFlags.VERTEX_ATTRIB_ARRAY);
+@@ -98,6 +106,7 @@
+             }
+ 
+         } catch (Exception e) {
++            clear();
+             supportComputeShader = false;
+             EpicFight.LOGGER.warn("[Computer Shader Acceleration] There were some errors while loading the compute shader, and this feature will be forcibly disabled.");
+             EpicFight.LOGGER.warn("[Computer Shader Acceleration] Detail: {0}", e);
+@@ -117,12 +126,18 @@
+     }
+ 
+     public static void clear() {
++        if (vertexPacker != null) {
++            vertexPacker.delete();
++            vertexPacker = null;
++        }
+         if (meshComputeVanilla != null) {
+         	meshComputeVanilla.delete();
++            meshComputeVanilla = null;
+         }
+         
+         if (meshComputeIris != null) {
+         	meshComputeIris.delete();
++            meshComputeIris = null;
+         }
+     }
+     
+diff --git a/src/main/resources/assets/epicfight/shaders/compute/vertex_buffer_pack.comp b/src/main/resources/assets/epicfight/shaders/compute/vertex_buffer_pack.comp
+new file mode 100644
+--- /dev/null
++++ b/src/main/resources/assets/epicfight/shaders/compute/vertex_buffer_pack.comp
+@@ -0,0 +1,63 @@
++#version 430 core
++
++layout(local_size_x = 128) in;
++layout(std430, binding = 0) readonly buffer SkinningResult { uint source[]; };
++layout(std430, binding = 1) writeonly buffer VertexBuffer { uint target[]; };
++layout(std430, binding = 2) readonly buffer IrisMidUv { uint midUv[]; };
++
++uniform uint vertexCount;
++uniform uint sourceWords;
++uniform uint targetStride;
++uniform int byteSources[128];
++
++uint sourceByte(int selector, uint vertex, uint packedColor) {
++    if (selector < 0) return 0u;
++    if (selector >= 80) return (packedColor >> (8 * (selector - 80))) & 255u;
++    uint value;
++    if (selector >= 64) {
++        value = midUv[vertex * 2u + uint(selector - 64) / 4u];
++    } else {
++        value = source[vertex * sourceWords + uint(selector) / 4u];
++    }
++    return (value >> (8 * (selector & 3))) & 255u;
++}
++
++uint packedColorAt(uint vertex) {
++    uint base = vertex * sourceWords;
++    return packUnorm4x8(uintBitsToFloat(uvec4(source[base + 3u], source[base + 4u],
++        source[base + 5u], source[base + 6u])));
++}
++
++void main() {
++    uint word = gl_GlobalInvocationID.x;
++    uint firstByte = word * 4u;
++    uint byteCount = vertexCount * targetStride;
++    if (firstByte >= byteCount) return;
++
++    uint vertex = firstByte / targetStride;
++    uint lane = firstByte % targetStride;
++    int first = byteSources[lane];
++    if (lane + 3u < targetStride && first >= 0 && first < 64 && (first & 3) == 0 &&
++            byteSources[lane + 1u] == first + 1 && byteSources[lane + 2u] == first + 2 &&
++            byteSources[lane + 3u] == first + 3) {
++        target[word] = source[vertex * sourceWords + uint(first) / 4u];
++        return;
++    }
++
++    // Iris can use a stride that is not a multiple of four. One invocation
++    // owns the whole destination word, even across two adjacent vertices.
++    uint value = 0u;
++    uint colorVertex = ~0u;
++    uint packedColor = 0u;
++    for (uint byte = 0u; byte < 4u && firstByte + byte < byteCount; ++byte) {
++        uint address = firstByte + byte;
++        vertex = address / targetStride;
++        int selector = byteSources[address % targetStride];
++        if (selector >= 80 && vertex != colorVertex) {
++            packedColor = packedColorAt(vertex);
++            colorVertex = vertex;
++        }
++        value |= sourceByte(selector, vertex, packedColor) << (byte * 8u);
++    }
++    target[word] = value;
++}
+diff --git a/src/main/resources/epicfight.accesswidener b/src/main/resources/epicfight.accesswidener
+--- a/src/main/resources/epicfight.accesswidener
++++ b/src/main/resources/epicfight.accesswidener
+@@ -99,3 +99,6 @@
+ 
+ # Configure vanilla smoke spawned by GroundSlamParticle
+ accessible method net/minecraft/client/particle/SingleQuadParticle setAlpha (F)V
++
++# Bind the Minecraft-owned vertex buffer as an OpenGL SSBO for compute output
++accessible field com/mojang/blaze3d/opengl/GlBuffer handle I

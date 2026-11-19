@@ -1,0 +1,339 @@
+diff --git a/src/main/java/yesman/epicfight/client/gui/datapack/screen/SelectAnimationScreen.java b/src/main/java/yesman/epicfight/client/gui/datapack/screen/SelectAnimationScreen.java
+--- a/src/main/java/yesman/epicfight/client/gui/datapack/screen/SelectAnimationScreen.java
++++ b/src/main/java/yesman/epicfight/client/gui/datapack/screen/SelectAnimationScreen.java
+@@ -140,7 +140,7 @@
+ 		}
+ 		
+ 		@Override
+-		protected int getScrollbarPosition() {
++		protected int scrollBarX() {
+ 			return this.getRight() - 6;
+ 		}
+ 		
+@@ -178,7 +178,9 @@
+ 			}
+ 			
+ 			@Override
+-			public void render(GuiGraphics guiGraphics, int index, int top, int left, int width, int height, int mouseX, int mouseY, boolean isMouseOver, float partialTicks) {
++			public void renderContent(GuiGraphics guiGraphics, int mouseX, int mouseY, boolean isMouseOver, float partialTicks) {
++				int top = this.getY();
++				int left = this.getX();
+ 				guiGraphics.drawString(SelectAnimationScreen.this.minecraft.font, this.animation.registryName().toString(), left + 5, top + 5, 16777215, false);
+ 			}
+ 			
+diff --git a/src/main/java/yesman/epicfight/client/gui/datapack/screen/SelectFromRegistryScreen.java b/src/main/java/yesman/epicfight/client/gui/datapack/screen/SelectFromRegistryScreen.java
+--- a/src/main/java/yesman/epicfight/client/gui/datapack/screen/SelectFromRegistryScreen.java
++++ b/src/main/java/yesman/epicfight/client/gui/datapack/screen/SelectFromRegistryScreen.java
+@@ -146,7 +146,7 @@
+ 		}
+ 		
+ 		@Override
+-		protected int getScrollbarPosition() {
++		protected int scrollBarX() {
+ 			return this.getX() - 6;
+ 		}
+ 		
+@@ -171,7 +171,9 @@
+ 			}
+ 			
+ 			@Override
+-			public void render(GuiGraphics guiGraphics, int index, int top, int left, int width, int height, int mouseX, int mouseY, boolean isMouseOver, float partialTicks) {
++			public void renderContent(GuiGraphics guiGraphics, int mouseX, int mouseY, boolean isMouseOver, float partialTicks) {
++				int top = this.getY();
++				int left = this.getX();
+ 				guiGraphics.drawString(SelectFromRegistryScreen.this.minecraft.font, this.name, left + 25, top + 5, 16777215, false);
+ 			}
+ 			
+diff --git a/src/main/java/yesman/epicfight/client/gui/datapack/screen/SelectModelScreen.java b/src/main/java/yesman/epicfight/client/gui/datapack/screen/SelectModelScreen.java
+--- a/src/main/java/yesman/epicfight/client/gui/datapack/screen/SelectModelScreen.java
++++ b/src/main/java/yesman/epicfight/client/gui/datapack/screen/SelectModelScreen.java
+@@ -137,7 +137,7 @@
+ 		}
+ 		
+ 		@Override
+-		protected int getScrollbarPosition() {
++		protected int scrollBarX() {
+ 			return this.getRight() - 6;
+ 		}
+ 		
+@@ -171,7 +171,9 @@
+ 			}
+ 			
+ 			@Override
+-			public void render(GuiGraphics guiGraphics, int index, int top, int left, int width, int height, int mouseX, int mouseY, boolean isMouseOver, float partialTicks) {
++			public void renderContent(GuiGraphics guiGraphics, int mouseX, int mouseY, boolean isMouseOver, float partialTicks) {
++				int top = this.getY();
++				int left = this.getX();
+ 				guiGraphics.drawString(SelectModelScreen.this.minecraft.font, this.registryName, left + 5, top + 5, 16777215, false);
+ 			}
+ 			
+diff --git a/src/main/java/yesman/epicfight/client/gui/datapack/widgets/ComboBox.java b/src/main/java/yesman/epicfight/client/gui/datapack/widgets/ComboBox.java
+--- a/src/main/java/yesman/epicfight/client/gui/datapack/widgets/ComboBox.java
++++ b/src/main/java/yesman/epicfight/client/gui/datapack/widgets/ComboBox.java
+@@ -298,7 +298,9 @@
+ 			}
+ 			
+ 			@Override
+-			public void render(GuiGraphics guiGraphics, int index, int top, int left, int width, int height, int mouseX, int mouseY, boolean isMouseOver, float partialTicks) {
++			public void renderContent(GuiGraphics guiGraphics, int mouseX, int mouseY, boolean isMouseOver, float partialTicks) {
++				int top = this.getY();
++				int left = this.getX();
+ 				guiGraphics.drawString(ComboBox.this.font, this.displayName, left + 2, top + 1, 16777215, false);
+ 			}
+ 			
+diff --git a/src/main/java/yesman/epicfight/client/gui/datapack/widgets/Grid.java b/src/main/java/yesman/epicfight/client/gui/datapack/widgets/Grid.java
+--- a/src/main/java/yesman/epicfight/client/gui/datapack/widgets/Grid.java
++++ b/src/main/java/yesman/epicfight/client/gui/datapack/widgets/Grid.java
+@@ -463,10 +463,10 @@
+ 			guiGraphics.pose().pushPose();
+ 			guiGraphics.pose().translate(0, 0, 1);
+ 			this.renderSelection(guiGraphics, rowTop, rowRight, itemHeight, 0, 0); // color params are not used
+-			row.render(guiGraphics, rowPosition, rowTop, rowLeft, rowRight, itemHeight, mouseX, mouseY, false, partialTicks);
++			row.renderRow(guiGraphics, rowTop, itemHeight);
+ 			guiGraphics.pose().popPose();
+ 		} else {
+-			row.render(guiGraphics, rowPosition, rowTop, rowLeft, rowRight, itemHeight, mouseX, mouseY, false, partialTicks);
++			row.renderRow(guiGraphics, rowTop, itemHeight);
+ 		}
+ 	}
+ 	
+@@ -611,7 +611,11 @@
+ 		}
+ 		
+ 		@Override
+-		public void render(GuiGraphics guiGraphics, int index, int top, int left, int width, int height, int mouseX, int mouseY, boolean isMouseOver, float partialTicks) {
++		public void renderContent(GuiGraphics guiGraphics, int mouseX, int mouseY, boolean isMouseOver, float partialTicks) {
++			this.renderRow(guiGraphics, this.getY(), this.getHeight());
++		}
++
++		private void renderRow(GuiGraphics guiGraphics, int top, int height) {
+ 			int startX = Grid.this.getX();
+ 			int start = this.rowHighlight() ? 2 : 1;
+ 			int size = this.values.size();
+diff --git a/src/main/java/yesman/epicfight/client/gui/datapack/widgets/InputComponentList.java b/src/main/java/yesman/epicfight/client/gui/datapack/widgets/InputComponentList.java
+--- a/src/main/java/yesman/epicfight/client/gui/datapack/widgets/InputComponentList.java
++++ b/src/main/java/yesman/epicfight/client/gui/datapack/widgets/InputComponentList.java
+@@ -256,7 +256,8 @@
+ 		}
+ 		
+ 		@Override
+-		public void render(GuiGraphics guiGraphics, int index, int top, int left, int width, int height, int mouseX, int mouseY, boolean isMouseOver, float partialTicks) {
++		public void renderContent(GuiGraphics guiGraphics, int mouseX, int mouseY, boolean isMouseOver, float partialTicks) {
++			int top = this.getY();
+ 			for (ResizableComponent widget : this.children) {
+ 				widget.relocateY(InputComponentList.this.owner.getRectangle(), top + InputComponentList.this.defaultEntryHeight / 2 - widget._getHeight() / 2);
+ 				widget._renderWidget(guiGraphics, mouseX, mouseY, partialTicks);
+diff --git a/src/main/java/yesman/epicfight/client/gui/screen/EmoteEditScreen.java b/src/main/java/yesman/epicfight/client/gui/screen/EmoteEditScreen.java
+--- a/src/main/java/yesman/epicfight/client/gui/screen/EmoteEditScreen.java
++++ b/src/main/java/yesman/epicfight/client/gui/screen/EmoteEditScreen.java
+@@ -213,7 +213,7 @@
+                 return;
+             }
+ 
+-            this.children().add(new Entry(emote));
++            super.addEntry(new Entry(emote));
+         }
+ 
+         protected void renderListItems(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+@@ -222,7 +222,10 @@
+             guiGraphics.disableScissor();
+         }
+ 
+-        protected void renderSelection(GuiGraphics guiGraphics, int top, int width, int height, int outerColor, int innerColor) {
++        @Override
++        protected void renderSelection(GuiGraphics guiGraphics, Entry entry, int outerColor) {
++            int top = entry.getY();
++            int height = entry.getHeight();
+             if (!this.isFocused()) {
+                 return;
+             }
+@@ -231,7 +234,7 @@
+             int right = this.getRowRight();
+ 
+             guiGraphics.fill(left, top - 2, right, top + height + 2, outerColor);
+-            guiGraphics.fill(left + 1, top - 1, right - 1, top + height + 1, innerColor);
++            guiGraphics.fill(left + 1, top - 1, right - 1, top + height + 1, 0xFF000000);
+         }
+ 
+         public int getRowLeft() {
+@@ -306,7 +309,10 @@
+                 return Component.translatable("narrator.select", this.emote.value().title());
+             }
+ 
+-            public void render(GuiGraphics guiGraphics, int index, int top, int left, int width, int height, int mouseX, int mouseY, boolean hovered, float partialTick) {
++            public void renderContent(GuiGraphics guiGraphics, int mouseX, int mouseY, boolean hovered, float partialTick) {
++                int top = this.getY();
++                int left = this.getX();
++                int height = this.getHeight();
+                 guiGraphics.drawString(font, Component.translatable(this.emote.value().title()), left + 2, top + height / 2 - 3, -1);
+             }
+         }
+diff --git a/src/main/java/yesman/epicfight/client/gui/screen/SideBarScreen.java b/src/main/java/yesman/epicfight/client/gui/screen/SideBarScreen.java
+--- a/src/main/java/yesman/epicfight/client/gui/screen/SideBarScreen.java
++++ b/src/main/java/yesman/epicfight/client/gui/screen/SideBarScreen.java
+@@ -281,7 +281,8 @@
+             }
+ 
+             @Override
+-            public void render(GuiGraphics guiGraphics, int index, int top, int left, int width, int height, int mouseX, int mouseY, boolean isMouseOver, float partialTick) {
++            public void renderContent(GuiGraphics guiGraphics, int mouseX, int mouseY, boolean isMouseOver, float partialTick) {
++                int top = this.getY();
+                 int color = this.isFocused() || isMouseOver ? 0xFFE8E8E8 : 0xFF9F9F9F;
+                 guiGraphics.drawString(
+                     font,
+diff --git a/src/main/java/yesman/epicfight/client/gui/screen/SkillBookScreen.java b/src/main/java/yesman/epicfight/client/gui/screen/SkillBookScreen.java
+--- a/src/main/java/yesman/epicfight/client/gui/screen/SkillBookScreen.java
++++ b/src/main/java/yesman/epicfight/client/gui/screen/SkillBookScreen.java
+@@ -451,7 +451,7 @@
+         }
+ 
+         @Override
+-        protected int getScrollbarPosition() {
++        protected int scrollBarX() {
+             return this.getRight() - 6;
+         }
+ 
+@@ -463,7 +463,9 @@
+             }
+ 
+             @Override
+-            public void render(GuiGraphics guiGraphics, int index, int top, int left, int width, int height, int mouseX, int mouseY, boolean isMouseOver, float partialTicks) {
++            public void renderContent(GuiGraphics guiGraphics, int mouseX, int mouseY, boolean isMouseOver, float partialTicks) {
++                int top = this.getY();
++                int left = this.getX();
+                 guiGraphics.drawString(SkillBookScreen.this.font, this.tooltip, left + 59, top, 0, false);
+             }
+ 
+@@ -583,7 +585,7 @@
+         }
+ 
+         @Override
+-        protected int getScrollbarPosition() {
++        protected int scrollBarX() {
+             return this.getRight() - 6;
+         }
+ 
+diff --git a/src/main/java/yesman/epicfight/client/gui/screen/config/ItemsPreferenceScreen.java b/src/main/java/yesman/epicfight/client/gui/screen/config/ItemsPreferenceScreen.java
+--- a/src/main/java/yesman/epicfight/client/gui/screen/config/ItemsPreferenceScreen.java
++++ b/src/main/java/yesman/epicfight/client/gui/screen/config/ItemsPreferenceScreen.java
+@@ -167,11 +167,11 @@
+ 	@Override
+ 	protected void init() {
+         this.combatPreferredItems.resize(200, this.height);
+-        this.combatPreferredItems.setScrollAmount(this.combatPreferredItems.getScrollAmount());
++        this.combatPreferredItems.setScrollAmount(this.combatPreferredItems.scrollAmount());
+         this.combatPreferredItems.setX(this.width / 2 - 204);
+ 
+         this.miningPreferredItems.resize(200, this.height);
+-        this.miningPreferredItems.setScrollAmount(this.miningPreferredItems.getScrollAmount());
++        this.miningPreferredItems.setScrollAmount(this.miningPreferredItems.scrollAmount());
+ 		this.miningPreferredItems.setX(this.width / 2 + 4);
+ 
+ 		this.addRenderableWidget(this.combatPreferredItems);
+@@ -182,8 +182,8 @@
+ 		keywordEditBox.setResponder(keyword -> {
+ 			this.combatPreferredItems.filter(keyword);
+ 			this.miningPreferredItems.filter(keyword);
+-			this.combatPreferredItems.setScrollAmount(this.combatPreferredItems.getScrollAmount());
+-			this.miningPreferredItems.setScrollAmount(this.miningPreferredItems.getScrollAmount());
++			this.combatPreferredItems.setScrollAmount(this.combatPreferredItems.scrollAmount());
++			this.miningPreferredItems.setScrollAmount(this.miningPreferredItems.scrollAmount());
+ 		});
+ 		
+ 		this.addRenderableWidget(keywordEditBox);
+@@ -205,8 +205,8 @@
+ 						return false;
+ 					});
+ 					
+-					this.combatPreferredItems.setScrollAmount(this.combatPreferredItems.getScrollAmount());
+-					this.miningPreferredItems.setScrollAmount(this.miningPreferredItems.getScrollAmount());
++					this.combatPreferredItems.setScrollAmount(this.combatPreferredItems.scrollAmount());
++					this.miningPreferredItems.setScrollAmount(this.miningPreferredItems.scrollAmount());
+ 				}
+ 			)
+ 			.bounds(this.width / 2 - 92, this.height - 52, 15, 19)
+@@ -230,8 +230,8 @@
+ 						return false;
+ 					});
+ 					
+-					this.combatPreferredItems.setScrollAmount(this.combatPreferredItems.getScrollAmount());
+-					this.miningPreferredItems.setScrollAmount(this.miningPreferredItems.getScrollAmount());
++					this.combatPreferredItems.setScrollAmount(this.combatPreferredItems.scrollAmount());
++					this.miningPreferredItems.setScrollAmount(this.miningPreferredItems.scrollAmount());
+ 				}
+ 			)
+ 			.bounds(this.width / 2 + 77, this.height - 52, 15, 19)
+@@ -344,7 +344,7 @@
+ 		}
+ 		
+ 		@Override
+-		protected int getScrollbarPosition() {
++		protected int scrollBarX() {
+ 			return this.getRight() - 6;
+ 		}
+ 		
+@@ -354,7 +354,7 @@
+ 			
+ 			int width = this.minecraft.font.width(this.title);
+ 			int x = this.getRowLeft();
+-			int y = this.getY() + 4 - (int)this.getScrollAmount();
++			int y = this.getY() + 4 - (int)this.scrollAmount();
+ 			x = x + this.width / 2 - width / 2;
+ 			y = Math.min(this.getY() + 3, y);
+ 			
+@@ -364,7 +364,7 @@
+ 		}
+ 		
+ 		protected void addEntry(Item item) {
+-			this.children().add(new ItemEntry(item.getDefaultInstance(), this.left));
++			super.addEntry(new ItemEntry(item.getDefaultInstance(), this.left));
+ 		}
+ 		
+ 		protected void removeEntryHaving(Item item) {
+@@ -408,7 +408,7 @@
+ 					Component.literal(left ? ">" : "<"),
+ 					(button) -> {
+ 						ItemList.this.removeEntry(this);
+-						ItemList.this.setScrollAmount(ItemList.this.getScrollAmount());
++						ItemList.this.setScrollAmount(ItemList.this.scrollAmount());
+ 						ItemList.this.opponent.get().createOpponent(this);
+ 						
+ 						if (left) {
+@@ -425,7 +425,9 @@
+ 			}
+ 			
+ 			@Override
+-			public void render(GuiGraphics guiGraphics, int index, int top, int left, int width, int height, int mouseX, int mouseY, boolean isMouseOver, float partialTick) {
++			public void renderContent(GuiGraphics guiGraphics, int mouseX, int mouseY, boolean isMouseOver, float partialTick) {
++				int top = this.getY();
++				int left = this.getX();
+ 				try {
+ 					if (!UNRENDERABLE_ITEMS.contains(this.itemStack.getItem())) {
+ 						guiGraphics.renderItem(this.itemStack, left + 4, top + 1);
+diff --git a/src/main/java/yesman/epicfight/client/gui/widgets/ComboBox.java b/src/main/java/yesman/epicfight/client/gui/widgets/ComboBox.java
+--- a/src/main/java/yesman/epicfight/client/gui/widgets/ComboBox.java
++++ b/src/main/java/yesman/epicfight/client/gui/widgets/ComboBox.java
+@@ -355,7 +355,9 @@
+             }
+ 
+             @Override
+-            public void render(GuiGraphics guiGraphics, int index, int top, int left, int width, int height, int mouseX, int mouseY, boolean isMouseOver, float partialTicks) {
++            public void renderContent(GuiGraphics guiGraphics, int mouseX, int mouseY, boolean isMouseOver, float partialTicks) {
++                int top = this.getY();
++                int left = this.getX();
+                 guiGraphics.drawString(ComboBox.this.font, this.displayName, left + 2, top + 1, 16777215, false);
+             }
+ 
+diff --git a/src/main/java/yesman/epicfight/client/gui/widgets/WidgetTable.java b/src/main/java/yesman/epicfight/client/gui/widgets/WidgetTable.java
+--- a/src/main/java/yesman/epicfight/client/gui/widgets/WidgetTable.java
++++ b/src/main/java/yesman/epicfight/client/gui/widgets/WidgetTable.java
+@@ -270,7 +270,8 @@
+         }
+ 
+         @Override
+-        public void render(GuiGraphics guiGraphics, int index, int top, int left, int width, int height, int mouseX, int mouseY, boolean hovering, float partialTick) {
++        public void renderContent(GuiGraphics guiGraphics, int mouseX, int mouseY, boolean hovering, float partialTick) {
++            int top = this.getY();
+             for (AbstractWidget widget : this.widgets) {
+                 widget.setY(top + WidgetTable.this.defaultEntryHeight / 2 - widget.getHeight() / 2);
+                 widget.render(guiGraphics, mouseX, mouseY, partialTick);

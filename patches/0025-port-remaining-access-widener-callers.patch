@@ -1,0 +1,613 @@
+diff --git a/src/main/java/yesman/epicfight/client/gui/datapack/widgets/ComboBox.java b/src/main/java/yesman/epicfight/client/gui/datapack/widgets/ComboBox.java
+--- a/src/main/java/yesman/epicfight/client/gui/datapack/widgets/ComboBox.java
++++ b/src/main/java/yesman/epicfight/client/gui/datapack/widgets/ComboBox.java
+@@ -59,7 +59,7 @@
+ 		if (this.active && this.visible) {
+ 			
+ 			if (this.listOpened && this.comboItemList.mouseClicked(x, y, button)) {
+-				if (x < this.comboItemList.getScrollbarPosition() || x > this.comboItemList.getScrollbarPosition() + 6) {
++				if (x < this.comboItemList.scrollBarX() || x > this.comboItemList.scrollBarX() + 6) {
+ 					this.listOpened = false;
+ 				}
+ 				
+@@ -254,7 +254,7 @@
+ 		}
+ 		
+ 		@Override
+-		protected int getScrollbarPosition() {
++		protected int scrollBarX() {
+ 			return this.getRight() - 6;
+ 		}
+ 		
+@@ -265,7 +265,7 @@
+ 		
+ 		@Override
+ 		protected int getRowTop(int row) {
+-			return this.getY() + 2 - (int) this.getScrollAmount() + row * this.itemHeight;
++			return this.getY() + 2 - (int) this.scrollAmount() + row * this.defaultEntryHeight;
+ 		}
+ 
+ 		class ComboItemEntry extends ObjectSelectionList.Entry<ComboItemList.ComboItemEntry> {
+diff --git a/src/main/java/yesman/epicfight/client/gui/datapack/widgets/Grid.java b/src/main/java/yesman/epicfight/client/gui/datapack/widgets/Grid.java
+--- a/src/main/java/yesman/epicfight/client/gui/datapack/widgets/Grid.java
++++ b/src/main/java/yesman/epicfight/client/gui/datapack/widgets/Grid.java
+@@ -146,7 +146,7 @@
+ 		
+ 		this.children().remove(row);
+ 		
+-		double scrollAmount = this.getScrollAmount();
++		double scrollAmount = this.scrollAmount();
+ 		this.setScrollAmount(Math.min(scrollAmount, this.getMaxScroll()));
+ 		
+ 		this.resizeColumnWidth();
+@@ -246,7 +246,7 @@
+ 						, Minecraft.getInstance().font
+ 						, this.getX() + startX + 2
+ 						, this.getRowTop(rowposition) + 2
+-						, this.itemHeight - 3
++						, this.defaultEntryHeight - 3
+ 						, rowposition
+ 						, this.getSelected()
+ 						, columnName
+@@ -340,13 +340,13 @@
+ 	}
+ 	
+ 	@Override
+-	protected int getRowTop(int p_93512_) {
+-		return this.getY() - (int) this.getScrollAmount() + p_93512_ * this.itemHeight + this.headerHeight;
+-	}
+-	
+-	@Override
+-	protected int getRowBottom(int p_93486_) {
+-		return this.getRowTop(p_93486_) + this.itemHeight;
++	public int getRowTop(int p_93512_) {
++		return this.getY() - (int) this.scrollAmount() + p_93512_ * this.defaultEntryHeight + this.headerHeight;
++	}
++
++	@Override
++	public int getRowBottom(int p_93486_) {
++		return this.getRowTop(p_93486_) + this.defaultEntryHeight;
+ 	}
+ 	
+ 	@Override
+@@ -398,7 +398,7 @@
+ 		
+ 		if (this.editingWidget != null) {
+ 			int rowTop = this.getRowTop(this.rowposition);
+-			int rowBottom = this.getRowTop(this.rowposition) + this.itemHeight;
++			int rowBottom = this.getRowTop(this.rowposition) + this.defaultEntryHeight;
+ 			
+ 			if (rowBottom >= this.getY() && rowTop <= this.getBottom()) {
+ 				guiGraphics.pose().pushPose();
+@@ -414,13 +414,13 @@
+ 	protected void renderListItems(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTicks) {
+ 		int rowLeft = this.getRowLeft() - 1;
+ 		int rowWidth = this.getRowWidth();
+-		int itemHeight = this.itemHeight;
++		int itemHeight = this.defaultEntryHeight;
+ 		int itemCount = this.getItemCount();
+ 		int rowBottom = this.getY();
+ 		
+ 		for (int rowIndex = 0; rowIndex < itemCount; ++rowIndex) {
+ 			int rowTop = this.getRowTop(rowIndex);
+-			rowBottom = this.getRowTop(rowIndex) + this.itemHeight;
++			rowBottom = this.getRowTop(rowIndex) + this.defaultEntryHeight;
+ 			
+ 			if (rowBottom >= this.getY() && rowTop <= this.getBottom()) {
+ 				this.renderItem(guiGraphics, mouseX, mouseY, partialTicks, rowIndex, rowLeft, rowTop, rowWidth, itemHeight);
+@@ -434,14 +434,14 @@
+ 		guiGraphics.pose().pushPose();
+ 		guiGraphics.pose().translate(0, 0, 1);
+ 		
+-		int i = this.getScrollbarPosition();
++		int i = this.scrollBarX();
+ 		int j = i + 6;
+ 		int i2 = this.getMaxScroll();
+ 		
+ 		if (i2 > 0) {
+ 			int j2 = (int) ((float) (this.height * this.height) / (float) this.getMaxPosition());
+ 			j2 = Mth.clamp(j2, 32, this.height - 8);
+-			int k1 = (int) this.getScrollAmount() * (this.height - j2) / i2 + this.getY();
++			int k1 = (int) this.scrollAmount() * (this.height - j2) / i2 + this.getY();
+ 			
+ 			if (k1 < this.getY()) {
+ 				k1 = this.getY();
+@@ -519,7 +519,7 @@
+ 		}
+ 		
+ 		if (this.isFocused() && this.getMaxScroll() > 0) {
+-			this.setScrollAmount(this.getScrollAmount() - scrollY * (double) this.itemHeight / 2.0D);
++			this.setScrollAmount(this.scrollAmount() - scrollY * (double) this.defaultEntryHeight / 2.0D);
+ 			return true;
+ 		}
+ 		
+@@ -563,7 +563,7 @@
+ 	}
+ 	
+ 	@Override
+-	protected int getScrollbarPosition() {
++	protected int scrollBarX() {
+ 		return this.getRight() - 6;
+ 	}
+ 	
+@@ -626,7 +626,7 @@
+ 			
+ 				String displayText = column.toDisplayText(entry.getValue());
+ 				String correctedString = Grid.this.minecraft.font.plainSubstrByWidth(displayText, column.width - 1);
+-				guiGraphics.drawString(Grid.this.minecraft.font, correctedString, startX + 3, top + Grid.this.itemHeight / 2 - 4, 16777215, false);
++				guiGraphics.drawString(Grid.this.minecraft.font, correctedString, startX + 3, top + Grid.this.defaultEntryHeight / 2 - 4, 16777215, false);
+ 				
+ 				startX += column.width;
+ 				idx++;
+diff --git a/src/main/java/yesman/epicfight/client/gui/datapack/widgets/InputComponentList.java b/src/main/java/yesman/epicfight/client/gui/datapack/widgets/InputComponentList.java
+--- a/src/main/java/yesman/epicfight/client/gui/datapack/widgets/InputComponentList.java
++++ b/src/main/java/yesman/epicfight/client/gui/datapack/widgets/InputComponentList.java
+@@ -38,7 +38,7 @@
+ 	}
+ 	
+ 	@Override
+-	protected int getScrollbarPosition() {
++	protected int scrollBarX() {
+ 		return this.getRight() - 6;
+ 	}
+ 	
+@@ -258,7 +258,7 @@
+ 		@Override
+ 		public void render(GuiGraphics guiGraphics, int index, int top, int left, int width, int height, int mouseX, int mouseY, boolean isMouseOver, float partialTicks) {
+ 			for (ResizableComponent widget : this.children) {
+-				widget.relocateY(InputComponentList.this.owner.getRectangle(), top + InputComponentList.this.itemHeight / 2 - widget._getHeight() / 2);
++				widget.relocateY(InputComponentList.this.owner.getRectangle(), top + InputComponentList.this.defaultEntryHeight / 2 - widget._getHeight() / 2);
+ 				widget._renderWidget(guiGraphics, mouseX, mouseY, partialTicks);
+ 			}
+ 		}
+diff --git a/src/main/java/yesman/epicfight/client/gui/screen/EmoteEditScreen.java b/src/main/java/yesman/epicfight/client/gui/screen/EmoteEditScreen.java
+--- a/src/main/java/yesman/epicfight/client/gui/screen/EmoteEditScreen.java
++++ b/src/main/java/yesman/epicfight/client/gui/screen/EmoteEditScreen.java
+@@ -245,8 +245,8 @@
+         protected Object epicfight$getEntryAtPosition(double mouseX, double mouseY) {
+             int xStart = this.getX();
+             int xEnd = xStart + this.getRowWidth();
+-            int mouseRelativeY = Mth.floor(mouseY - (double)this.getY()) - this.headerHeight + (int)this.getScrollAmount() - 4;
+-            int rowPosition = mouseRelativeY / this.itemHeight;
++            int mouseRelativeY = Mth.floor(mouseY - (double)this.getY()) - this.headerHeight + (int)this.scrollAmount() - 4;
++            int rowPosition = mouseRelativeY / this.defaultEntryHeight;
+             return mouseX >= xStart && mouseX <= xEnd && rowPosition >= 0 && mouseRelativeY >= 0 && rowPosition < this.getItemCount() ? this.children().get(rowPosition) : null;
+         }
+ 
+@@ -254,7 +254,7 @@
+             return new ScreenRectangle(this.getX(), this.getY(), this.getWidth(), this.getHeight());
+         }
+ 
+-        protected int epicfight$getScrollbarPosition() {
++        protected int epicfight$scrollBarX() {
+             return this.getRight() - 6;
+         }
+ 
+diff --git a/src/main/java/yesman/epicfight/client/gui/screen/SideBarScreen.java b/src/main/java/yesman/epicfight/client/gui/screen/SideBarScreen.java
+--- a/src/main/java/yesman/epicfight/client/gui/screen/SideBarScreen.java
++++ b/src/main/java/yesman/epicfight/client/gui/screen/SideBarScreen.java
+@@ -287,7 +287,7 @@
+                     font,
+                     Component.translatable(this.title).withStyle(this.isFocused() || isMouseOver ? new ChatFormatting[] {ChatFormatting.ITALIC, ChatFormatting.UNDERLINE} : new ChatFormatting[] {ChatFormatting.ITALIC}),
+                     6,
+-                    top + SwitchableScreenList.this.itemHeight / 2 - 6,
++                    top + SwitchableScreenList.this.defaultEntryHeight / 2 - 6,
+                     color
+                 );
+             }
+diff --git a/src/main/java/yesman/epicfight/client/gui/widgets/ComboBox.java b/src/main/java/yesman/epicfight/client/gui/widgets/ComboBox.java
+--- a/src/main/java/yesman/epicfight/client/gui/widgets/ComboBox.java
++++ b/src/main/java/yesman/epicfight/client/gui/widgets/ComboBox.java
+@@ -74,7 +74,7 @@
+     public boolean mouseClicked(double x, double y, int button) {
+         if (this.active && this.visible) {
+             if (this.comboItemList.isActive() && this.comboItemList.mouseClicked(x, y, button)) {
+-                if (x < this.comboItemList.getScrollbarPosition() || x > this.comboItemList.getScrollbarPosition() + 6) {
++                if (x < this.comboItemList.scrollBarX() || x > this.comboItemList.scrollBarX() + 6) {
+                     this.comboItemList.active = false;
+                     this.comboItemList.visible = false;
+                 }
+@@ -305,7 +305,7 @@
+         }
+ 
+         @Override
+-        protected int getScrollbarPosition() {
++        protected int scrollBarX() {
+             return this.getRight() - 6;
+         }
+ 
+@@ -316,7 +316,7 @@
+ 
+         @Override
+         protected int getRowTop(int row) {
+-            return this.getY() + 2 - (int) this.getScrollAmount() + row * this.itemHeight;
++            return this.getY() + 2 - (int) this.scrollAmount() + row * this.defaultEntryHeight;
+         }
+ 
+         @Override
+diff --git a/src/main/java/yesman/epicfight/client/gui/widgets/WidgetTable.java b/src/main/java/yesman/epicfight/client/gui/widgets/WidgetTable.java
+--- a/src/main/java/yesman/epicfight/client/gui/widgets/WidgetTable.java
++++ b/src/main/java/yesman/epicfight/client/gui/widgets/WidgetTable.java
+@@ -49,7 +49,7 @@
+     }
+ 
+     @Override
+-    protected int getScrollbarPosition() {
++    protected int scrollBarX() {
+         return this.getRight() - 6;
+     }
+ 
+@@ -139,7 +139,7 @@
+                 /// Locate the widget at the vertical center of the current row, as we don't allow anchoring
+                 /// rather than [VerticalAnchorType.TOP_HEIGHT] in [#addWidget], the
+                 /// operation is expected as same as [AbstractWidget#setY]
+-                int top = this.getRowTop(widgetIndex) + this.itemHeight / 2 - height / 2 - tableRectangle.top();
++                int top = this.getRowTop(widgetIndex) + this.defaultEntryHeight / 2 - height / 2 - tableRectangle.top();
+                 widget.setY1(top);
+                 widget.relocate(tableRectangle);
+             }
+@@ -272,7 +272,7 @@
+         @Override
+         public void render(GuiGraphics guiGraphics, int index, int top, int left, int width, int height, int mouseX, int mouseY, boolean hovering, float partialTick) {
+             for (AbstractWidget widget : this.widgets) {
+-                widget.setY(top + WidgetTable.this.itemHeight / 2 - widget.getHeight() / 2);
++                widget.setY(top + WidgetTable.this.defaultEntryHeight / 2 - widget.getHeight() / 2);
+                 widget.render(guiGraphics, mouseX, mouseY, partialTick);
+             }
+         }
+diff --git a/src/main/java/yesman/epicfight/client/particle/CustomModelParticle.java b/src/main/java/yesman/epicfight/client/particle/CustomModelParticle.java
+--- a/src/main/java/yesman/epicfight/client/particle/CustomModelParticle.java
++++ b/src/main/java/yesman/epicfight/client/particle/CustomModelParticle.java
+@@ -1,4 +1,4 @@
+-package yesman.epicfight.client.particle;
++package yesman.epicfight.client.particle;
+ 
+ import org.joml.Quaternionf;
+ 
+@@ -17,6 +17,12 @@
+ 
+ public abstract class CustomModelParticle<M extends Mesh> extends Particle {
+ 	protected final AssetAccessor<M> particleMeshProvider;
++	protected float rCol = 1.0F;
++	protected float gCol = 1.0F;
++	protected float bCol = 1.0F;
++	protected float alpha = 1.0F;
++	protected float roll;
++	protected float oRoll;
+ 	protected float pitch;
+ 	protected float pitchO;
+ 	protected float yaw;
+@@ -29,6 +35,10 @@
+ 		this.particleMeshProvider = particleMesh;
+ 	}
+ 	
++	protected void setAlpha(float alpha) {
++		this.alpha = alpha;
++	}
++
+ 	@Override
+ 	public void render(VertexConsumer vertexConsumer, Camera camera, float partialTicks) {
+ 		PoseStack poseStack = new PoseStack();
+diff --git a/src/main/java/yesman/epicfight/client/particle/GroundSlamParticle.java b/src/main/java/yesman/epicfight/client/particle/GroundSlamParticle.java
+--- a/src/main/java/yesman/epicfight/client/particle/GroundSlamParticle.java
++++ b/src/main/java/yesman/epicfight/client/particle/GroundSlamParticle.java
+@@ -4,6 +4,7 @@
+ import net.minecraft.client.multiplayer.ClientLevel;
+ import net.minecraft.client.particle.NoRenderParticle;
+ import net.minecraft.client.particle.Particle;
++import net.minecraft.client.particle.SingleQuadParticle;
+ import net.minecraft.client.particle.ParticleProvider;
+ import net.minecraft.client.particle.TerrainParticle;
+ import net.minecraft.core.BlockPos;
+@@ -50,11 +51,12 @@
+ 			blockParticle.setLifetime(60 + (new Random().nextInt(20)));
+ 			
+ 			Particle smokeParticle = mc.particleEngine.createParticle(ParticleTypes.CAMPFIRE_COSY_SMOKE, x + positionVec.x * 0.5D, y + 1.5D, z + positionVec.z * 0.5D, 0, 0, 0); 
+-			smokeParticle.setParticleSpeed(moveVec.x * 0.1D, Math.random() * 0.05D, moveVec.z * 0.1D);
+-			smokeParticle.scale(3.0F);
+-			smokeParticle.alpha = 0.33F;
++			if (smokeParticle instanceof SingleQuadParticle smoke) {
++				smoke.setParticleSpeed(moveVec.x * 0.1D, Math.random() * 0.05D, moveVec.z * 0.1D);
++				smoke.scale(3.0F);
++				smoke.setAlpha(0.33F);
++			}
+ 			mc.particleEngine.add(blockParticle);
+-			mc.particleEngine.add(smokeParticle);
+ 		}
+ 	}
+ 	
+diff --git a/src/main/java/yesman/epicfight/client/renderer/patched/entity/PPlayerRenderer.java b/src/main/java/yesman/epicfight/client/renderer/patched/entity/PPlayerRenderer.java
+--- a/src/main/java/yesman/epicfight/client/renderer/patched/entity/PPlayerRenderer.java
++++ b/src/main/java/yesman/epicfight/client/renderer/patched/entity/PPlayerRenderer.java
+@@ -7,9 +7,10 @@
+ import net.minecraft.client.renderer.entity.layers.BeeStingerLayer;
+ import net.minecraft.client.renderer.entity.layers.CapeLayer;
+ import net.minecraft.client.renderer.entity.layers.PlayerItemInHandLayer;
+-import net.minecraft.client.renderer.entity.player.PlayerRenderer;
++import net.minecraft.client.renderer.entity.player.AvatarRenderer;
+ import net.minecraft.client.resources.PlayerSkin;
+ import net.minecraft.world.entity.EntityType;
++import net.minecraft.world.entity.player.PlayerModelPart;
+ import yesman.epicfight.api.asset.AssetAccessor;
+ import yesman.epicfight.api.client.model.Meshes;
+ import yesman.epicfight.client.events.engine.RenderEngine;
+@@ -20,7 +21,7 @@
+ import yesman.epicfight.client.renderer.patched.layer.PatchedItemInHandLayer;
+ import yesman.epicfight.client.world.capabilites.entitypatch.player.AbstractClientPlayerPatch;
+ 
+-public class PPlayerRenderer extends PHumanoidRenderer<AbstractClientPlayer, AbstractClientPlayerPatch<AbstractClientPlayer>, PlayerModel<AbstractClientPlayer>, PlayerRenderer, HumanoidMesh> {
++public class PPlayerRenderer extends PHumanoidRenderer<AbstractClientPlayer, AbstractClientPlayerPatch<AbstractClientPlayer>, PlayerModel, AvatarRenderer<AbstractClientPlayer>, HumanoidMesh> {
+ 	public PPlayerRenderer(EntityRendererProvider.Context context, EntityType<?> entityType) {
+ 		super(Meshes.BIPED, context, entityType);
+ 		
+@@ -31,24 +32,22 @@
+ 	}
+ 	
+ 	@Override
+-	protected void prepareModel(HumanoidMesh mesh, AbstractClientPlayer entity, AbstractClientPlayerPatch<AbstractClientPlayer> entitypatch, PlayerRenderer renderer) {
++	protected void prepareModel(HumanoidMesh mesh, AbstractClientPlayer entity, AbstractClientPlayerPatch<AbstractClientPlayer> entitypatch, AvatarRenderer<AbstractClientPlayer> renderer) {
+ 		super.prepareModel(mesh, entity, entitypatch, renderer);
+ 		
+-		renderer.setModelProperties(entity);
+-		PlayerModel<AbstractClientPlayer> model = renderer.getModel();
+-		
+-		mesh.head.setHidden(!model.head.visible);
+-		mesh.hat.setHidden(!model.hat.visible);
+-		mesh.jacket.setHidden(!model.jacket.visible);
+-		mesh.torso.setHidden(!model.body.visible);
+-		mesh.leftArm.setHidden(!model.leftArm.visible);
+-		mesh.leftLeg.setHidden(!model.leftLeg.visible);
+-		mesh.leftPants.setHidden(!model.leftPants.visible);
+-		mesh.leftSleeve.setHidden(!model.leftSleeve.visible);
+-		mesh.rightArm.setHidden(!model.rightArm.visible);
+-		mesh.rightLeg.setHidden(!model.rightLeg.visible);
+-		mesh.rightPants.setHidden(!model.rightPants.visible);
+-		mesh.rightSleeve.setHidden(!model.rightSleeve.visible);
++		boolean spectator = entity.isSpectator();
++		mesh.head.setHidden(false);
++		mesh.hat.setHidden(!entity.isModelPartShown(PlayerModelPart.HAT));
++		mesh.jacket.setHidden(spectator || !entity.isModelPartShown(PlayerModelPart.JACKET));
++		mesh.torso.setHidden(spectator);
++		mesh.leftArm.setHidden(spectator);
++		mesh.leftLeg.setHidden(spectator);
++		mesh.leftPants.setHidden(spectator || !entity.isModelPartShown(PlayerModelPart.LEFT_PANTS_LEG));
++		mesh.leftSleeve.setHidden(spectator || !entity.isModelPartShown(PlayerModelPart.LEFT_SLEEVE));
++		mesh.rightArm.setHidden(spectator);
++		mesh.rightLeg.setHidden(spectator);
++		mesh.rightPants.setHidden(spectator || !entity.isModelPartShown(PlayerModelPart.RIGHT_PANTS_LEG));
++		mesh.rightSleeve.setHidden(spectator || !entity.isModelPartShown(PlayerModelPart.RIGHT_SLEEVE));
+ 
+ 		if (RenderEngine.isLocalPlayerInFirstPerson(entity)) {
+ 			mesh.head.setHidden(true);
+diff --git a/src/main/java/yesman/epicfight/client/renderer/patched/item/RenderFilledMap.java b/src/main/java/yesman/epicfight/client/renderer/patched/item/RenderFilledMap.java
+--- a/src/main/java/yesman/epicfight/client/renderer/patched/item/RenderFilledMap.java
++++ b/src/main/java/yesman/epicfight/client/renderer/patched/item/RenderFilledMap.java
+@@ -6,7 +6,9 @@
+ import com.mojang.blaze3d.vertex.PoseStack;
+ import com.mojang.blaze3d.vertex.VertexConsumer;
+ 
++import net.minecraft.client.Minecraft;
+ import net.minecraft.client.renderer.MultiBufferSource;
++import net.minecraft.client.renderer.SubmitNodeStorage;
+ import net.minecraft.client.renderer.RenderType;
+ import net.minecraft.client.renderer.rendertype.RenderTypes;
+ import net.minecraft.resources.ResourceLocation;
+@@ -34,7 +36,21 @@
+ 			poseStack.scale(2.0F, 2.0F, 2.0F);
+ 		}
+ 		
+-		itemInHandRenderer.renderMap(poseStack, buffer, packedLight, stack);
++		// Vanilla emits geometry immediately into the hand buffer and orders the map labels separately.
++		SubmitNodeStorage mapNodes = new SubmitNodeStorage() {
++			@Override
++			public void submitCustomGeometry(PoseStack pose, RenderType type, CustomGeometryRenderer renderer) {
++				renderer.render(pose.last(), buffer.getBuffer(type));
++			}
++		};
++		itemInHandRenderer.renderMap(poseStack, mapNodes, packedLight, stack);
++		var font = Minecraft.getInstance().font;
++		for (var collection : mapNodes.getSubmitsPerOrder().values()) {
++			for (var label : collection.getTextSubmits()) {
++				font.drawInBatch(label.string(), label.x(), label.y(), label.color(), label.dropShadow(),
++					label.pose(), buffer, label.displayMode(), label.backgroundColor(), label.lightCoords());
++			}
++		}
+ 		VertexConsumer vertexconsumer = buffer.getBuffer(MAP_BACKGROUND);
+ 	    Matrix4f matrix4f = poseStack.last().pose();
+ 		
+diff --git a/src/main/java/yesman/epicfight/client/renderer/patched/layer/PatchedVillagerProfessionLayer.java b/src/main/java/yesman/epicfight/client/renderer/patched/layer/PatchedVillagerProfessionLayer.java
+--- a/src/main/java/yesman/epicfight/client/renderer/patched/layer/PatchedVillagerProfessionLayer.java
++++ b/src/main/java/yesman/epicfight/client/renderer/patched/layer/PatchedVillagerProfessionLayer.java
+@@ -5,17 +5,14 @@
+ import net.minecraft.client.model.ZombieVillagerModel;
+ import net.minecraft.client.renderer.MultiBufferSource;
+ import net.minecraft.client.renderer.rendertype.RenderTypes;
+-import net.minecraft.client.renderer.entity.LivingEntityRenderer;
++import net.minecraft.client.renderer.texture.OverlayTexture;
+ import net.minecraft.client.renderer.entity.layers.VillagerProfessionLayer;
+-import net.minecraft.client.resources.metadata.animation.VillagerMetaDataSection;
+-import net.minecraft.core.DefaultedRegistry;
+-import net.minecraft.core.registries.BuiltInRegistries;
++import net.minecraft.client.resources.metadata.animation.VillagerMetadataSection;
+ import net.minecraft.world.entity.EquipmentSlot;
+ import net.minecraft.world.entity.monster.ZombieVillager;
+ import net.minecraft.world.entity.npc.VillagerData;
+ import net.minecraft.world.entity.npc.VillagerDataHolder;
+ import net.minecraft.world.entity.npc.VillagerProfession;
+-import net.minecraft.world.entity.npc.VillagerType;
+ import yesman.epicfight.api.client.model.Meshes;
+ import yesman.epicfight.api.utils.math.OpenMatrix4f;
+ import yesman.epicfight.client.mesh.VillagerMesh;
+@@ -35,10 +32,10 @@
+ 			VillagerData villagerdata = ((VillagerDataHolder)entitypatch.getOriginal()).getVillagerData();
+ 			
+ 			VillagerProfessionLayerAccessor accessor = (VillagerProfessionLayerAccessor) vanillaLayer;
+-			VillagerMetaDataSection.Hat typeHat = vanillaLayer.getHatData(accessor.epicfight$getTypeHatCache(), "type", BuiltInRegistries.VILLAGER_TYPE, villagerdata.getType());
+-	        VillagerMetaDataSection.Hat professionHat = vanillaLayer.getHatData(accessor.epicfight$getProfessionHatCache(), "profession", BuiltInRegistries.VILLAGER_PROFESSION, villagerdata.getProfession());
++			VillagerMetadataSection.Hat typeHat = vanillaLayer.getHatData(accessor.epicfight$getTypeHatCache(), "type", villagerdata.type());
++	        VillagerMetadataSection.Hat professionHat = vanillaLayer.getHatData(accessor.epicfight$getProfessionHatCache(), "profession", villagerdata.profession());
+ 	        
+-	        if (!(typeHat == VillagerMetaDataSection.Hat.NONE || typeHat == VillagerMetaDataSection.Hat.PARTIAL && professionHat != VillagerMetaDataSection.Hat.FULL)
++	        if (!(typeHat == VillagerMetadataSection.Hat.NONE || typeHat == VillagerMetadataSection.Hat.PARTIAL && professionHat != VillagerMetadataSection.Hat.FULL)
+ 	        		|| !entityliving.getItemBySlot(EquipmentSlot.HEAD).isEmpty()) {
+ 	        	this.mesh.get().head.setHidden(true);
+ 	        	this.mesh.get().hat.setHidden(true);
+@@ -48,12 +45,12 @@
+ 				this.mesh.get().jacket.setHidden(true);
+ 			}
+ 	        
+-			this.mesh.get().draw(postStack, buffer, RenderTypes.entityCutoutNoCull(vanillaLayer.getResourceLocation("type", BuiltInRegistries.VILLAGER_TYPE.getKey(villagerdata.getType()))),
+-					packedLight, 1.0F, 1.0F, 1.0F, 1.0F, LivingEntityRenderer.getOverlayCoords(entityliving, 0.0F), entitypatch.getArmature(), poses);
++			this.mesh.get().draw(postStack, buffer, RenderTypes.entityCutoutNoCull(vanillaLayer.getIdentifier("type", villagerdata.type())),
++					packedLight, 1.0F, 1.0F, 1.0F, 1.0F, OverlayTexture.pack(0.0F, entityliving.hurtTime > 0 || entityliving.deathTime > 0), entitypatch.getArmature(), poses);
+ 			
+-			if (villagerdata.getProfession() != VillagerProfession.NONE) {
+-				this.mesh.get().draw(postStack, buffer, RenderTypes.entityCutoutNoCull(vanillaLayer.getResourceLocation("profession", BuiltInRegistries.VILLAGER_PROFESSION.getKey(villagerdata.getProfession()))),
+-						packedLight, 1.0F, 1.0F, 1.0F, 1.0F, LivingEntityRenderer.getOverlayCoords(entityliving, 0.0F), entitypatch.getArmature(), poses);
++			if (!villagerdata.profession().is(VillagerProfession.NONE)) {
++				this.mesh.get().draw(postStack, buffer, RenderTypes.entityCutoutNoCull(vanillaLayer.getIdentifier("profession", villagerdata.profession())),
++						packedLight, 1.0F, 1.0F, 1.0F, 1.0F, OverlayTexture.pack(0.0F, entityliving.hurtTime > 0 || entityliving.deathTime > 0), entitypatch.getArmature(), poses);
+ 			}
+ 		}
+ 	}
+diff --git a/src/main/java/yesman/epicfight/client/renderer/patched/layer/WearableItemLayer.java b/src/main/java/yesman/epicfight/client/renderer/patched/layer/WearableItemLayer.java
+--- a/src/main/java/yesman/epicfight/client/renderer/patched/layer/WearableItemLayer.java
++++ b/src/main/java/yesman/epicfight/client/renderer/patched/layer/WearableItemLayer.java
+@@ -142,7 +142,7 @@
+ 					poseStack.translate(0.0D, head * 0.055D, 0.0D);
+ 				}
+ 				
+-				M vanillaModel = vanillaLayer.getArmorModel(slot);
++				M vanillaModel = (M) (livingentity.isBaby() ? vanillaLayer.babyModelSet : vanillaLayer.modelSet).get(slot);
+ 				Model armorModel = ClientHooks.getArmorModel(livingentity, itemstack, slot, vanillaModel);
+ 				SkinnedMesh armorMesh = this.getArmorModel(vanillaLayer, vanillaModel, armorModel, livingentity, armorItem, itemstack, slot);
+ 				
+diff --git a/src/main/java/yesman/epicfight/epicskins/client/screen/AvatarEditScreen.java b/src/main/java/yesman/epicfight/epicskins/client/screen/AvatarEditScreen.java
+--- a/src/main/java/yesman/epicfight/epicskins/client/screen/AvatarEditScreen.java
++++ b/src/main/java/yesman/epicfight/epicskins/client/screen/AvatarEditScreen.java
+@@ -600,7 +600,7 @@
+ 			int idx = this.children().indexOf(this.getFocused());
+ 
+ 			if (idx > -1) {
+-				this.setScrollAmount(this.itemHeight * idx);
++				this.setScrollAmount(this.scrollAmount() + this.getRowTop(idx) - this.getY());
+ 			}
+ 		}
+ 
+@@ -619,7 +619,6 @@
+ 				columns++;
+ 			}
+ 
+-			this.itemHeight = blockLength;
+ 			this.clearEntries();
+ 
+ 			int count = 0;
+@@ -643,7 +642,7 @@
+ 				count++;
+ 
+ 				if (count == columns) {
+-					this.addEntry(new CosmeticsEntry(builder.build()));
++					this.addEntry(new CosmeticsEntry(builder.build()), blockLength);
+ 					builder = ImmutableList.builder();
+ 					count = 0;
+ 					row++;
+@@ -653,12 +652,12 @@
+ 			List<CosmeticBlock> list = builder.build();
+ 
+ 			if (!list.isEmpty()) {
+-				this.addEntry(new CosmeticsEntry(list));
++				this.addEntry(new CosmeticsEntry(list), blockLength);
+ 			}
+ 		}
+ 
+ 		@Override
+-		protected int getScrollbarPosition() {
++		protected int scrollBarX() {
+ 			return this.getRight() - 6;
+ 		}
+ 
+@@ -739,9 +738,9 @@
+ 			}
+ 
+ 			@Override
+-			public void render(GuiGraphics pGuiGraphics, int pIndex, int pTop, int pLeft, int pWidth, int pHeight, int pMouseX, int pMouseY, boolean pHovering, float pPartialTick) {
++			public void renderContent(GuiGraphics pGuiGraphics, int pMouseX, int pMouseY, boolean pHovering, float pPartialTick) {
+ 				for (CosmeticBlock cosmeticBlock : this.cosmeticsBlock) {
+-					cosmeticBlock.setY(pTop);
++					cosmeticBlock.setY(this.getY());
+ 					cosmeticBlock.render(pGuiGraphics, pMouseX, pMouseY, pPartialTick);
+ 				}
+ 			}
+diff --git a/src/main/java/yesman/epicfight/mixin/client/VillagerProfessionLayerAccessor.java b/src/main/java/yesman/epicfight/mixin/client/VillagerProfessionLayerAccessor.java
+--- a/src/main/java/yesman/epicfight/mixin/client/VillagerProfessionLayerAccessor.java
++++ b/src/main/java/yesman/epicfight/mixin/client/VillagerProfessionLayerAccessor.java
+@@ -2,17 +2,17 @@
+ 
+ import it.unimi.dsi.fastutil.objects.Object2ObjectMap;
+ import net.minecraft.client.renderer.entity.layers.VillagerProfessionLayer;
+-import net.minecraft.client.resources.metadata.animation.VillagerMetaDataSection;
++import net.minecraft.client.resources.metadata.animation.VillagerMetadataSection;
+ import net.minecraft.world.entity.npc.VillagerProfession;
+-import net.minecraft.world.entity.npc.VillagerType;
++import net.minecraft.world.entity.npc.villager.VillagerType;
++import net.minecraft.resources.ResourceKey;
+ import org.spongepowered.asm.mixin.Mixin;
+ import org.spongepowered.asm.mixin.gen.Accessor;
+ 
+-/// Yarn mappings: typeHatCache is Object2ObjectMap<VillagerType, Hat>, professionHatCache is Object2ObjectMap<VillagerProfession, Hat>
+ @Mixin(VillagerProfessionLayer.class)
+ public interface VillagerProfessionLayerAccessor {
+     @Accessor("typeHatCache")
+-    Object2ObjectMap<VillagerType, VillagerMetaDataSection.Hat> epicfight$getTypeHatCache();
++    Object2ObjectMap<ResourceKey<VillagerType>, VillagerMetadataSection.Hat> epicfight$getTypeHatCache();
+     @Accessor("professionHatCache")
+-    Object2ObjectMap<VillagerProfession, VillagerMetaDataSection.Hat> epicfight$getProfessionHatCache();
++    Object2ObjectMap<ResourceKey<VillagerProfession>, VillagerMetadataSection.Hat> epicfight$getProfessionHatCache();
+ }
+diff --git a/src/main/resources/epicfight.accesswidener b/src/main/resources/epicfight.accesswidener
+--- a/src/main/resources/epicfight.accesswidener
++++ b/src/main/resources/epicfight.accesswidener
+@@ -15,8 +15,6 @@
+ accessible field net/minecraft/client/gui/GuiGraphics scissorStack Lnet/minecraft/client/gui/GuiGraphics$ScissorStack;
+ accessible class net/minecraft/client/gui/GuiGraphics$ScissorStack
+ accessible field net/minecraft/client/gui/GuiGraphics$ScissorStack stack Ljava/util/Deque;
+-accessible field net/minecraft/client/gui/components/AbstractSelectionList itemHeight I
+-mutable field net/minecraft/client/gui/components/AbstractSelectionList itemHeight I
+ accessible method net/minecraft/client/gui/components/AbstractSelectionList getEntryAtPosition (DD)Lnet/minecraft/client/gui/components/AbstractSelectionList$Entry;
+ accessible field net/minecraft/client/gui/components/AbstractScrollArea scrolling Z
+ accessible method net/minecraft/client/gui/components/AbstractSliderButton setValue (D)V
+@@ -30,15 +28,13 @@
+ accessible field net/minecraft/client/model/geom/ModelPart$Polygon vertices [Lnet/minecraft/client/model/geom/ModelPart$Vertex;
+ accessible class net/minecraft/client/model/geom/ModelPart$Polygon
+ accessible method net/minecraft/client/multiplayer/MultiPlayerGameMode performUseItemOn (Lnet/minecraft/client/player/LocalPlayer;Lnet/minecraft/world/InteractionHand;Lnet/minecraft/world/phys/BlockHitResult;)Lnet/minecraft/world/InteractionResult;
+-accessible field net/minecraft/client/particle/Particle alpha F
+ accessible field net/minecraft/client/player/ClientInput moveVector Lnet/minecraft/world/phys/Vec2;
+ accessible field net/minecraft/client/player/LocalPlayer sprintTriggerTime I
+ accessible method net/minecraft/client/renderer/GameRenderer getFov (Lnet/minecraft/client/Camera;FZ)F
+ accessible field net/minecraft/client/renderer/entity/EntityRenderDispatcher renderers Ljava/util/Map;
+ accessible field net/minecraft/client/renderer/entity/LivingEntityRenderer layers Ljava/util/List;
+-accessible method net/minecraft/client/renderer/entity/layers/VillagerProfessionLayer getResourceLocation (Ljava/lang/String;Lnet/minecraft/resources/ResourceLocation;)Lnet/minecraft/resources/ResourceLocation;
+-accessible method net/minecraft/client/renderer/entity/player/PlayerRenderer setModelProperties (Lnet/minecraft/client/player/AbstractClientPlayer;)V
+-accessible method net/minecraft/client/renderer/ItemInHandRenderer renderMap (Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;ILnet/minecraft/world/item/ItemStack;)V
++accessible method net/minecraft/client/renderer/entity/layers/VillagerProfessionLayer getIdentifier (Ljava/lang/String;Lnet/minecraft/core/Holder;)Lnet/minecraft/resources/ResourceLocation;
++accessible method net/minecraft/client/renderer/ItemInHandRenderer renderMap (Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;ILnet/minecraft/world/item/ItemStack;)V
+ accessible field net/minecraft/nbt/CompoundTag tags Ljava/util/Map;
+ accessible class net/minecraft/server/packs/repository/FolderRepositorySource$FolderPackDetector
+ accessible method net/minecraft/server/packs/repository/FolderRepositorySource$FolderPackDetector <init> (Lnet/minecraft/world/level/validation/DirectoryValidator;)V
+@@ -80,7 +76,8 @@
+ accessible field net/minecraft/client/gui/components/Button$Builder height I
+ accessible field net/minecraft/client/renderer/entity/EntityRenderDispatcher playerRenderers Ljava/util/Map;
+ accessible method net/minecraft/world/entity/projectile/AbstractArrow isInGround ()Z
+-accessible method net/minecraft/client/renderer/entity/layers/HumanoidArmorLayer getArmorModel (Lnet/minecraft/world/entity/EquipmentSlot;)Lnet/minecraft/client/model/HumanoidModel;
++accessible field net/minecraft/client/renderer/entity/layers/HumanoidArmorLayer modelSet Lnet/minecraft/client/renderer/entity/ArmorModelSet;
++accessible field net/minecraft/client/renderer/entity/layers/HumanoidArmorLayer babyModelSet Lnet/minecraft/client/renderer/entity/ArmorModelSet;
+ accessible field net/minecraft/world/entity/boss/enderdragon/phases/EnderDragonPhaseManager dragon Lnet/minecraft/world/entity/boss/enderdragon/EnderDragon;
+ accessible field net/minecraft/commands/synchronization/ArgumentTypeInfos BY_CLASS Ljava/util/Map;
+ accessible method net/minecraft/client/renderer/RenderType create (Ljava/lang/String;Lnet/minecraft/client/renderer/rendertype/RenderSetup;)Lnet/minecraft/client/renderer/RenderType;
+@@ -99,3 +96,6 @@
+ accessible field net/minecraft/client/renderer/rendertype/RenderSetup outlineProperty Lnet/minecraft/client/renderer/rendertype/RenderSetup$OutlineProperty;
+ accessible field net/minecraft/client/renderer/rendertype/RenderSetup useLightmap Z
+ accessible field net/minecraft/client/renderer/rendertype/RenderSetup useOverlay Z
++
++# Configure vanilla smoke spawned by GroundSlamParticle
++accessible method net/minecraft/client/particle/SingleQuadParticle setAlpha (F)V
