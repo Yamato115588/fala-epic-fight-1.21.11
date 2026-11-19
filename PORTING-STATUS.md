@@ -6,7 +6,7 @@
 
 | การตรวจ | ผล |
 | --- | --- |
-| `compileJava` และ `clean build` | ยังติดการคอมไพล์ตัวมอดเต็ม 471 รายการจากการรันใน workspace ด้วย JDK 21 |
+| `compileJava` และ `clean build` | ยังติดการคอมไพล์ตัวมอดเต็ม 282 รายการจากการรันใน workspace ด้วย JDK 21 |
 | `validateAccessWidener` | ผ่านกับ Minecraft 1.21.11 |
 | `testPortData` | ผ่านการอ่านแอสเซต CC0, การให้ resource pack มีลำดับความสำคัญสูงกว่าไฟล์ใน JAR, โมเดลหนังสือสกิล, รูปแบบ NBT เดิมและ `ForgeData` |
 | `testComputeRenderPass` | ผ่านการอ่านพิกเซลจาก Minecraft `RenderPass` 6 เฟรมบน Mesa llvmpipe ตรวจ skinning สองข้อต่อ, stride ของ Vanilla และ Iris, การซ่อนสามเหลี่ยมและการคืนช่วง SSBO |

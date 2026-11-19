@@ -1,0 +1,2033 @@
+diff --git a/src/main/java/yesman/epicfight/api/client/event/types/render/RenderLivingPreEvent.java b/src/main/java/yesman/epicfight/api/client/event/types/render/RenderLivingPreEvent.java
+index 338ca1c..25cd0c9 100644
+--- a/src/main/java/yesman/epicfight/api/client/event/types/render/RenderLivingPreEvent.java
++++ b/src/main/java/yesman/epicfight/api/client/event/types/render/RenderLivingPreEvent.java
+@@ -1,30 +1,33 @@
+ package yesman.epicfight.api.client.event.types.render;
+ 
+ import com.mojang.blaze3d.vertex.PoseStack;
++import java.util.function.BiConsumer;
++import net.minecraft.client.renderer.SubmitNodeCollector;
++import yesman.epicfight.client.renderer.EntityRenderTasks;
+ import net.minecraft.client.renderer.MultiBufferSource;
+ import net.minecraft.client.renderer.entity.EntityRenderer;
+ import net.minecraft.world.entity.LivingEntity;
+ import yesman.epicfight.api.event.CancelableEvent;
+ import yesman.epicfight.api.event.Event;
+ 
+-/// Fired before [net.minecraft.client.renderer.entity.LivingEntityRenderer#render].
++/// Fired before [net.minecraft.client.renderer.entity.LivingEntityRenderer#submit].
+ ///
+ /// Cancels the vanilla render when a patched renderer exists for the entity.
+ /// Replaces NeoForge's [RenderLivingEvent.Pre].
+ public class RenderLivingPreEvent extends Event implements CancelableEvent {
+ 	private final LivingEntity entity;
+-	private final EntityRenderer<?> renderer;
++	private final EntityRenderer<?, ?> renderer;
+ 	private final float partialTick;
+ 	private final PoseStack poseStack;
+-	private final MultiBufferSource bufferSource;
++	private final SubmitNodeCollector collector;
+ 	private final int packedLight;
+ 
+-	public RenderLivingPreEvent(LivingEntity entity, EntityRenderer<?> renderer, float partialTick, PoseStack poseStack, MultiBufferSource bufferSource, int packedLight) {
++	public RenderLivingPreEvent(LivingEntity entity, EntityRenderer<?, ?> renderer, float partialTick, PoseStack poseStack, SubmitNodeCollector collector, int packedLight) {
+ 		this.entity = entity;
+ 		this.renderer = renderer;
+ 		this.partialTick = partialTick;
+ 		this.poseStack = poseStack;
+-		this.bufferSource = bufferSource;
++		this.collector = collector;
+ 		this.packedLight = packedLight;
+ 	}
+ 
+@@ -32,7 +35,7 @@ public class RenderLivingPreEvent extends Event implements CancelableEvent {
+ 		return entity;
+ 	}
+ 
+-	public EntityRenderer<?> getRenderer() {
++	public EntityRenderer<?, ?> getRenderer() {
+ 		return renderer;
+ 	}
+ 
+@@ -44,9 +47,11 @@ public class RenderLivingPreEvent extends Event implements CancelableEvent {
+ 		return poseStack;
+ 	}
+ 
+-	public MultiBufferSource getBufferSource() {
+-		return bufferSource;
+-	}
++    public void draw(BiConsumer<PoseStack, MultiBufferSource.BufferSource> callback) {
++        PoseStack captured = new PoseStack();
++        captured.last().set(this.poseStack.last());
++        EntityRenderTasks.submit(this.collector, buffers -> callback.accept(captured, buffers));
++    }
+ 
+ 	public int getPackedLight() {
+ 		return packedLight;
+diff --git a/src/main/java/yesman/epicfight/api/client/event/types/render/RenderNameTagEvent.java b/src/main/java/yesman/epicfight/api/client/event/types/render/RenderNameTagEvent.java
+index 07255fc..5176b6a 100644
+--- a/src/main/java/yesman/epicfight/api/client/event/types/render/RenderNameTagEvent.java
++++ b/src/main/java/yesman/epicfight/api/client/event/types/render/RenderNameTagEvent.java
+@@ -18,14 +18,14 @@ public class RenderNameTagEvent extends Event {
+ 
+ 	private final Entity entity;
+ 	private Component content;
+-	private final EntityRenderer<?> renderer;
++	private final EntityRenderer<?, ?> renderer;
+ 	private final PoseStack poseStack;
+ 	private final MultiBufferSource bufferSource;
+ 	private final int packedLight;
+ 	private final float partialTick;
+ 	private Result result = Result.DEFAULT;
+ 
+-	public RenderNameTagEvent(Entity entity, Component content, EntityRenderer<?> renderer, PoseStack poseStack, MultiBufferSource bufferSource, int packedLight, float partialTick) {
++	public RenderNameTagEvent(Entity entity, Component content, EntityRenderer<?, ?> renderer, PoseStack poseStack, MultiBufferSource bufferSource, int packedLight, float partialTick) {
+ 		this.entity = entity;
+ 		this.content = content;
+ 		this.renderer = renderer;
+@@ -47,7 +47,7 @@ public class RenderNameTagEvent extends Event {
+ 		this.content = content;
+ 	}
+ 
+-	public EntityRenderer<?> getRenderer() {
++	public EntityRenderer<?, ?> getRenderer() {
+ 		return renderer;
+ 	}
+ 
+diff --git a/src/main/java/yesman/epicfight/client/events/engine/RenderEngine.java b/src/main/java/yesman/epicfight/client/events/engine/RenderEngine.java
+index 19a0af2..576977e 100644
+--- a/src/main/java/yesman/epicfight/client/events/engine/RenderEngine.java
++++ b/src/main/java/yesman/epicfight/client/events/engine/RenderEngine.java
+@@ -413,30 +413,31 @@ public class RenderEngine implements IEventBasedEngine {
+ 
+         if (this.hasRendererFor(livingentity)) {
+             LivingEntityPatch<?> entitypatch = EpicFightCapabilities.getEntityPatch(livingentity, LivingEntityPatch.class);
+-            float originalYRot = 0.0F;
+ 
+             // Draw the player in inventory
+             if ((event.getPartialTick() == 0.0F || event.getPartialTick() == 1.0F) && entitypatch instanceof LocalPlayerPatch localPlayerPatch) {
+                 if (entitypatch.overrideRender()) {
+-                    originalYRot = localPlayerPatch.getModelYRot();
+-                    localPlayerPatch.setModelYRotInGui(livingentity.getYRot());
+-                    event.getPoseStack().translate(0, 0.1D, 0);
+-                    boolean compusteShaderSetting = ClientConfig.activateComputeShader;
+-
+-                    // Disable compute shader
+-                    ClientConfig.activateComputeShader = false;
+-                    this.renderEntityArmatureModel(livingentity, entitypatch, event.getRenderer(), event.getBufferSource(), event.getPoseStack(), event.getPackedLight(), event.getPartialTick());
+-                    ClientConfig.activateComputeShader = compusteShaderSetting;
+-
++                    event.draw((pose, buffers) -> {
++                        float previousYaw = localPlayerPatch.getModelYRot();
++                        boolean compute = ClientConfig.activateComputeShader;
++                        localPlayerPatch.setModelYRotInGui(livingentity.getYRot());
++                        pose.translate(0, 0.1D, 0);
++                        try {
++                            ClientConfig.activateComputeShader = false;
++                            this.renderEntityArmatureModel(livingentity, entitypatch, event.getRenderer(), buffers, pose, event.getPackedLight(), event.getPartialTick());
++                        } finally {
++                            ClientConfig.activateComputeShader = compute;
++                            localPlayerPatch.disableModelYRotInGui(previousYaw);
++                        }
++                    });
+                     event.cancel();
+-                    localPlayerPatch.disableModelYRotInGui(originalYRot);
+                 }
+ 
+                 return;
+             }
+ 
+             if (entitypatch != null && entitypatch.overrideRender()) {
+-                this.renderEntityArmatureModel(livingentity, entitypatch, event.getRenderer(), event.getBufferSource(), event.getPoseStack(), event.getPackedLight(), event.getPartialTick());
++                event.draw((pose, buffers) -> this.renderEntityArmatureModel(livingentity, entitypatch, event.getRenderer(), buffers, pose, event.getPackedLight(), event.getPartialTick()));
+ 
+                 if (this.shouldRenderVanillaModel()) {
+                     event.getPoseStack().translate(this.modelInitTimer > 0 ? 10000.0F : 1.5F, 0.0F, 0.0F);
+@@ -453,7 +454,7 @@ public class RenderEngine implements IEventBasedEngine {
+ 
+                 for (EntityUI entityIndicator : EntityUI.ENTITY_UI_LIST) {
+                     if (entityIndicator.shouldDraw(livingentity, entityPatch, playerpatch, event.getPartialTick())) {
+-                        entityIndicator.draw(livingentity, entityPatch, playerpatch, event.getPoseStack(), event.getBufferSource(), event.getPartialTick());
++                        event.draw((pose, buffers) -> entityIndicator.draw(livingentity, entityPatch, playerpatch, pose, buffers, event.getPartialTick()));
+                     }
+                 }
+             });
+diff --git a/src/main/java/yesman/epicfight/client/renderer/EntityRenderFeatures.java b/src/main/java/yesman/epicfight/client/renderer/EntityRenderFeatures.java
+new file mode 100644
+index 0000000..91b0118
+--- /dev/null
++++ b/src/main/java/yesman/epicfight/client/renderer/EntityRenderFeatures.java
+@@ -0,0 +1,33 @@
++package yesman.epicfight.client.renderer;
++
++import net.minecraft.client.Minecraft;
++import net.minecraft.client.gui.components.debug.DebugScreenEntries;
++import net.minecraft.client.model.EntityModel;
++import net.minecraft.client.renderer.entity.LivingEntityRenderer;
++import net.minecraft.client.renderer.entity.state.LivingEntityRenderState;
++import net.minecraft.world.entity.LivingEntity;
++import yesman.epicfight.api.extension.EntityExtension;
++import yesman.epicfight.mixin.client.MixinLivingEntityRenderer;
++
++public final class EntityRenderFeatures {
++    private EntityRenderFeatures() {}
++
++    public static boolean showHitboxes() {
++        return Minecraft.getInstance().debugEntries.isCurrentlyEnabled(DebugScreenEntries.ENTITY_HITBOXES);
++    }
++
++    public static boolean upsideDown(LivingEntity entity) {
++        var renderer = Minecraft.getInstance().getEntityRenderDispatcher().getRenderer(entity);
++        return renderer instanceof LivingEntityRenderer<?, ?, ?> living && ((MixinLivingEntityRenderer)living).invokeIsEntityUpsideDown(entity);
++    }
++
++    @SuppressWarnings({"unchecked", "rawtypes"})
++    public static void prepareModel(EntityModel<?> model, LivingEntity entity, LivingEntityRenderState state, float partialTick) {
++        if (model == null) return;
++        if (entity.getVehicle() != null && !EntityExtension.of(entity.getVehicle()).epicfight$shouldRiderSit() && entity.isAlive()) {
++            state.walkAnimationSpeed = entity.walkAnimation.speed(partialTick);
++            state.walkAnimationPos = entity.walkAnimation.position(partialTick);
++        }
++        ((EntityModel)model).setupAnim(state);
++    }
++}
+diff --git a/src/main/java/yesman/epicfight/client/renderer/EntityRenderSource.java b/src/main/java/yesman/epicfight/client/renderer/EntityRenderSource.java
+new file mode 100644
+index 0000000..73becee
+--- /dev/null
++++ b/src/main/java/yesman/epicfight/client/renderer/EntityRenderSource.java
+@@ -0,0 +1,9 @@
++package yesman.epicfight.client.renderer;
++
++import net.minecraft.world.entity.Entity;
++
++public interface EntityRenderSource {
++    void epicfight$capture(Entity entity, float partialTick);
++    Entity epicfight$entity();
++    float epicfight$partialTick();
++}
+diff --git a/src/main/java/yesman/epicfight/client/renderer/EntityRenderTasks.java b/src/main/java/yesman/epicfight/client/renderer/EntityRenderTasks.java
+new file mode 100644
+index 0000000..fa024c5
+--- /dev/null
++++ b/src/main/java/yesman/epicfight/client/renderer/EntityRenderTasks.java
+@@ -0,0 +1,14 @@
++package yesman.epicfight.client.renderer;
++
++import java.util.List;
++import java.util.function.Consumer;
++import net.minecraft.client.renderer.MultiBufferSource;
++import net.minecraft.client.renderer.SubmitNodeCollector;
++
++public interface EntityRenderTasks {
++    List<Consumer<MultiBufferSource.BufferSource>> epicfight$entityDraws();
++
++    static void submit(SubmitNodeCollector collector, Consumer<MultiBufferSource.BufferSource> draw) {
++        ((EntityRenderTasks)collector.order(0)).epicfight$entityDraws().add(draw);
++    }
++}
+diff --git a/src/main/java/yesman/epicfight/client/renderer/FirstPersonRenderer.java b/src/main/java/yesman/epicfight/client/renderer/FirstPersonRenderer.java
+index d60c474..8c48fde 100644
+--- a/src/main/java/yesman/epicfight/client/renderer/FirstPersonRenderer.java
++++ b/src/main/java/yesman/epicfight/client/renderer/FirstPersonRenderer.java
+@@ -17,7 +17,7 @@ import net.minecraft.client.renderer.entity.layers.ArrowLayer;
+ import net.minecraft.client.renderer.entity.layers.BeeStingerLayer;
+ import net.minecraft.client.renderer.entity.layers.CapeLayer;
+ import net.minecraft.client.renderer.entity.layers.CustomHeadLayer;
+-import net.minecraft.client.renderer.entity.layers.ElytraLayer;
++import net.minecraft.client.renderer.entity.layers.WingsLayer;
+ import net.minecraft.client.renderer.entity.layers.HumanoidArmorLayer;
+ import net.minecraft.client.renderer.entity.layers.PlayerItemInHandLayer;
+ import net.minecraft.client.renderer.entity.layers.RenderLayer;
+@@ -41,11 +41,11 @@ import yesman.epicfight.client.renderer.patched.layer.WearableItemLayer;
+ import yesman.epicfight.client.world.capabilites.entitypatch.player.LocalPlayerPatch;
+ import yesman.epicfight.mixin.client.MixinLivingEntityRenderer;
+ 
+-public class FirstPersonRenderer extends PatchedLivingEntityRenderer<LocalPlayer, LocalPlayerPatch, PlayerModel<LocalPlayer>, LivingEntityRenderer<LocalPlayer, PlayerModel<LocalPlayer>>, HumanoidMesh> {
++public class FirstPersonRenderer extends PatchedLivingEntityRenderer<LocalPlayer, LocalPlayerPatch, PlayerModel, LivingEntityRenderer<LocalPlayer, ?, ? extends PlayerModel>, HumanoidMesh> {
+ 	public FirstPersonRenderer(EntityRendererProvider.Context context, EntityType<?> entityType) {
+ 		super(context, entityType);
+ 		
+-		this.addPatchedLayer(ElytraLayer.class, new EmptyLayer<>());
++		this.addPatchedLayer(WingsLayer.class, new EmptyLayer<>());
+ 		this.addPatchedLayer(PlayerItemInHandLayer.class, new PatchedItemInHandLayer<>());
+ 		this.addPatchedLayer(HumanoidArmorLayer.class, new WearableItemLayer<>(Meshes.BIPED, true, context.getModelManager()));
+ 		this.addPatchedLayer(CustomHeadLayer.class, new EmptyLayer<>());
+@@ -56,7 +56,7 @@ public class FirstPersonRenderer extends PatchedLivingEntityRenderer<LocalPlayer
+ 	}
+ 	
+ 	@Override
+-	public void render(LocalPlayer entity, LocalPlayerPatch localPlayerPatch, LivingEntityRenderer<LocalPlayer, PlayerModel<LocalPlayer>> renderer, MultiBufferSource buffer, PoseStack poseStack, int packedLight, float partialTick) {
++	public void render(LocalPlayer entity, LocalPlayerPatch localPlayerPatch, LivingEntityRenderer<LocalPlayer, ?, ? extends PlayerModel> renderer, MultiBufferSource buffer, PoseStack poseStack, int packedLight, float partialTick) {
+ 		if (localPlayerPatch.getPovSettings() != null) {
+ 			Pose pose = localPlayerPatch.getFirstPersonLayer().getEnabledPose(localPlayerPatch, true, partialTick);
+ 			OpenMatrix4f[] poses = localPlayerPatch.getArmature().getPoseAsTransformMatrix(pose, false);
+@@ -159,17 +159,17 @@ public class FirstPersonRenderer extends PatchedLivingEntityRenderer<LocalPlayer
+ 	}
+ 	
+ 	@Override
+-	protected void renderLayer(LivingEntityRenderer<LocalPlayer, PlayerModel<LocalPlayer>> renderer, LocalPlayerPatch entitypatch, LocalPlayer entity, OpenMatrix4f[] poses, MultiBufferSource buffer, PoseStack poseStack, int packedLight, float partialTicks) {
+-		Iterator<RenderLayer<LocalPlayer, PlayerModel<LocalPlayer>>> iter = renderer.layers.iterator();
++	protected void renderLayer(LivingEntityRenderer<LocalPlayer, ?, ? extends PlayerModel> renderer, LocalPlayerPatch entitypatch, LocalPlayer entity, OpenMatrix4f[] poses, MultiBufferSource buffer, PoseStack poseStack, int packedLight, float partialTicks) {
++		Iterator<? extends RenderLayer<?, ?>> iter = renderer.layers.iterator();
+ 		
+ 		float f = MathUtils.lerpBetween(entity.yBodyRotO, entity.yBodyRot, partialTicks);
+         float f1 = MathUtils.lerpBetween(entity.yHeadRotO, entity.yHeadRot, partialTicks);
+         float f2 = f1 - f;
+ 		float f7 = entity.getViewXRot(partialTicks);
+-		float bob = ((MixinLivingEntityRenderer)renderer).invokeGetBob(entity, partialTicks);
++		float bob = entity.tickCount + partialTicks;
+ 		
+ 		while (iter.hasNext()) {
+-			RenderLayer<LocalPlayer, PlayerModel<LocalPlayer>> layer = iter.next();
++			RenderLayer<?, ?> layer = iter.next();
+ 			Class<?> rendererClass = layer.getClass();
+ 			
+ 			if (rendererClass.isAnonymousClass()) {
+@@ -184,7 +184,7 @@ public class FirstPersonRenderer extends PatchedLivingEntityRenderer<LocalPlayer
+ 	
+ 	@Override
+ 	public AssetAccessor<HumanoidMesh> getMeshProvider(LocalPlayerPatch entitypatch) {
+-		return PlayerSkin.Model.WIDE.equals(entitypatch.getOriginal().getSkin().model()) ? Meshes.BIPED : Meshes.ALEX;
++		return net.minecraft.world.entity.player.PlayerModelType.WIDE.equals(entitypatch.getOriginal().getSkin().model()) ? Meshes.BIPED : Meshes.ALEX;
+ 	}
+ 	
+ 	@Override
+@@ -193,7 +193,7 @@ public class FirstPersonRenderer extends PatchedLivingEntityRenderer<LocalPlayer
+ 	}
+ 	
+ 	@Override
+-	protected void prepareModel(HumanoidMesh mesh, LocalPlayer entity, LocalPlayerPatch entitypatch, LivingEntityRenderer<LocalPlayer, PlayerModel<LocalPlayer>> renderer) {
++	protected void prepareModel(HumanoidMesh mesh, LocalPlayer entity, LocalPlayerPatch entitypatch, LivingEntityRenderer<LocalPlayer, ?, ? extends PlayerModel> renderer) {
+ 		mesh.initialize();
+ 		mesh.head.setHidden(true);
+ 		mesh.hat.setHidden(true);
+diff --git a/src/main/java/yesman/epicfight/client/renderer/LayerRenderer.java b/src/main/java/yesman/epicfight/client/renderer/LayerRenderer.java
+index c245164..c871ff7 100644
+--- a/src/main/java/yesman/epicfight/client/renderer/LayerRenderer.java
++++ b/src/main/java/yesman/epicfight/client/renderer/LayerRenderer.java
+@@ -1,4 +1,4 @@
+-package yesman.epicfight.client.renderer;
++package yesman.epicfight.client.renderer;
+ 
+ import net.minecraft.client.model.EntityModel;
+ import net.minecraft.client.renderer.entity.layers.RenderLayer;
+@@ -6,8 +6,8 @@ import net.minecraft.world.entity.LivingEntity;
+ import yesman.epicfight.client.renderer.patched.layer.PatchedLayer;
+ import yesman.epicfight.world.capabilities.entitypatch.LivingEntityPatch;
+ 
+-public interface LayerRenderer<E extends LivingEntity, T extends LivingEntityPatch<E>, M extends EntityModel<E>> {
+-	public void addPatchedLayer(Class<?> originalLayerClass, PatchedLayer<E, T, M, ? extends RenderLayer<E, M>> patchedLayer);
++public interface LayerRenderer<E extends LivingEntity, T extends LivingEntityPatch<E>, M extends EntityModel<?>> {
++	public void addPatchedLayer(Class<?> originalLayerClass, PatchedLayer<E, T, M, ? extends RenderLayer<?, ?>> patchedLayer);
+ 	
+-	public void addCustomLayer(PatchedLayer<E, T, M, ? extends RenderLayer<E, M>> patchedLayer);
++	public void addCustomLayer(PatchedLayer<E, T, M, ? extends RenderLayer<?, ?>> patchedLayer);
+ }
+\ No newline at end of file
+diff --git a/src/main/java/yesman/epicfight/client/renderer/entity/NoopLivingEntityRenderer.java b/src/main/java/yesman/epicfight/client/renderer/entity/NoopLivingEntityRenderer.java
+deleted file mode 100644
+index b44d704..0000000
+--- a/src/main/java/yesman/epicfight/client/renderer/entity/NoopLivingEntityRenderer.java
++++ /dev/null
+@@ -1,30 +0,0 @@
+-package yesman.epicfight.client.renderer.entity;
+-
+-import com.mojang.blaze3d.vertex.PoseStack;
+-
+-import net.minecraft.client.model.EntityModel;
+-import net.minecraft.client.renderer.MultiBufferSource;
+-import net.minecraft.client.renderer.entity.EntityRendererProvider.Context;
+-import net.minecraft.client.renderer.entity.LivingEntityRenderer;
+-import net.minecraft.resources.ResourceLocation;
+-import net.minecraft.world.entity.LivingEntity;
+-import yesman.epicfight.api.client.event.EpicFightClientEventHooks;
+-import yesman.epicfight.api.client.event.types.render.RenderLivingPreEvent;
+-
+-
+-
+-public class NoopLivingEntityRenderer<T extends LivingEntity> extends LivingEntityRenderer<T, EntityModel<T>> {
+-	public NoopLivingEntityRenderer(Context context, float shadowRadius) {
+-		super(context, null, shadowRadius);
+-	}
+-	
+-	@Override
+-	public void render(LivingEntity livingEntity, float yRot, float partialTicks, PoseStack poseStack, MultiBufferSource multiBufferSource, int packedLight) {
+-		EpicFightClientEventHooks.Render.RENDER_LIVING_PRE.post(new RenderLivingPreEvent(livingEntity, this, partialTicks, poseStack, multiBufferSource, packedLight));
+-	}
+-
+-	@Override
+-	public ResourceLocation getTextureLocation(T entity) {
+-		return null;
+-	}
+-}
+\ No newline at end of file
+diff --git a/src/main/java/yesman/epicfight/client/renderer/entity/WitherGhostRenderer.java b/src/main/java/yesman/epicfight/client/renderer/entity/WitherGhostRenderer.java
+index 737de6e..9d7f1cd 100644
+--- a/src/main/java/yesman/epicfight/client/renderer/entity/WitherGhostRenderer.java
++++ b/src/main/java/yesman/epicfight/client/renderer/entity/WitherGhostRenderer.java
+@@ -1,23 +1,29 @@
+ package yesman.epicfight.client.renderer.entity;
+-
+-import net.minecraft.client.renderer.entity.EntityRendererProvider.Context;
+-import net.minecraft.core.BlockPos;
+-import net.minecraft.resources.ResourceLocation;
+-import yesman.epicfight.client.renderer.patched.entity.PWitherRenderer;
+-import yesman.epicfight.world.entity.WitherGhostClone;
+-
+-public class WitherGhostRenderer extends NoopLivingEntityRenderer<WitherGhostClone> {
+-	public WitherGhostRenderer(Context context) {
+-		super(context, 1.0F);
+-	}
+-	
+-	@Override
+-	protected int getBlockLightLevel(WitherGhostClone witherBoss, BlockPos blockpos) {
+-		return 15;
+-	}
+-	
+-	@Override
+-	public ResourceLocation getTextureLocation(WitherGhostClone entity) {
+-		return PWitherRenderer.WITHER_INVULNERABLE_LOCATION;
+-	}
+-}
+\ No newline at end of file
++
++import net.minecraft.client.model.geom.ModelLayers;
++import net.minecraft.client.model.monster.wither.WitherBossModel;
++import net.minecraft.client.renderer.entity.EntityRendererProvider;
++import net.minecraft.client.renderer.entity.LivingEntityRenderer;
++import net.minecraft.client.renderer.entity.state.WitherRenderState;
++import net.minecraft.core.BlockPos;
++import net.minecraft.resources.Identifier;
++import yesman.epicfight.client.renderer.patched.entity.PWitherRenderer;
++import yesman.epicfight.world.entity.WitherGhostClone;
++
++public class WitherGhostRenderer extends LivingEntityRenderer<WitherGhostClone, WitherRenderState, WitherBossModel> {
++    public WitherGhostRenderer(EntityRendererProvider.Context context) {
++        super(context, new WitherBossModel(context.bakeLayer(ModelLayers.WITHER)), 1.0F);
++    }
++
++    @Override protected int getBlockLightLevel(WitherGhostClone ghost, BlockPos pos) {
++        return 15;
++    }
++
++    @Override public WitherRenderState createRenderState() {
++        return new WitherRenderState();
++    }
++
++    @Override public Identifier getTextureLocation(WitherRenderState state) {
++        return PWitherRenderer.WITHER_INVULNERABLE_LOCATION;
++    }
++}
+diff --git a/src/main/java/yesman/epicfight/client/renderer/patched/entity/PCreeperRenderer.java b/src/main/java/yesman/epicfight/client/renderer/patched/entity/PCreeperRenderer.java
+index a6ba5f9..f7d6c97 100644
+--- a/src/main/java/yesman/epicfight/client/renderer/patched/entity/PCreeperRenderer.java
++++ b/src/main/java/yesman/epicfight/client/renderer/patched/entity/PCreeperRenderer.java
+@@ -1,4 +1,4 @@
+-package yesman.epicfight.client.renderer.patched.entity;
++package yesman.epicfight.client.renderer.patched.entity;
+ 
+ import net.minecraft.client.model.CreeperModel;
+ import net.minecraft.client.renderer.entity.CreeperRenderer;
+@@ -13,7 +13,7 @@ import yesman.epicfight.api.utils.math.Vec2i;
+ import yesman.epicfight.client.mesh.CreeperMesh;
+ import yesman.epicfight.world.capabilities.entitypatch.mob.CreeperPatch;
+ 
+-public class PCreeperRenderer extends PatchedLivingEntityRenderer<Creeper, CreeperPatch, CreeperModel<Creeper>, CreeperRenderer, CreeperMesh> {
++public class PCreeperRenderer extends PatchedLivingEntityRenderer<Creeper, CreeperPatch, CreeperModel, CreeperRenderer, CreeperMesh> {
+ 	public PCreeperRenderer(EntityRendererProvider.Context context, EntityType<?> entityType) {
+ 		super(context, entityType);
+ 	}
+diff --git a/src/main/java/yesman/epicfight/client/renderer/patched/entity/PCustomEntityRenderer.java b/src/main/java/yesman/epicfight/client/renderer/patched/entity/PCustomEntityRenderer.java
+index bfb3c69..d550ccd 100644
+--- a/src/main/java/yesman/epicfight/client/renderer/patched/entity/PCustomEntityRenderer.java
++++ b/src/main/java/yesman/epicfight/client/renderer/patched/entity/PCustomEntityRenderer.java
+@@ -2,6 +2,7 @@ package yesman.epicfight.client.renderer.patched.entity;
+ 
+ import com.mojang.blaze3d.vertex.PoseStack;
+ import net.minecraft.client.Minecraft;
++import yesman.epicfight.client.renderer.EntityRenderFeatures;
+ import net.minecraft.client.renderer.MultiBufferSource;
+ import net.minecraft.client.renderer.RenderType;
+ import net.minecraft.client.renderer.rendertype.RenderTypes;
+@@ -17,7 +18,7 @@ import yesman.epicfight.api.client.model.SkinnedMesh;
+ import yesman.epicfight.api.model.Armature;
+ import yesman.epicfight.world.capabilities.entitypatch.LivingEntityPatch;
+ 
+-public class PCustomEntityRenderer extends PatchedEntityRenderer<LivingEntity, LivingEntityPatch<LivingEntity>, EntityRenderer<LivingEntity>, SkinnedMesh> {
++public class PCustomEntityRenderer extends PatchedEntityRenderer<LivingEntity, LivingEntityPatch<LivingEntity>, EntityRenderer<LivingEntity, ?>, SkinnedMesh> {
+ 	private final AssetAccessor<SkinnedMesh> mesh;
+ 	
+ 	public PCustomEntityRenderer(AssetAccessor<SkinnedMesh> mesh, EntityRendererProvider.Context context) {
+@@ -25,12 +26,16 @@ public class PCustomEntityRenderer extends PatchedEntityRenderer<LivingEntity, L
+ 	}
+ 	
+ 	@Override
+-	public void render(LivingEntity entity, LivingEntityPatch<LivingEntity> entitypatch, EntityRenderer<LivingEntity> renderer, MultiBufferSource buffer, PoseStack poseStack, int packedLight, float partialTicks) {
++	public void render(LivingEntity entity, LivingEntityPatch<LivingEntity> entitypatch, EntityRenderer<LivingEntity, ?> renderer, MultiBufferSource buffer, PoseStack poseStack, int packedLight, float partialTicks) {
+ 		super.render(entity, entitypatch, renderer, buffer, poseStack, packedLight, partialTicks);
+ 		
+ 		Minecraft mc = Minecraft.getInstance();
+ 		boolean isGlowing = mc.shouldEntityAppearGlowing(entity);
+-		ResourceLocation textureLocation = renderer.getTextureLocation(entity);
++		ResourceLocation textureLocation = this.mesh.get().getRenderProperties() == null ? null : this.mesh.get().getRenderProperties().customTexturePath();
++        if (textureLocation == null && renderer instanceof net.minecraft.client.renderer.entity.LivingEntityRenderer vanilla) {
++            textureLocation = vanilla.getTextureLocation((net.minecraft.client.renderer.entity.state.LivingEntityRenderState)renderer.createRenderState(entity, partialTicks));
++        }
++        if (textureLocation == null) textureLocation = net.minecraft.client.renderer.texture.MissingTextureAtlasSprite.getLocation();
+ 		RenderType renderType = isGlowing ? RenderTypes.outline(textureLocation) : RenderTypes.entityCutoutNoCull(textureLocation);
+ 		Armature armature = entitypatch.getArmature();
+ 		poseStack.pushPose();
+@@ -46,7 +51,7 @@ public class PCustomEntityRenderer extends PatchedEntityRenderer<LivingEntity, L
+             }
+         }
+ 		
+-		if (Minecraft.getInstance().getEntityRenderDispatcher().shouldRenderHitBoxes()) {
++		if (EntityRenderFeatures.showHitboxes()) {
+ 			entitypatch.getClientAnimator().renderDebuggingInfoForAllLayers(poseStack, buffer, partialTicks);
+ 		}
+ 		
+diff --git a/src/main/java/yesman/epicfight/client/renderer/patched/entity/PCustomHumanoidEntityRenderer.java b/src/main/java/yesman/epicfight/client/renderer/patched/entity/PCustomHumanoidEntityRenderer.java
+index 04daad3..5f3d516 100644
+--- a/src/main/java/yesman/epicfight/client/renderer/patched/entity/PCustomHumanoidEntityRenderer.java
++++ b/src/main/java/yesman/epicfight/client/renderer/patched/entity/PCustomHumanoidEntityRenderer.java
+@@ -1,10 +1,10 @@
+-package yesman.epicfight.client.renderer.patched.entity;
++package yesman.epicfight.client.renderer.patched.entity;
+ 
+ import net.minecraft.client.model.HumanoidModel;
+ import net.minecraft.client.renderer.entity.EntityRendererProvider;
+ import net.minecraft.client.renderer.entity.LivingEntityRenderer;
+ import net.minecraft.client.renderer.entity.layers.CustomHeadLayer;
+-import net.minecraft.client.renderer.entity.layers.ElytraLayer;
++import net.minecraft.client.renderer.entity.layers.WingsLayer;
+ import net.minecraft.client.renderer.entity.layers.HumanoidArmorLayer;
+ import net.minecraft.client.renderer.entity.layers.ItemInHandLayer;
+ import net.minecraft.world.entity.EntityType;
+@@ -22,14 +22,14 @@ import yesman.epicfight.client.renderer.patched.layer.PatchedItemInHandLayer;
+ import yesman.epicfight.client.renderer.patched.layer.WearableItemLayer;
+ import yesman.epicfight.world.capabilities.entitypatch.LivingEntityPatch;
+ 
+-public class PCustomHumanoidEntityRenderer<AM extends HumanoidMesh> extends PatchedLivingEntityRenderer<LivingEntity, LivingEntityPatch<LivingEntity>, HumanoidModel<LivingEntity>, LivingEntityRenderer<LivingEntity, HumanoidModel<LivingEntity>>, AM> {
++public class PCustomHumanoidEntityRenderer<AM extends HumanoidMesh> extends PatchedLivingEntityRenderer<LivingEntity, LivingEntityPatch<LivingEntity>, HumanoidModel<?>, LivingEntityRenderer<LivingEntity, ?, ? extends HumanoidModel<?>>, AM> {
+ 	private final AssetAccessor<AM> mesh;
+ 	
+ 	public PCustomHumanoidEntityRenderer(AssetAccessor<AM> mesh, EntityRendererProvider.Context context, EntityType<?> entityType) {
+ 		super(context, entityType);
+ 		
+ 		this.mesh = mesh;
+-		this.addPatchedLayer(ElytraLayer.class, new PatchedElytraLayer<>());
++		this.addPatchedLayer(WingsLayer.class, new PatchedElytraLayer<>());
+ 		this.addPatchedLayer(ItemInHandLayer.class, new PatchedItemInHandLayer<>());
+ 		this.addPatchedLayer(HumanoidArmorLayer.class, new WearableItemLayer<>(mesh, false, context.getModelManager()));
+ 		this.addPatchedLayer(CustomHeadLayer.class, new PatchedHeadLayer<>());
+diff --git a/src/main/java/yesman/epicfight/client/renderer/patched/entity/PDrownedRenderer.java b/src/main/java/yesman/epicfight/client/renderer/patched/entity/PDrownedRenderer.java
+index 06e6096..29289a3 100644
+--- a/src/main/java/yesman/epicfight/client/renderer/patched/entity/PDrownedRenderer.java
++++ b/src/main/java/yesman/epicfight/client/renderer/patched/entity/PDrownedRenderer.java
+@@ -1,4 +1,4 @@
+-package yesman.epicfight.client.renderer.patched.entity;
++package yesman.epicfight.client.renderer.patched.entity;
+ 
+ import net.minecraft.client.model.DrownedModel;
+ import net.minecraft.client.renderer.entity.DrownedRenderer;
+@@ -11,7 +11,7 @@ import yesman.epicfight.client.mesh.HumanoidMesh;
+ import yesman.epicfight.client.renderer.patched.layer.OuterLayerRenderer;
+ import yesman.epicfight.world.capabilities.entitypatch.mob.DrownedPatch;
+ 
+-public class PDrownedRenderer extends PHumanoidRenderer<Drowned, DrownedPatch, DrownedModel<Drowned>, DrownedRenderer, HumanoidMesh> {
++public class PDrownedRenderer extends PHumanoidRenderer<Drowned, DrownedPatch, DrownedModel, DrownedRenderer, HumanoidMesh> {
+ 	public PDrownedRenderer(EntityRendererProvider.Context context, EntityType<?> entityType) {
+ 		super(Meshes.BIPED, context, entityType);
+ 		
+diff --git a/src/main/java/yesman/epicfight/client/renderer/patched/entity/PEnderDragonRenderer.java b/src/main/java/yesman/epicfight/client/renderer/patched/entity/PEnderDragonRenderer.java
+index 5d929be..e5b850d 100644
+--- a/src/main/java/yesman/epicfight/client/renderer/patched/entity/PEnderDragonRenderer.java
++++ b/src/main/java/yesman/epicfight/client/renderer/patched/entity/PEnderDragonRenderer.java
+@@ -4,6 +4,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
+ import com.mojang.blaze3d.vertex.VertexConsumer;
+ 
+ import net.minecraft.client.Minecraft;
++import yesman.epicfight.client.renderer.EntityRenderFeatures;
+ import net.minecraft.client.renderer.MultiBufferSource;
+ import net.minecraft.client.renderer.rendertype.RenderTypes;
+ import net.minecraft.client.renderer.entity.EndCrystalRenderer;
+@@ -47,7 +48,7 @@ public class PEnderDragonRenderer extends PatchedEntityRenderer<EnderDragon, End
+ 			mesh.draw(poseStack, buffer, RenderTypes.entityCutoutNoCull(DRAGON_LOCATION), packedLight, 1.0F, 1.0F, 1.0F, 1.0F, this.getOverlayCoord(entityIn, entitypatch, partialTicks), entitypatch.getArmature(), armature.getPoseMatrices());
+ 		}
+ 		
+-		if (Minecraft.getInstance().getEntityRenderDispatcher().shouldRenderHitBoxes()) {
++		if (EntityRenderFeatures.showHitboxes()) {
+ 			entitypatch.getClientAnimator().renderDebuggingInfoForAllLayers(poseStack, buffer, partialTicks);
+ 		}
+ 		
+diff --git a/src/main/java/yesman/epicfight/client/renderer/patched/entity/PEndermanRenderer.java b/src/main/java/yesman/epicfight/client/renderer/patched/entity/PEndermanRenderer.java
+index 8ec266d..8f84381 100644
+--- a/src/main/java/yesman/epicfight/client/renderer/patched/entity/PEndermanRenderer.java
++++ b/src/main/java/yesman/epicfight/client/renderer/patched/entity/PEndermanRenderer.java
+@@ -1,4 +1,6 @@
+-package yesman.epicfight.client.renderer.patched.entity;
++package yesman.epicfight.client.renderer.patched.entity;
++
++import net.minecraft.client.renderer.entity.state.EndermanRenderState;
+ 
+ import net.minecraft.client.model.EndermanModel;
+ import net.minecraft.client.renderer.entity.EndermanRenderer;
+@@ -13,7 +15,7 @@ import yesman.epicfight.client.mesh.EndermanMesh;
+ import yesman.epicfight.client.renderer.patched.layer.PatchedEyesLayer;
+ import yesman.epicfight.world.capabilities.entitypatch.mob.EndermanPatch;
+ 
+-public class PEndermanRenderer extends PatchedLivingEntityRenderer<EnderMan, EndermanPatch, EndermanModel<EnderMan>, EndermanRenderer, EndermanMesh> {
++public class PEndermanRenderer extends PatchedLivingEntityRenderer<EnderMan, EndermanPatch, EndermanModel<EndermanRenderState>, EndermanRenderer, EndermanMesh> {
+ 	private static final ResourceLocation ENDERMAN_EYE_TEXTURE = ResourceLocation.withDefaultNamespace("textures/entity/enderman/enderman_eyes.png");
+ 	
+ 	public PEndermanRenderer(EntityRendererProvider.Context context, EntityType<?> entityType) {
+diff --git a/src/main/java/yesman/epicfight/client/renderer/patched/entity/PHoglinRenderer.java b/src/main/java/yesman/epicfight/client/renderer/patched/entity/PHoglinRenderer.java
+index f3d9794..acdcfb1 100644
+--- a/src/main/java/yesman/epicfight/client/renderer/patched/entity/PHoglinRenderer.java
++++ b/src/main/java/yesman/epicfight/client/renderer/patched/entity/PHoglinRenderer.java
+@@ -1,4 +1,6 @@
+-package yesman.epicfight.client.renderer.patched.entity;
++package yesman.epicfight.client.renderer.patched.entity;
++
++import net.minecraft.client.renderer.entity.state.HoglinRenderState;
+ 
+ import net.minecraft.client.model.HoglinModel;
+ import net.minecraft.client.renderer.entity.EntityRendererProvider;
+@@ -16,7 +18,7 @@ import yesman.epicfight.api.utils.math.Vec3f;
+ import yesman.epicfight.client.mesh.HoglinMesh;
+ import yesman.epicfight.world.capabilities.entitypatch.MobPatch;
+ 
+-public class PHoglinRenderer<E extends Mob & HoglinBase, T extends MobPatch<E>> extends PatchedLivingEntityRenderer<E, T, HoglinModel<E>, MobRenderer<E, HoglinModel<E>>, HoglinMesh> {
++public class PHoglinRenderer<E extends Mob & HoglinBase, T extends MobPatch<E>> extends PatchedLivingEntityRenderer<E, T, HoglinModel, MobRenderer<E, HoglinRenderState, HoglinModel>, HoglinMesh> {
+ 	public PHoglinRenderer(EntityRendererProvider.Context context, EntityType<?> entityType) {
+ 		super(context, entityType);
+ 	}
+diff --git a/src/main/java/yesman/epicfight/client/renderer/patched/entity/PHumanoidRenderer.java b/src/main/java/yesman/epicfight/client/renderer/patched/entity/PHumanoidRenderer.java
+index 7bfe8d0..9439bef 100644
+--- a/src/main/java/yesman/epicfight/client/renderer/patched/entity/PHumanoidRenderer.java
++++ b/src/main/java/yesman/epicfight/client/renderer/patched/entity/PHumanoidRenderer.java
+@@ -1,10 +1,10 @@
+-package yesman.epicfight.client.renderer.patched.entity;
++package yesman.epicfight.client.renderer.patched.entity;
+ 
+ import net.minecraft.client.model.HumanoidModel;
+ import net.minecraft.client.renderer.entity.EntityRendererProvider;
+ import net.minecraft.client.renderer.entity.LivingEntityRenderer;
+ import net.minecraft.client.renderer.entity.layers.CustomHeadLayer;
+-import net.minecraft.client.renderer.entity.layers.ElytraLayer;
++import net.minecraft.client.renderer.entity.layers.WingsLayer;
+ import net.minecraft.client.renderer.entity.layers.HumanoidArmorLayer;
+ import net.minecraft.client.renderer.entity.layers.ItemInHandLayer;
+ import net.minecraft.world.entity.EntityType;
+@@ -22,14 +22,14 @@ import yesman.epicfight.client.renderer.patched.layer.PatchedItemInHandLayer;
+ import yesman.epicfight.client.renderer.patched.layer.WearableItemLayer;
+ import yesman.epicfight.world.capabilities.entitypatch.LivingEntityPatch;
+ 
+-public class PHumanoidRenderer<E extends LivingEntity, T extends LivingEntityPatch<E>, M extends HumanoidModel<E>, R extends LivingEntityRenderer<E, M>, AM extends HumanoidMesh> extends PatchedLivingEntityRenderer<E, T, M, R, AM> {
++public class PHumanoidRenderer<E extends LivingEntity, T extends LivingEntityPatch<E>, M extends HumanoidModel<?>, R extends LivingEntityRenderer<E, ?, ? extends M>, AM extends HumanoidMesh> extends PatchedLivingEntityRenderer<E, T, M, R, AM> {
+ 	private final AssetAccessor<AM> mesh;
+ 	
+ 	public PHumanoidRenderer(AssetAccessor<AM> mesh, EntityRendererProvider.Context context, EntityType<?> entityType) {
+ 		super(context, entityType);
+ 		
+ 		this.mesh = mesh;
+-		this.addPatchedLayer(ElytraLayer.class, new PatchedElytraLayer<>());
++		this.addPatchedLayer(WingsLayer.class, new PatchedElytraLayer<>());
+ 		this.addPatchedLayer(ItemInHandLayer.class, new PatchedItemInHandLayer<>());
+ 		this.addPatchedLayer(HumanoidArmorLayer.class, new WearableItemLayer<>(mesh, false, context.getModelManager()));
+ 		this.addPatchedLayer(CustomHeadLayer.class, new PatchedHeadLayer<>());
+diff --git a/src/main/java/yesman/epicfight/client/renderer/patched/entity/PIllagerRenderer.java b/src/main/java/yesman/epicfight/client/renderer/patched/entity/PIllagerRenderer.java
+index aa9bed2..a0787a0 100644
+--- a/src/main/java/yesman/epicfight/client/renderer/patched/entity/PIllagerRenderer.java
++++ b/src/main/java/yesman/epicfight/client/renderer/patched/entity/PIllagerRenderer.java
+@@ -1,4 +1,6 @@
+-package yesman.epicfight.client.renderer.patched.entity;
++package yesman.epicfight.client.renderer.patched.entity;
++
++import net.minecraft.client.renderer.entity.state.IllagerRenderState;
+ 
+ import net.minecraft.client.model.IllagerModel;
+ import net.minecraft.client.renderer.entity.EntityRendererProvider;
+@@ -14,7 +16,7 @@ import yesman.epicfight.client.renderer.patched.layer.PatchedHeadLayer;
+ import yesman.epicfight.client.renderer.patched.layer.PatchedItemInHandLayer;
+ import yesman.epicfight.world.capabilities.entitypatch.MobPatch;
+ 
+-public class PIllagerRenderer<E extends AbstractIllager, T extends MobPatch<E>> extends PatchedLivingEntityRenderer<E, T, IllagerModel<E>, IllagerRenderer<E>, HumanoidMesh> {
++public class PIllagerRenderer<E extends AbstractIllager, T extends MobPatch<E>> extends PatchedLivingEntityRenderer<E, T, IllagerModel<IllagerRenderState>, IllagerRenderer<E, IllagerRenderState>, HumanoidMesh> {
+ 	public PIllagerRenderer(EntityRendererProvider.Context context, EntityType<?> entityType) {
+ 		super(context, entityType);
+ 		this.addPatchedLayer(ItemInHandLayer.class, new PatchedItemInHandLayer<>());
+diff --git a/src/main/java/yesman/epicfight/client/renderer/patched/entity/PIronGolemRenderer.java b/src/main/java/yesman/epicfight/client/renderer/patched/entity/PIronGolemRenderer.java
+index 0a158b1..765d1bf 100644
+--- a/src/main/java/yesman/epicfight/client/renderer/patched/entity/PIronGolemRenderer.java
++++ b/src/main/java/yesman/epicfight/client/renderer/patched/entity/PIronGolemRenderer.java
+@@ -1,4 +1,4 @@
+-package yesman.epicfight.client.renderer.patched.entity;
++package yesman.epicfight.client.renderer.patched.entity;
+ 
+ import net.minecraft.client.model.IronGolemModel;
+ import net.minecraft.client.renderer.entity.EntityRendererProvider;
+@@ -12,7 +12,7 @@ import yesman.epicfight.client.mesh.IronGolemMesh;
+ import yesman.epicfight.client.renderer.patched.layer.PatchedGolemCrackLayer;
+ import yesman.epicfight.world.capabilities.entitypatch.mob.IronGolemPatch;
+ 
+-public class PIronGolemRenderer extends PatchedLivingEntityRenderer<IronGolem, IronGolemPatch, IronGolemModel<IronGolem>, IronGolemRenderer, IronGolemMesh> {
++public class PIronGolemRenderer extends PatchedLivingEntityRenderer<IronGolem, IronGolemPatch, IronGolemModel, IronGolemRenderer, IronGolemMesh> {
+ 	public PIronGolemRenderer(EntityRendererProvider.Context context, EntityType<?> entityType) {
+ 		super(context, entityType);
+ 		this.addPatchedLayer(IronGolemCrackinessLayer.class, new PatchedGolemCrackLayer(Meshes.IRON_GOLEM));
+diff --git a/src/main/java/yesman/epicfight/client/renderer/patched/entity/PPlayerRenderer.java b/src/main/java/yesman/epicfight/client/renderer/patched/entity/PPlayerRenderer.java
+index 48d6064..8dfdf6f 100644
+--- a/src/main/java/yesman/epicfight/client/renderer/patched/entity/PPlayerRenderer.java
++++ b/src/main/java/yesman/epicfight/client/renderer/patched/entity/PPlayerRenderer.java
+@@ -57,7 +57,7 @@ public class PPlayerRenderer extends PHumanoidRenderer<AbstractClientPlayer, Abs
+ 	
+ 	@Override
+ 	public AssetAccessor<HumanoidMesh> getMeshProvider(AbstractClientPlayerPatch<AbstractClientPlayer> entitypatch) {
+-		return PlayerSkin.Model.SLIM.equals(entitypatch.getOriginal().getSkin().model()) ? Meshes.ALEX : Meshes.BIPED;
++		return net.minecraft.world.entity.player.PlayerModelType.SLIM.equals(entitypatch.getOriginal().getSkin().model()) ? Meshes.ALEX : Meshes.BIPED;
+ 	}
+ 	
+ 	@Override
+diff --git a/src/main/java/yesman/epicfight/client/renderer/patched/entity/PSpiderRenderer.java b/src/main/java/yesman/epicfight/client/renderer/patched/entity/PSpiderRenderer.java
+index d388684..ed8fcd7 100644
+--- a/src/main/java/yesman/epicfight/client/renderer/patched/entity/PSpiderRenderer.java
++++ b/src/main/java/yesman/epicfight/client/renderer/patched/entity/PSpiderRenderer.java
+@@ -1,4 +1,4 @@
+-package yesman.epicfight.client.renderer.patched.entity;
++package yesman.epicfight.client.renderer.patched.entity;
+ 
+ import net.minecraft.client.model.SpiderModel;
+ import net.minecraft.client.renderer.entity.EntityRendererProvider;
+@@ -13,7 +13,7 @@ import yesman.epicfight.client.mesh.SpiderMesh;
+ import yesman.epicfight.client.renderer.patched.layer.PatchedEyesLayer;
+ import yesman.epicfight.world.capabilities.entitypatch.mob.SpiderPatch;
+ 
+-public class PSpiderRenderer extends PatchedLivingEntityRenderer<Spider, SpiderPatch<Spider>, SpiderModel<Spider>, SpiderRenderer<Spider>, SpiderMesh> {
++public class PSpiderRenderer extends PatchedLivingEntityRenderer<Spider, SpiderPatch<Spider>, SpiderModel, SpiderRenderer<Spider>, SpiderMesh> {
+ 	private static final ResourceLocation SPIDER_EYE_TEXTURE = ResourceLocation.withDefaultNamespace("textures/entity/spider_eyes.png");
+ 	
+ 	public PSpiderRenderer(EntityRendererProvider.Context context, EntityType<?> entityType) {
+diff --git a/src/main/java/yesman/epicfight/client/renderer/patched/entity/PWitchRenderer.java b/src/main/java/yesman/epicfight/client/renderer/patched/entity/PWitchRenderer.java
+index 7aed369..6336896 100644
+--- a/src/main/java/yesman/epicfight/client/renderer/patched/entity/PWitchRenderer.java
++++ b/src/main/java/yesman/epicfight/client/renderer/patched/entity/PWitchRenderer.java
+@@ -1,4 +1,4 @@
+-package yesman.epicfight.client.renderer.patched.entity;
++package yesman.epicfight.client.renderer.patched.entity;
+ 
+ import net.minecraft.client.model.WitchModel;
+ import net.minecraft.client.renderer.entity.EntityRendererProvider;
+@@ -12,7 +12,7 @@ import yesman.epicfight.client.mesh.VillagerMesh;
+ import yesman.epicfight.client.renderer.patched.layer.PatchedItemInHandLayer;
+ import yesman.epicfight.world.capabilities.entitypatch.mob.WitchPatch;
+ 
+-public class PWitchRenderer extends PatchedLivingEntityRenderer<Witch, WitchPatch, WitchModel<Witch>, WitchRenderer, VillagerMesh> {
++public class PWitchRenderer extends PatchedLivingEntityRenderer<Witch, WitchPatch, WitchModel, WitchRenderer, VillagerMesh> {
+ 	public PWitchRenderer(EntityRendererProvider.Context context, EntityType<?> entityType) {
+ 		super(context, entityType);
+ 		this.addPatchedLayer(WitchItemLayer.class, new PatchedItemInHandLayer<>());
+diff --git a/src/main/java/yesman/epicfight/client/renderer/patched/entity/PWitherRenderer.java b/src/main/java/yesman/epicfight/client/renderer/patched/entity/PWitherRenderer.java
+index dd4c6bf..f8fec34 100644
+--- a/src/main/java/yesman/epicfight/client/renderer/patched/entity/PWitherRenderer.java
++++ b/src/main/java/yesman/epicfight/client/renderer/patched/entity/PWitherRenderer.java
+@@ -3,6 +3,7 @@ package yesman.epicfight.client.renderer.patched.entity;
+ import com.mojang.blaze3d.vertex.PoseStack;
+ 
+ import net.minecraft.client.Minecraft;
++import yesman.epicfight.client.renderer.EntityRenderFeatures;
+ import net.minecraft.client.model.WitherBossModel;
+ import net.minecraft.client.renderer.MultiBufferSource;
+ import net.minecraft.client.renderer.RenderType;
+@@ -23,7 +24,7 @@ import yesman.epicfight.client.renderer.patched.layer.PatchedWitherArmorLayer;
+ import yesman.epicfight.mixin.client.MixinLivingEntityRenderer;
+ import yesman.epicfight.world.capabilities.entitypatch.boss.WitherPatch;
+ 
+-public class PWitherRenderer extends PatchedLivingEntityRenderer<WitherBoss, WitherPatch, WitherBossModel<WitherBoss>, WitherBossRenderer, WitherMesh> {
++public class PWitherRenderer extends PatchedLivingEntityRenderer<WitherBoss, WitherPatch, WitherBossModel, WitherBossRenderer, WitherMesh> {
+ 	public static final ResourceLocation WITHER_INVULNERABLE_LOCATION = ResourceLocation.withDefaultNamespace("textures/entity/wither/wither_invulnerable.png");
+ 	private static final ResourceLocation WITHER_LOCATION = ResourceLocation.withDefaultNamespace("textures/entity/wither/wither.png");
+ 	
+@@ -39,7 +40,7 @@ public class PWitherRenderer extends PatchedLivingEntityRenderer<WitherBoss, Wit
+ 		boolean isVisible = this.isVisible(entity, entitypatch);
+ 		boolean isVisibleToPlayer = !isVisible && !entity.isInvisibleTo(mc.player);
+ 		boolean isGlowing = mc.shouldEntityAppearGlowing(entity);
+-		RenderType renderType = livingEntityRendererAccessor.invokeGetRenderType(entity, isVisible, isVisibleToPlayer, isGlowing);
++		RenderType renderType = livingEntityRendererAccessor.invokeGetRenderType(renderer.createRenderState(entity, partialTicks), isVisible, isVisibleToPlayer, isGlowing);
+ 		WitherMesh mesh = this.getMeshProvider(entitypatch).get();
+ 		Armature armature = entitypatch.getArmature();
+ 		
+@@ -67,7 +68,7 @@ public class PWitherRenderer extends PatchedLivingEntityRenderer<WitherBoss, Wit
+ 			
+ 			this.renderLayer(renderer, entitypatch, entity, armature.getPoseMatrices(), buffer, poseStack, packedLight, partialTicks);
+ 			
+-			if (Minecraft.getInstance().getEntityRenderDispatcher().shouldRenderHitBoxes()) {
++			if (EntityRenderFeatures.showHitboxes()) {
+ 				entitypatch.getClientAnimator().renderDebuggingInfoForAllLayers(poseStack, buffer, partialTicks);
+ 			}
+ 		}
+diff --git a/src/main/java/yesman/epicfight/client/renderer/patched/entity/PWitherSkeletonMinionRenderer.java b/src/main/java/yesman/epicfight/client/renderer/patched/entity/PWitherSkeletonMinionRenderer.java
+index 39ae79f..5f6f22a 100644
+--- a/src/main/java/yesman/epicfight/client/renderer/patched/entity/PWitherSkeletonMinionRenderer.java
++++ b/src/main/java/yesman/epicfight/client/renderer/patched/entity/PWitherSkeletonMinionRenderer.java
+@@ -1,4 +1,4 @@
+-package yesman.epicfight.client.renderer.patched.entity;
++package yesman.epicfight.client.renderer.patched.entity;
+ 
+ import net.minecraft.client.model.HumanoidModel;
+ import net.minecraft.client.renderer.entity.EntityRendererProvider;
+@@ -14,7 +14,7 @@ import yesman.epicfight.api.utils.math.Vec3f;
+ import yesman.epicfight.client.mesh.HumanoidMesh;
+ import yesman.epicfight.world.capabilities.entitypatch.HumanoidMobPatch;
+ 
+-public class PWitherSkeletonMinionRenderer extends PHumanoidRenderer<PathfinderMob, HumanoidMobPatch<PathfinderMob>, HumanoidModel<PathfinderMob>, HumanoidMobRenderer<PathfinderMob, HumanoidModel<PathfinderMob>>, HumanoidMesh> {
++public class PWitherSkeletonMinionRenderer extends PHumanoidRenderer<PathfinderMob, HumanoidMobPatch<PathfinderMob>, HumanoidModel<?>, HumanoidMobRenderer<PathfinderMob, ?, ? extends HumanoidModel<?>>, HumanoidMesh> {
+ 	public PWitherSkeletonMinionRenderer(EntityRendererProvider.Context context, EntityType<?> entityType) {
+ 		super(Meshes.SKELETON, context, entityType);
+ 	}
+diff --git a/src/main/java/yesman/epicfight/client/renderer/patched/entity/PZombieVillagerRenderer.java b/src/main/java/yesman/epicfight/client/renderer/patched/entity/PZombieVillagerRenderer.java
+index bd3ced8..cb8155c 100644
+--- a/src/main/java/yesman/epicfight/client/renderer/patched/entity/PZombieVillagerRenderer.java
++++ b/src/main/java/yesman/epicfight/client/renderer/patched/entity/PZombieVillagerRenderer.java
+@@ -1,4 +1,6 @@
+-package yesman.epicfight.client.renderer.patched.entity;
++package yesman.epicfight.client.renderer.patched.entity;
++
++import net.minecraft.client.renderer.entity.state.ZombieVillagerRenderState;
+ 
+ import net.minecraft.client.model.ZombieVillagerModel;
+ import net.minecraft.client.renderer.entity.EntityRendererProvider;
+@@ -11,7 +13,7 @@ import yesman.epicfight.client.mesh.VillagerMesh;
+ import yesman.epicfight.client.renderer.patched.layer.PatchedVillagerProfessionLayer;
+ import yesman.epicfight.world.capabilities.entitypatch.MobPatch;
+ 
+-public class PZombieVillagerRenderer extends PHumanoidRenderer<ZombieVillager, MobPatch<ZombieVillager>, ZombieVillagerModel<ZombieVillager>, ZombieVillagerRenderer, VillagerMesh> {
++public class PZombieVillagerRenderer extends PHumanoidRenderer<ZombieVillager, MobPatch<ZombieVillager>, ZombieVillagerModel<ZombieVillagerRenderState>, ZombieVillagerRenderer, VillagerMesh> {
+ 	public PZombieVillagerRenderer(EntityRendererProvider.Context context, EntityType<?> entityType) {
+ 		super(Meshes.VILLAGER_ZOMBIE, context, entityType);
+ 		
+diff --git a/src/main/java/yesman/epicfight/client/renderer/patched/entity/PatchedEntityRenderer.java b/src/main/java/yesman/epicfight/client/renderer/patched/entity/PatchedEntityRenderer.java
+index 463441c..2bdbc3a 100644
+--- a/src/main/java/yesman/epicfight/client/renderer/patched/entity/PatchedEntityRenderer.java
++++ b/src/main/java/yesman/epicfight/client/renderer/patched/entity/PatchedEntityRenderer.java
+@@ -4,7 +4,11 @@ import com.mojang.blaze3d.vertex.PoseStack;
+ 
+ import net.minecraft.client.renderer.MultiBufferSource;
+ import net.minecraft.client.renderer.entity.EntityRenderer;
+-import net.minecraft.client.renderer.entity.LivingEntityRenderer;
++import net.minecraft.client.Minecraft;
++import net.minecraft.client.renderer.SubmitNodeStorage;
++import net.minecraft.client.renderer.feature.NameTagFeatureRenderer;
++import net.minecraft.world.entity.EntityAttachment;
++import yesman.epicfight.client.renderer.EntityRenderFeatures;
+ import net.minecraft.world.entity.LivingEntity;
+ 
+ 
+@@ -20,24 +24,31 @@ import yesman.epicfight.api.utils.math.QuaternionUtils;
+ import yesman.epicfight.mixin.client.MixinEntityRenderer;
+ import yesman.epicfight.world.capabilities.entitypatch.LivingEntityPatch;
+ 
+-public abstract class PatchedEntityRenderer<E extends LivingEntity, T extends LivingEntityPatch<E>, R extends EntityRenderer<E>, AM extends SkinnedMesh> {
++public abstract class PatchedEntityRenderer<E extends LivingEntity, T extends LivingEntityPatch<E>, R extends EntityRenderer<E, ?>, AM extends SkinnedMesh> {
+ 	public void render(E entity, T entitypatch, R renderer, MultiBufferSource buffer, PoseStack poseStack, int packedLight, float partialTick) {
+ 		RenderNameTagEvent renderNameplateEvent = new RenderNameTagEvent(entity, entity.getDisplayName(), renderer, poseStack, buffer, packedLight, partialTick);
+ 		EpicFightClientEventHooks.Render.RENDER_NAME_TAG.post(renderNameplateEvent);
+ 
+-		MixinEntityRenderer entityRendererAccessor = (MixinEntityRenderer)renderer;
+-
+-		if (renderNameplateEvent.getResult() == RenderNameTagEvent.Result.ALWAYS_RENDER || (renderNameplateEvent.getResult() == RenderNameTagEvent.Result.DEFAULT && entityRendererAccessor.invokeShouldShowName(entity))) {
+-			entityRendererAccessor.invokeRenderNameTag(entity, renderNameplateEvent.getContent(), poseStack, buffer, packedLight, partialTick);
++        var state = renderer.createRenderState(entity, partialTick);
++        var result = renderNameplateEvent.getResult();
++        if (result == RenderNameTagEvent.Result.ALWAYS_RENDER || (result == RenderNameTagEvent.Result.DEFAULT && state.nameTag != null)) {
++            state.nameTag = renderNameplateEvent.getContent();
++            if (state.nameTagAttachment == null) state.nameTagAttachment = entity.getAttachments().getNullable(EntityAttachment.NAME_TAG, 0, entity.getViewYRot(partialTick));
++            var minecraft = Minecraft.getInstance();
++            var submissions = new SubmitNodeStorage();
++            ((MixinEntityRenderer)renderer).invokeSubmitNameTag(state, poseStack, submissions, minecraft.gameRenderer.getLevelRenderState().cameraRenderState);
++            MultiBufferSource.BufferSource nameBuffers = buffer instanceof MultiBufferSource.BufferSource source
++                ? source : minecraft.renderBuffers().bufferSource();
++            new NameTagFeatureRenderer().render(submissions.order(0), nameBuffers, minecraft.font);
+         }
+-	}
+-	
++    }
++
+ 	public void mulPoseStack(PoseStack poseStack, Armature armature, E entity, T entitypatch, float partialTicks) {
+ 		OpenMatrix4f modelMatrix = entitypatch.getModelMatrix(partialTicks);
+         poseStack.mulPose(QuaternionUtils.YP.rotationDegrees(180.0F));
+         MathUtils.mulStack(poseStack, modelMatrix);
+         
+-        if (LivingEntityRenderer.isEntityUpsideDown(entity)) {
++        if (EntityRenderFeatures.upsideDown(entity)) {
+         	poseStack.translate(0.0D, entity.getBbHeight() + 0.1F, 0.0D);
+         	poseStack.mulPose(QuaternionUtils.ZP.rotationDegrees(180.0F));
+ 		}
+diff --git a/src/main/java/yesman/epicfight/client/renderer/patched/entity/PatchedLivingEntityRenderer.java b/src/main/java/yesman/epicfight/client/renderer/patched/entity/PatchedLivingEntityRenderer.java
+index 331271b..24d96a6 100644
+--- a/src/main/java/yesman/epicfight/client/renderer/patched/entity/PatchedLivingEntityRenderer.java
++++ b/src/main/java/yesman/epicfight/client/renderer/patched/entity/PatchedLivingEntityRenderer.java
+@@ -9,6 +9,8 @@ import com.google.gson.JsonParseException;
+ import com.mojang.blaze3d.vertex.PoseStack;
+ import com.mojang.datafixers.util.Pair;
+ import net.minecraft.client.Minecraft;
++import net.minecraft.client.renderer.entity.state.LivingEntityRenderState;
++import yesman.epicfight.client.renderer.EntityRenderFeatures;
+ import net.minecraft.client.model.EntityModel;
+ import net.minecraft.client.renderer.LightTexture;
+ import net.minecraft.client.renderer.MultiBufferSource;
+@@ -49,9 +51,9 @@ import java.io.Reader;
+ import java.util.List;
+ import java.util.Map;
+ 
+-public abstract class PatchedLivingEntityRenderer<E extends LivingEntity, T extends LivingEntityPatch<E>, M extends EntityModel<E>, R extends LivingEntityRenderer<E, M>, AM extends SkinnedMesh> extends PatchedEntityRenderer<E, T, R, AM> implements LayerRenderer<E, T, M> {
+-	protected final Map<Class<?>, PatchedLayer<E, T, M, ? extends RenderLayer<E, M>>> patchedLayers = Maps.newHashMap();
+-	protected final List<PatchedLayer<E, T, M, ? extends RenderLayer<E, M>>> customLayers = Lists.newArrayList();
++public abstract class PatchedLivingEntityRenderer<E extends LivingEntity, T extends LivingEntityPatch<E>, M extends EntityModel<?>, R extends LivingEntityRenderer<E, ?, ? extends M>, AM extends SkinnedMesh> extends PatchedEntityRenderer<E, T, R, AM> implements LayerRenderer<E, T, M> {
++	protected final Map<Class<?>, PatchedLayer<E, T, M, ? extends RenderLayer<?, ?>>> patchedLayers = Maps.newHashMap();
++	protected final List<PatchedLayer<E, T, M, ? extends RenderLayer<?, ?>>> customLayers = Lists.newArrayList();
+ 	
+ 	public PatchedLivingEntityRenderer(EntityRendererProvider.Context context, EntityType<?> entityType) {
+ 		ResourceLocation type = EntityType.getKey(entityType);
+@@ -83,10 +85,10 @@ public abstract class PatchedLivingEntityRenderer<E extends LivingEntity, T exte
+ 	
+ 	@SuppressWarnings("unchecked")
+ 	public PatchedLivingEntityRenderer<E, T, M, R, AM> initLayerLast(EntityRendererProvider.Context context, EntityType<?> entityType) {
+-		List<RenderLayer<E, M>> vanillaLayers = null;
++		List<? extends RenderLayer<?, ?>> vanillaLayers = null;
+ 		
+ 		if (entityType == EntityType.PLAYER) {
+-			if (context.getEntityRenderDispatcher().playerRenderers.get(PlayerSkin.Model.WIDE) instanceof LivingEntityRenderer livingentityrenderer) {
++			if (context.getEntityRenderDispatcher().playerRenderers.get(net.minecraft.world.entity.player.PlayerModelType.WIDE) instanceof LivingEntityRenderer livingentityrenderer) {
+ 				vanillaLayers = livingentityrenderer.layers;
+ 			}
+ 		} else {
+@@ -96,7 +98,7 @@ public abstract class PatchedLivingEntityRenderer<E extends LivingEntity, T exte
+ 		}
+ 		
+ 		if (vanillaLayers != null) {
+-			for (RenderLayer<E, M> layer : vanillaLayers) {
++			for (RenderLayer<?, ?> layer : vanillaLayers) {
+ 				Class<?> layerClass = layer.getClass();
+ 				
+ 				if (layerClass.isAnonymousClass()) {
+@@ -120,10 +122,11 @@ public abstract class PatchedLivingEntityRenderer<E extends LivingEntity, T exte
+ 
+ 		MixinLivingEntityRenderer livingEntityRendererAccessor = (MixinLivingEntityRenderer)renderer;
+ 
+-		boolean isVisible = livingEntityRendererAccessor.invokeIsBodyVisible(entity);
++		LivingEntityRenderState state = renderer.createRenderState(entity, partialTicks);
++		boolean isVisible = livingEntityRendererAccessor.invokeIsBodyVisible(state);
+ 		boolean isVisibleToPlayer = !isVisible && !entity.isInvisibleTo(Minecraft.getInstance().player);
+ 		boolean isGlowing = Minecraft.getInstance().shouldEntityAppearGlowing(entity);
+-		RenderType renderType = livingEntityRendererAccessor.invokeGetRenderType(entity, isVisible, isVisibleToPlayer, isGlowing);
++		RenderType renderType = livingEntityRendererAccessor.invokeGetRenderType(state, isVisible, isVisibleToPlayer, isGlowing);
+ 		Armature armature = entitypatch.getArmature();
+ 		if (armature == null) {
+ 			yesman.epicfight.EpicFight.LOGGER.warn("[EpicFight] {} armature is null — cannot render Epic Fight model", entity.getType());
+@@ -131,7 +134,7 @@ public abstract class PatchedLivingEntityRenderer<E extends LivingEntity, T exte
+ 		}
+ 		poseStack.pushPose();
+ 		this.mulPoseStack(poseStack, armature, entity, entitypatch, partialTicks);
+-		this.prepareVanillaModel(entity, renderer.getModel(), renderer, partialTicks);
++		this.prepareVanillaModel(entity, renderer.getModel(), state, partialTicks);
+ 		this.setArmaturePose(entitypatch, armature, partialTicks);
+ 		
+ 		if (renderType != null) {
+@@ -164,7 +167,7 @@ public abstract class PatchedLivingEntityRenderer<E extends LivingEntity, T exte
+ 		}
+ 		
+ 		if (renderType != null) {
+-			if (Minecraft.getInstance().getEntityRenderDispatcher().shouldRenderHitBoxes()) {
++			if (EntityRenderFeatures.showHitboxes()) {
+ 				entitypatch.getClientAnimator().renderDebuggingInfoForAllLayers(poseStack, buffer, partialTicks);
+ 			}
+ 		}
+@@ -172,73 +175,22 @@ public abstract class PatchedLivingEntityRenderer<E extends LivingEntity, T exte
+ 		poseStack.popPose();
+ 	}
+ 	
+-	protected void prepareVanillaModel(E entity, M model, LivingEntityRenderer<E, M> renderer, float partialTicks) {
+-		boolean shouldSit = entity.isPassenger() && entity.getVehicle() != null && EntityExtension.of(entity.getVehicle()).epicfight$shouldRiderSit();
+-		model.riding = shouldSit;
+-		model.young = entity.isBaby();
+-		float f = Mth.rotLerp(partialTicks, entity.yBodyRotO, entity.yBodyRot);
+-		float f1 = Mth.rotLerp(partialTicks, entity.yHeadRotO, entity.yHeadRot);
+-		float f2 = f1 - f;
+-		
+-		if (shouldSit && entity.getVehicle() instanceof LivingEntity livingentity) {
+-			f = Mth.rotLerp(partialTicks, livingentity.yBodyRotO, livingentity.yBodyRot);
+-			f2 = f1 - f;
+-			float f3 = Mth.wrapDegrees(f2);
+-			if (f3 < -85.0F) {
+-				f3 = -85.0F;
+-			}
+-
+-			if (f3 >= 85.0F) {
+-				f3 = 85.0F;
+-			}
+-
+-			f = f1 - f3;
+-			if (f3 * f3 > 2500.0F) {
+-				f += f3 * 0.2F;
+-			}
+-
+-			f2 = f1 - f;
+-		}
++    protected void prepareVanillaModel(E entity, M model, LivingEntityRenderState state, float partialTicks) {
++        EntityRenderFeatures.prepareModel(model, entity, state, partialTicks);
++    }
+ 
+-		float f6 = Mth.lerp(partialTicks, entity.xRotO, entity.getXRot());
+-		
+-		if (LivingEntityRenderer.isEntityUpsideDown(entity)) {
+-			f6 *= -1.0F;
+-			f2 *= -1.0F;
+-		}
+-		
+-		float f7 = ((MixinLivingEntityRenderer)renderer).invokeGetBob(entity, partialTicks);
+-		float f8 = 0.0F;
+-		float f5 = 0.0F;
+-		
+-		if (!shouldSit && entity.isAlive()) {
+-			f8 = entity.walkAnimation.speed(partialTicks);
+-			f5 = entity.walkAnimation.position() - entity.walkAnimation.speed() * (1.0F - partialTicks);
+-			if (entity.isBaby()) {
+-				f5 *= 3.0F;
+-			}
+-
+-			if (f8 > 1.0F) {
+-				f8 = 1.0F;
+-			}
+-		}
+-		
+-		model.prepareMobModel(entity, f5, f8, partialTicks);
+-		model.setupAnim(entity, f5, f8, f7, f2, f6);
+-	}
+-	
+ 	protected void prepareModel(AM mesh, E entity, T entitypatch, R renderer) {
+ 		mesh.initialize();
+ 	}
+ 	
+-	protected void renderLayer(LivingEntityRenderer<E, M> renderer, T entitypatch, E entity, OpenMatrix4f[] poses, MultiBufferSource buffer, PoseStack poseStack, int packedLight, float partialTicks) {
++	protected void renderLayer(LivingEntityRenderer<E, ?, ? extends M> renderer, T entitypatch, E entity, OpenMatrix4f[] poses, MultiBufferSource buffer, PoseStack poseStack, int packedLight, float partialTicks) {
+ 		float f = MathUtils.lerpBetween(entity.yBodyRotO, entity.yBodyRot, partialTicks);
+         float f1 = MathUtils.lerpBetween(entity.yHeadRotO, entity.yHeadRot, partialTicks);
+         float f2 = f1 - f;
+ 		float f7 = entity.getViewXRot(partialTicks);
+-		float bob = ((MixinLivingEntityRenderer)renderer).invokeGetBob(entity, partialTicks);
++		float bob = entity.tickCount + partialTicks;
+ 		
+-		for (RenderLayer<E, M> layer : renderer.layers) {
++		for (RenderLayer<?, ?> layer : renderer.layers) {
+ 			Class<?> layerClass = layer.getClass();
+ 			
+ 			if (layerClass.isAnonymousClass()) {
+@@ -250,7 +202,7 @@ public abstract class PatchedLivingEntityRenderer<E extends LivingEntity, T exte
+ 			}
+ 		}
+ 		
+-		for (PatchedLayer<E, T, M, ? extends RenderLayer<E, M>> patchedLayer : this.customLayers) {
++		for (PatchedLayer<E, T, M, ? extends RenderLayer<?, ?>> patchedLayer : this.customLayers) {
+ 			patchedLayer.renderLayer(entity, entitypatch, null, poseStack, buffer, packedLight, poses, bob, f2, f7, partialTicks);
+ 		}
+ 	}
+@@ -275,19 +227,19 @@ public abstract class PatchedLivingEntityRenderer<E extends LivingEntity, T exte
+ 	}
+ 	
+ 	@Override
+-	public void addPatchedLayer(Class<?> originalLayerClass, PatchedLayer<E, T, M, ? extends RenderLayer<E, M>> patchedLayer) {
++	public void addPatchedLayer(Class<?> originalLayerClass, PatchedLayer<E, T, M, ? extends RenderLayer<?, ?>> patchedLayer) {
+ 		this.patchedLayers.putIfAbsent(originalLayerClass, patchedLayer);
+ 	}
+ 	
+ 	/**
+ 	 * Use this method in {@link RegisterPatchedRenderersEvent.ModifyEntity}}
+ 	 */
+-	public void addPatchedLayerAlways(Class<?> originalLayerClass, PatchedLayer<E, T, M, ? extends RenderLayer<E, M>> patchedLayer) {
++	public void addPatchedLayerAlways(Class<?> originalLayerClass, PatchedLayer<E, T, M, ? extends RenderLayer<?, ?>> patchedLayer) {
+ 		this.patchedLayers.put(originalLayerClass, patchedLayer);
+ 	}
+ 	
+ 	@Override
+-	public void addCustomLayer(PatchedLayer<E, T, M, ? extends RenderLayer<E, M>> patchedLayer) {
++	public void addCustomLayer(PatchedLayer<E, T, M, ? extends RenderLayer<?, ?>> patchedLayer) {
+ 		this.customLayers.add(patchedLayer);
+ 	}
+ 	
+diff --git a/src/main/java/yesman/epicfight/client/renderer/patched/entity/PresetRenderer.java b/src/main/java/yesman/epicfight/client/renderer/patched/entity/PresetRenderer.java
+index b7e386d..d532548 100644
+--- a/src/main/java/yesman/epicfight/client/renderer/patched/entity/PresetRenderer.java
++++ b/src/main/java/yesman/epicfight/client/renderer/patched/entity/PresetRenderer.java
+@@ -9,6 +9,8 @@ import com.google.gson.JsonParseException;
+ import com.mojang.blaze3d.vertex.PoseStack;
+ import com.mojang.datafixers.util.Pair;
+ import net.minecraft.client.Minecraft;
++import net.minecraft.client.renderer.entity.state.LivingEntityRenderState;
++import yesman.epicfight.client.renderer.EntityRenderFeatures;
+ import net.minecraft.client.model.EntityModel;
+ import net.minecraft.client.renderer.MultiBufferSource;
+ import net.minecraft.client.renderer.RenderType;
+@@ -47,13 +49,13 @@ import java.util.Map;
+ /**
+  * This class is for LivingEntity with renderer that doesn't extend LivingEntityRenderer (e.g. Geckolib renderer based entities)
+  */
+-public class PresetRenderer extends PatchedEntityRenderer<LivingEntity, LivingEntityPatch<LivingEntity>, EntityRenderer<LivingEntity>, SkinnedMesh> implements LayerRenderer<LivingEntity, LivingEntityPatch<LivingEntity>, EntityModel<LivingEntity>> {
+-	private final LivingEntityRenderer<LivingEntity, EntityModel<LivingEntity>> presetRenderer;
+-	protected final Map<Class<?>, PatchedLayer<LivingEntity, LivingEntityPatch<LivingEntity>, EntityModel<LivingEntity>, ? extends RenderLayer<LivingEntity, EntityModel<LivingEntity>>>> patchedLayers = Maps.newHashMap();
+-	protected final List<PatchedLayer<LivingEntity, LivingEntityPatch<LivingEntity>, EntityModel<LivingEntity>, ? extends RenderLayer<LivingEntity, EntityModel<LivingEntity>>>> customLayers = Lists.newArrayList();
++public class PresetRenderer extends PatchedEntityRenderer<LivingEntity, LivingEntityPatch<LivingEntity>, EntityRenderer<LivingEntity, ?>, SkinnedMesh> implements LayerRenderer<LivingEntity, LivingEntityPatch<LivingEntity>, EntityModel<?>> {
++	private final LivingEntityRenderer<LivingEntity, ?, ? extends EntityModel<?>> presetRenderer;
++	protected final Map<Class<?>, PatchedLayer<LivingEntity, LivingEntityPatch<LivingEntity>, EntityModel<?>, ? extends RenderLayer<?, ?>>> patchedLayers = Maps.newHashMap();
++	protected final List<PatchedLayer<LivingEntity, LivingEntityPatch<LivingEntity>, EntityModel<?>, ? extends RenderLayer<?, ?>>> customLayers = Lists.newArrayList();
+ 	protected final AssetAccessor<SkinnedMesh> mesh;
+ 	
+-	public PresetRenderer(EntityRendererProvider.Context context, EntityType<?> entityType, LivingEntityRenderer<LivingEntity, EntityModel<LivingEntity>> renderer, AssetAccessor<SkinnedMesh> mesh) {
++	public PresetRenderer(EntityRendererProvider.Context context, EntityType<?> entityType, LivingEntityRenderer<LivingEntity, ?, ? extends EntityModel<?>> renderer, AssetAccessor<SkinnedMesh> mesh) {
+ 		this.presetRenderer = renderer;
+ 		this.mesh = mesh;
+ 		
+@@ -85,23 +87,24 @@ public class PresetRenderer extends PatchedEntityRenderer<LivingEntity, LivingEn
+ 	}
+ 	
+ 	@Override
+-	public void render(LivingEntity entity, LivingEntityPatch<LivingEntity> entitypatch, EntityRenderer<LivingEntity> renderer, MultiBufferSource buffer, PoseStack poseStack, int packedLight, float partialTicks) {
++	public void render(LivingEntity entity, LivingEntityPatch<LivingEntity> entitypatch, EntityRenderer<LivingEntity, ?> renderer, MultiBufferSource buffer, PoseStack poseStack, int packedLight, float partialTicks) {
+ 		super.render(entity, entitypatch, renderer, buffer, poseStack, packedLight, partialTicks);
+ 		
+ 		Minecraft mc = Minecraft.getInstance();
+ 		MixinLivingEntityRenderer livingEntityRendererAccessor = (MixinLivingEntityRenderer)this.presetRenderer;
+ 		
+-		boolean isVisible = livingEntityRendererAccessor.invokeIsBodyVisible(entity);
++		LivingEntityRenderState state = this.presetRenderer.createRenderState(entity, partialTicks);
++		boolean isVisible = livingEntityRendererAccessor.invokeIsBodyVisible(state);
+ 		boolean isVisibleToPlayer = !isVisible && !entity.isInvisibleTo(mc.player);
+ 		boolean isGlowing = mc.shouldEntityAppearGlowing(entity);
+-		RenderType renderType = livingEntityRendererAccessor.invokeGetRenderType(entity, isVisible, isVisibleToPlayer, isGlowing);
++		RenderType renderType = livingEntityRendererAccessor.invokeGetRenderType(state, isVisible, isVisibleToPlayer, isGlowing);
+ 		Armature armature = entitypatch.getArmature();
+ 		poseStack.pushPose();
+ 		this.mulPoseStack(poseStack, armature, entity, entitypatch, partialTicks);
+ 		this.setArmaturePose(entitypatch, armature, partialTicks);
+ 		
+ 		if (renderType != null) {
+-		    this.prepareVanillaModel(entity, this.presetRenderer.getModel(), this.presetRenderer, partialTicks);
++		    this.prepareVanillaModel(entity, this.presetRenderer.getModel(), state, partialTicks);
+ 			SkinnedMesh mesh = this.getMeshProvider(entitypatch).get();
+ 			this.prepareModel(mesh, entity, entitypatch, this.presetRenderer);
+ 			PrepareModelEvent prepareModelEvent = new PrepareModelEvent(this, mesh, entitypatch, buffer, poseStack, packedLight, partialTicks);
+@@ -116,7 +119,7 @@ public class PresetRenderer extends PatchedEntityRenderer<LivingEntity, LivingEn
+ 		}
+ 		
+ 		if (renderType != null) {
+-			if (Minecraft.getInstance().getEntityRenderDispatcher().shouldRenderHitBoxes()) {
++			if (EntityRenderFeatures.showHitboxes()) {
+ 				entitypatch.getClientAnimator().renderDebuggingInfoForAllLayers(poseStack, buffer, partialTicks);
+ 			}
+ 		}
+@@ -125,77 +128,26 @@ public class PresetRenderer extends PatchedEntityRenderer<LivingEntity, LivingEn
+ 	}
+ 	
+ 	// can't transform the access modifier of getBob method because of overriding
+-	public float getVanillaRendererBob(LivingEntity entity, LivingEntityRenderer<LivingEntity, EntityModel<LivingEntity>> renderer, float partialTicks) {
++	public float getVanillaRendererBob(LivingEntity entity, LivingEntityRenderer<LivingEntity, ?, ? extends EntityModel<?>> renderer, float partialTicks) {
+ 		return entity.tickCount + partialTicks;
+ 	}
+ 	
+-	protected void prepareVanillaModel(LivingEntity entityIn, EntityModel<LivingEntity> model, LivingEntityRenderer<LivingEntity, EntityModel<LivingEntity>> renderer, float partialTicks) {
+-		boolean shouldSit = entityIn.isPassenger() && entityIn.getVehicle() != null && EntityExtension.of(entityIn.getVehicle()).epicfight$shouldRiderSit();
+-		model.riding = shouldSit;
+-		model.young = entityIn.isBaby();
+-		float f = Mth.rotLerp(partialTicks, entityIn.yBodyRotO, entityIn.yBodyRot);
+-		float f1 = Mth.rotLerp(partialTicks, entityIn.yHeadRotO, entityIn.yHeadRot);
+-		float f2 = f1 - f;
+-		
+-		if (shouldSit && entityIn.getVehicle() instanceof LivingEntity livingentity) {
+-			f = Mth.rotLerp(partialTicks, livingentity.yBodyRotO, livingentity.yBodyRot);
+-			f2 = f1 - f;
+-			float f3 = Mth.wrapDegrees(f2);
+-			if (f3 < -85.0F) {
+-				f3 = -85.0F;
+-			}
+-
+-			if (f3 >= 85.0F) {
+-				f3 = 85.0F;
+-			}
+-
+-			f = f1 - f3;
+-			if (f3 * f3 > 2500.0F) {
+-				f += f3 * 0.2F;
+-			}
+-
+-			f2 = f1 - f;
+-		}
++    protected void prepareVanillaModel(LivingEntity entity, EntityModel<?> model, LivingEntityRenderState state, float partialTicks) {
++        EntityRenderFeatures.prepareModel(model, entity, state, partialTicks);
++    }
+ 
+-		float f6 = Mth.lerp(partialTicks, entityIn.xRotO, entityIn.getXRot());
+-		
+-		if (LivingEntityRenderer.isEntityUpsideDown(entityIn)) {
+-			f6 *= -1.0F;
+-			f2 *= -1.0F;
+-		}
+-		
+-		float f7 = this.getVanillaRendererBob(entityIn, renderer, partialTicks);
+-		float f8 = 0.0F;
+-		float f5 = 0.0F;
+-		
+-		if (!shouldSit && entityIn.isAlive()) {
+-			f8 = entityIn.walkAnimation.speed(partialTicks);
+-			f5 = entityIn.walkAnimation.position() - entityIn.walkAnimation.speed() * (1.0F - partialTicks);
+-			if (entityIn.isBaby()) {
+-				f5 *= 3.0F;
+-			}
+-
+-			if (f8 > 1.0F) {
+-				f8 = 1.0F;
+-			}
+-		}
+-		
+-		model.prepareMobModel(entityIn, f5, f8, partialTicks);
+-		model.setupAnim(entityIn, f5, f8, f7, f2, f6);
+-	}
+-	
+-	protected void prepareModel(SkinnedMesh mesh, LivingEntity entity, LivingEntityPatch<LivingEntity> entitypatch, LivingEntityRenderer<LivingEntity, EntityModel<LivingEntity>> renderer) {
++	protected void prepareModel(SkinnedMesh mesh, LivingEntity entity, LivingEntityPatch<LivingEntity> entitypatch, LivingEntityRenderer<LivingEntity, ?, ? extends EntityModel<?>> renderer) {
+ 		mesh.initialize();
+ 	}
+ 	
+-	protected void renderLayer(LivingEntityRenderer<LivingEntity, EntityModel<LivingEntity>> renderer, LivingEntityPatch<LivingEntity> entitypatch, LivingEntity entity, OpenMatrix4f[] poses, MultiBufferSource buffer, PoseStack poseStack, int packedLight, float partialTicks) {
++	protected void renderLayer(LivingEntityRenderer<LivingEntity, ?, ? extends EntityModel<?>> renderer, LivingEntityPatch<LivingEntity> entitypatch, LivingEntity entity, OpenMatrix4f[] poses, MultiBufferSource buffer, PoseStack poseStack, int packedLight, float partialTicks) {
+ 		float f = MathUtils.lerpBetween(entity.yBodyRotO, entity.yBodyRot, partialTicks);
+         float f1 = MathUtils.lerpBetween(entity.yHeadRotO, entity.yHeadRot, partialTicks);
+         float f2 = f1 - f;
+ 		float f7 = entity.getViewXRot(partialTicks);
+ 		float bob = this.getVanillaRendererBob(entity, renderer, partialTicks);
+ 		
+-		for (RenderLayer<LivingEntity, EntityModel<LivingEntity>> layer : renderer.layers) {
++		for (RenderLayer<?, ?> layer : renderer.layers) {
+ 			Class<?> layerClass = layer.getClass();
+ 			
+ 			if (layerClass.isAnonymousClass()) {
+@@ -207,7 +159,7 @@ public class PresetRenderer extends PatchedEntityRenderer<LivingEntity, LivingEn
+ 			}
+ 		}
+ 		
+-		for (PatchedLayer<LivingEntity, LivingEntityPatch<LivingEntity>, EntityModel<LivingEntity>, ? extends RenderLayer<LivingEntity, EntityModel<LivingEntity>>> patchedLayer : this.customLayers) {
++		for (PatchedLayer<LivingEntity, LivingEntityPatch<LivingEntity>, EntityModel<?>, ? extends RenderLayer<?, ?>> patchedLayer : this.customLayers) {
+ 			patchedLayer.renderLayer(entity, entitypatch, null, poseStack, buffer, packedLight, poses, bob, f2, f7, partialTicks);
+ 		}
+ 	}
+@@ -217,12 +169,12 @@ public class PresetRenderer extends PatchedEntityRenderer<LivingEntity, LivingEn
+ 	}
+ 	
+ 	@Override
+-	public void addPatchedLayer(Class<?> originalLayerClass, PatchedLayer<LivingEntity, LivingEntityPatch<LivingEntity>, EntityModel<LivingEntity>, ? extends RenderLayer<LivingEntity, EntityModel<LivingEntity>>> patchedLayer) {
++	public void addPatchedLayer(Class<?> originalLayerClass, PatchedLayer<LivingEntity, LivingEntityPatch<LivingEntity>, EntityModel<?>, ? extends RenderLayer<?, ?>> patchedLayer) {
+ 		this.patchedLayers.putIfAbsent(originalLayerClass, patchedLayer);
+ 	}
+ 	
+ 	@Override
+-	public void addCustomLayer(PatchedLayer<LivingEntity, LivingEntityPatch<LivingEntity>, EntityModel<LivingEntity>, ? extends RenderLayer<LivingEntity, EntityModel<LivingEntity>>> patchedLayer) {
++	public void addCustomLayer(PatchedLayer<LivingEntity, LivingEntityPatch<LivingEntity>, EntityModel<?>, ? extends RenderLayer<?, ?>> patchedLayer) {
+ 		this.customLayers.add(patchedLayer);
+ 	}
+ 	
+diff --git a/src/main/java/yesman/epicfight/client/renderer/patched/layer/EmptyLayer.java b/src/main/java/yesman/epicfight/client/renderer/patched/layer/EmptyLayer.java
+index e01a4d8..b6f863c 100644
+--- a/src/main/java/yesman/epicfight/client/renderer/patched/layer/EmptyLayer.java
++++ b/src/main/java/yesman/epicfight/client/renderer/patched/layer/EmptyLayer.java
+@@ -1,4 +1,4 @@
+-package yesman.epicfight.client.renderer.patched.layer;
++package yesman.epicfight.client.renderer.patched.layer;
+ 
+ import com.mojang.blaze3d.vertex.PoseStack;
+ 
+@@ -8,7 +8,7 @@ import net.minecraft.world.entity.LivingEntity;
+ import yesman.epicfight.api.utils.math.OpenMatrix4f;
+ import yesman.epicfight.world.capabilities.entitypatch.LivingEntityPatch;
+ 
+-public class EmptyLayer<E extends LivingEntity, T extends LivingEntityPatch<E>, M extends EntityModel<E>> extends UniqueLayer<E, T, M> {
++public class EmptyLayer<E extends LivingEntity, T extends LivingEntityPatch<E>, M extends EntityModel<?>> extends UniqueLayer<E, T, M> {
+ 	// Do nothing
+ 	@Override
+ 	protected void renderLayer(T entitypatch, E entityliving, PoseStack poseStack, MultiBufferSource buffer, int packedLight, OpenMatrix4f[] poses, float bob, float yRot, float xRot, float partialTicks) {
+diff --git a/src/main/java/yesman/epicfight/client/renderer/patched/layer/LayerUtil.java b/src/main/java/yesman/epicfight/client/renderer/patched/layer/LayerUtil.java
+index 4a96963..3d8f9e9 100644
+--- a/src/main/java/yesman/epicfight/client/renderer/patched/layer/LayerUtil.java
++++ b/src/main/java/yesman/epicfight/client/renderer/patched/layer/LayerUtil.java
+@@ -31,11 +31,11 @@ import java.util.function.Supplier;
+ 
+ public class LayerUtil {
+ 	@FunctionalInterface
+-	public interface LayerProvider<E extends LivingEntity, T extends LivingEntityPatch<E>, M extends EntityModel<E>, R extends LivingEntityRenderer<E, M>, AM extends SkinnedMesh> {
+-		PatchedLayer<E, T, M, ? extends RenderLayer<E, M>> getLayer(JsonObject properties);
++	public interface LayerProvider<E extends LivingEntity, T extends LivingEntityPatch<E>, M extends EntityModel<?>, R extends LivingEntityRenderer<E, ?, ? extends M>, AM extends SkinnedMesh> {
++		PatchedLayer<E, T, M, ? extends RenderLayer<?, ?>> getLayer(JsonObject properties);
+ 	}
+ 	
+-	public static <E extends LivingEntity, T extends LivingEntityPatch<E>, M extends EntityModel<E>, R extends LivingEntityRenderer<E, M>, AM extends SkinnedMesh> void addLayer(LayerRenderer<E, T, M> renderer, EntityType<?> entityType, List<Pair<ResourceLocation, JsonElement>> layers) {
++	public static <E extends LivingEntity, T extends LivingEntityPatch<E>, M extends EntityModel<?>, R extends LivingEntityRenderer<E, ?, ? extends M>, AM extends SkinnedMesh> void addLayer(LayerRenderer<E, T, M> renderer, EntityType<?> entityType, List<Pair<ResourceLocation, JsonElement>> layers) {
+ 		Map<ResourceLocation, LayerProvider<E, T, M, R, AM>> layersbyid = new HashMap<> ();
+ 		layersbyid.put(EpicFight.identifier("invisible"), LayerUtil::getInvisibleLayer);
+ 		layersbyid.put(EpicFight.identifier("eyes"), LayerUtil::getEyesLayer);
+@@ -71,7 +71,7 @@ public class LayerUtil {
+ 				}
+ 				
+ 				LayerProvider<E, T, M, R, AM> layerAdder = layersbyid.get(rl);
+-				PatchedLayer<E, T, M, ? extends RenderLayer<E, M>> patchedLayer = layerAdder.getLayer(jsonobj);
++				PatchedLayer<E, T, M, ? extends RenderLayer<?, ?>> patchedLayer = layerAdder.getLayer(jsonobj);
+ 				
+ 				if (jsonobj.has("conditions")) {
+ 					JsonArray conditionsArray = jsonobj.getAsJsonArray("conditions");
+@@ -113,7 +113,7 @@ public class LayerUtil {
+ 		}
+ 	}
+ 	
+-	private static <E extends LivingEntity, T extends LivingEntityPatch<E>, M extends EntityModel<E>, R extends LivingEntityRenderer<E, M>, AM extends SkinnedMesh> PatchedLayer<E, T, M, ? extends RenderLayer<E, M>> getInvisibleLayer(JsonObject properties) {
++	private static <E extends LivingEntity, T extends LivingEntityPatch<E>, M extends EntityModel<?>, R extends LivingEntityRenderer<E, ?, ? extends M>, AM extends SkinnedMesh> PatchedLayer<E, T, M, ? extends RenderLayer<?, ?>> getInvisibleLayer(JsonObject properties) {
+ 		if ("none".equals(properties.get("target_layer").getAsString())) {
+ 			throw new IllegalArgumentException("Empty layer must define a target layer");
+ 		}
+@@ -121,7 +121,7 @@ public class LayerUtil {
+ 		return new EmptyLayer<E, T, M> ();
+ 	}
+ 	
+-	private static <E extends LivingEntity, T extends LivingEntityPatch<E>, M extends EntityModel<E>, R extends LivingEntityRenderer<E, M>, AM extends SkinnedMesh> PatchedLayer<E, T, M, ? extends RenderLayer<E, M>> getEyesLayer(JsonObject properties) {
++	private static <E extends LivingEntity, T extends LivingEntityPatch<E>, M extends EntityModel<?>, R extends LivingEntityRenderer<E, ?, ? extends M>, AM extends SkinnedMesh> PatchedLayer<E, T, M, ? extends RenderLayer<?, ?>> getEyesLayer(JsonObject properties) {
+ 		if (!properties.has("texture")) {
+ 			throw new NoSuchElementException("Layer type epicfight:eyes requires to specify texture");
+ 		}
+@@ -136,7 +136,7 @@ public class LayerUtil {
+ 		return new PatchedEyesLayer<> (textureLocation, mesh);
+ 	}
+ 	
+-	private static <E extends LivingEntity, T extends LivingEntityPatch<E>, M extends EntityModel<E>, R extends LivingEntityRenderer<E, M>, AM extends SkinnedMesh> PatchedLayer<E, T, M, ? extends RenderLayer<E, M>> getOriginalModelLayer(JsonObject properties) {
++	private static <E extends LivingEntity, T extends LivingEntityPatch<E>, M extends EntityModel<?>, R extends LivingEntityRenderer<E, ?, ? extends M>, AM extends SkinnedMesh> PatchedLayer<E, T, M, ? extends RenderLayer<?, ?>> getOriginalModelLayer(JsonObject properties) {
+ 		if ("none".equals(properties.get("target_layer").getAsString())) {
+ 			throw new IllegalArgumentException("Original model layer must define a target layer");
+ 		}
+diff --git a/src/main/java/yesman/epicfight/client/renderer/patched/layer/ModelRenderLayer.java b/src/main/java/yesman/epicfight/client/renderer/patched/layer/ModelRenderLayer.java
+index 8bede90..b3e3b0d 100644
+--- a/src/main/java/yesman/epicfight/client/renderer/patched/layer/ModelRenderLayer.java
++++ b/src/main/java/yesman/epicfight/client/renderer/patched/layer/ModelRenderLayer.java
+@@ -1,4 +1,4 @@
+-package yesman.epicfight.client.renderer.patched.layer;
++package yesman.epicfight.client.renderer.patched.layer;
+ 
+ import com.mojang.blaze3d.vertex.PoseStack;
+ 
+@@ -11,7 +11,7 @@ import yesman.epicfight.api.client.model.SkinnedMesh;
+ import yesman.epicfight.api.utils.math.OpenMatrix4f;
+ import yesman.epicfight.world.capabilities.entitypatch.LivingEntityPatch;
+ 
+-public abstract class ModelRenderLayer<E extends LivingEntity, T extends LivingEntityPatch<E>, M extends EntityModel<E>, R extends RenderLayer<E, M>, AM extends SkinnedMesh> extends PatchedLayer<E, T, M, R> {
++public abstract class ModelRenderLayer<E extends LivingEntity, T extends LivingEntityPatch<E>, M extends EntityModel<?>, R extends RenderLayer<?, ?>, AM extends SkinnedMesh> extends PatchedLayer<E, T, M, R> {
+ 	protected final AssetAccessor<AM> mesh;
+ 	
+ 	public ModelRenderLayer(AssetAccessor<AM> mesh) {
+@@ -19,7 +19,7 @@ public abstract class ModelRenderLayer<E extends LivingEntity, T extends LivingE
+ 	}
+ 	
+ 	@Override
+-	public void renderLayer(E entityliving, T entitypatch, RenderLayer<E, M> vanillaLayer, PoseStack poseStack, MultiBufferSource buffer, int packedLight, OpenMatrix4f[] poses, float bob, float yRot, float xRot, float partialTicks) {
++	public void renderLayer(E entityliving, T entitypatch, RenderLayer<?, ?> vanillaLayer, PoseStack poseStack, MultiBufferSource buffer, int packedLight, OpenMatrix4f[] poses, float bob, float yRot, float xRot, float partialTicks) {
+ 		this.initMesh();
+ 		this.renderLayer(entitypatch, entityliving, this.castLayer(vanillaLayer), poseStack, buffer, packedLight, poses, bob, yRot, xRot, partialTicks);
+ 	}
+diff --git a/src/main/java/yesman/epicfight/client/renderer/patched/layer/OuterLayerRenderer.java b/src/main/java/yesman/epicfight/client/renderer/patched/layer/OuterLayerRenderer.java
+index 0dc73af..aaa5dec 100644
+--- a/src/main/java/yesman/epicfight/client/renderer/patched/layer/OuterLayerRenderer.java
++++ b/src/main/java/yesman/epicfight/client/renderer/patched/layer/OuterLayerRenderer.java
+@@ -1,4 +1,4 @@
+-package yesman.epicfight.client.renderer.patched.layer;
++package yesman.epicfight.client.renderer.patched.layer;
+ 
+ import com.mojang.blaze3d.vertex.PoseStack;
+ 
+@@ -14,7 +14,7 @@ import yesman.epicfight.api.utils.math.OpenMatrix4f;
+ import yesman.epicfight.client.mesh.HumanoidMesh;
+ import yesman.epicfight.world.capabilities.entitypatch.mob.DrownedPatch;
+ 
+-public class OuterLayerRenderer extends ModelRenderLayer<Drowned, DrownedPatch, DrownedModel<Drowned>, DrownedOuterLayer<Drowned>, HumanoidMesh> {
++public class OuterLayerRenderer extends ModelRenderLayer<Drowned, DrownedPatch, DrownedModel, DrownedOuterLayer, HumanoidMesh> {
+ 	public static final ResourceLocation DROWNED_OUTER_LAYER = ResourceLocation.withDefaultNamespace("textures/entity/zombie/drowned_outer_layer.png");
+ 	
+ 	public OuterLayerRenderer() {
+@@ -22,7 +22,7 @@ public class OuterLayerRenderer extends ModelRenderLayer<Drowned, DrownedPatch,
+ 	}
+ 	
+ 	@Override
+-	protected void renderLayer(DrownedPatch entitypatch, Drowned entityliving, DrownedOuterLayer<Drowned> vanillaLayer, PoseStack poseStack, MultiBufferSource buffer, int packedLight,
++	protected void renderLayer(DrownedPatch entitypatch, Drowned entityliving, DrownedOuterLayer vanillaLayer, PoseStack poseStack, MultiBufferSource buffer, int packedLight,
+ 			OpenMatrix4f[] poses, float bob, float yRot, float xRot, float partialTicks) {
+ 		this.mesh.get().draw(poseStack, buffer, RenderTypes.entityCutoutNoCull(DROWNED_OUTER_LAYER), packedLight, 1.0F, 1.0F, 1.0F, 1.0F, LivingEntityRenderer.getOverlayCoords(entityliving, 0.0F), entitypatch.getArmature(), poses);
+ 	}
+diff --git a/src/main/java/yesman/epicfight/client/renderer/patched/layer/PatchedArrowLayer.java b/src/main/java/yesman/epicfight/client/renderer/patched/layer/PatchedArrowLayer.java
+index 69a45ea..a3932e8 100644
+--- a/src/main/java/yesman/epicfight/client/renderer/patched/layer/PatchedArrowLayer.java
++++ b/src/main/java/yesman/epicfight/client/renderer/patched/layer/PatchedArrowLayer.java
+@@ -14,7 +14,7 @@ import net.minecraft.world.entity.projectile.Arrow;
+ import net.minecraft.world.item.ItemStack;
+ import yesman.epicfight.world.capabilities.entitypatch.LivingEntityPatch;
+ 
+-public class PatchedArrowLayer<E extends LivingEntity, T extends LivingEntityPatch<E>, M extends PlayerModel<E>> extends PatchedStuckInBodyLayer<E, T, M, ArrowLayer<E, M>> {
++public class PatchedArrowLayer<E extends LivingEntity, T extends LivingEntityPatch<E>, M extends PlayerModel> extends PatchedStuckInBodyLayer<E, T, M, ArrowLayer<M>> {
+ 	private final EntityRenderDispatcher dispatcher;
+ 	
+ 	public PatchedArrowLayer(EntityRendererProvider.Context context) {
+diff --git a/src/main/java/yesman/epicfight/client/renderer/patched/layer/PatchedBeeStingerLayer.java b/src/main/java/yesman/epicfight/client/renderer/patched/layer/PatchedBeeStingerLayer.java
+index 8328d30..e20e9ec 100644
+--- a/src/main/java/yesman/epicfight/client/renderer/patched/layer/PatchedBeeStingerLayer.java
++++ b/src/main/java/yesman/epicfight/client/renderer/patched/layer/PatchedBeeStingerLayer.java
+@@ -15,7 +15,7 @@ import net.minecraft.world.entity.Entity;
+ import net.minecraft.world.entity.LivingEntity;
+ import yesman.epicfight.world.capabilities.entitypatch.LivingEntityPatch;
+ 
+-public class PatchedBeeStingerLayer<E extends LivingEntity, T extends LivingEntityPatch<E>, M extends PlayerModel<E>> extends PatchedStuckInBodyLayer<E, T, M, BeeStingerLayer<E, M>> {
++public class PatchedBeeStingerLayer<E extends LivingEntity, T extends LivingEntityPatch<E>, M extends PlayerModel> extends PatchedStuckInBodyLayer<E, T, M, BeeStingerLayer<M>> {
+ 	private static final ResourceLocation BEE_STINGER_LOCATION = ResourceLocation.withDefaultNamespace("textures/entity/bee/bee_stinger.png");
+ 	
+ 	protected void renderStuckItem(PoseStack poseStack, MultiBufferSource buffer, int packedLight, Entity entity, float pf1, float pf2, float pf3, float partialTick) {
+diff --git a/src/main/java/yesman/epicfight/client/renderer/patched/layer/PatchedCapeLayer.java b/src/main/java/yesman/epicfight/client/renderer/patched/layer/PatchedCapeLayer.java
+index 440ec38..05acbd6 100644
+--- a/src/main/java/yesman/epicfight/client/renderer/patched/layer/PatchedCapeLayer.java
++++ b/src/main/java/yesman/epicfight/client/renderer/patched/layer/PatchedCapeLayer.java
+@@ -38,7 +38,7 @@ import yesman.epicfight.client.world.capabilites.entitypatch.player.AbstractClie
+ import yesman.epicfight.config.ClientConfig;
+ import yesman.epicfight.gameasset.Armatures;
+ 
+-public class PatchedCapeLayer extends PatchedLayer<AbstractClientPlayer, AbstractClientPlayerPatch<AbstractClientPlayer>, PlayerModel<AbstractClientPlayer>, CapeLayer> {
++public class PatchedCapeLayer extends PatchedLayer<AbstractClientPlayer, AbstractClientPlayerPatch<AbstractClientPlayer>, PlayerModel, CapeLayer> {
+ 	@SuppressWarnings("unchecked")
+ 	@Override
+ 	protected void renderLayer(AbstractClientPlayerPatch<AbstractClientPlayer> entitypatch, AbstractClientPlayer entityliving, CapeLayer vanillaLayer, PoseStack poseStack, MultiBufferSource buffer, int packedLight, OpenMatrix4f[] poses, float bob, float yRot, float xRot, float partialTick) {
+diff --git a/src/main/java/yesman/epicfight/client/renderer/patched/layer/PatchedElytraLayer.java b/src/main/java/yesman/epicfight/client/renderer/patched/layer/PatchedElytraLayer.java
+index cdabdab..a1f55b4 100644
+--- a/src/main/java/yesman/epicfight/client/renderer/patched/layer/PatchedElytraLayer.java
++++ b/src/main/java/yesman/epicfight/client/renderer/patched/layer/PatchedElytraLayer.java
+@@ -4,7 +4,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
+ 
+ import net.minecraft.client.model.EntityModel;
+ import net.minecraft.client.renderer.MultiBufferSource;
+-import net.minecraft.client.renderer.entity.layers.ElytraLayer;
++import net.minecraft.client.renderer.entity.layers.WingsLayer;
+ import net.minecraft.world.entity.EquipmentSlot;
+ import net.minecraft.world.entity.LivingEntity;
+ import net.minecraft.world.item.ItemStack;
+@@ -14,9 +14,9 @@ import yesman.epicfight.api.utils.math.OpenMatrix4f;
+ import yesman.epicfight.api.utils.math.Vec3f;
+ import yesman.epicfight.world.capabilities.entitypatch.LivingEntityPatch;
+ 
+-public class PatchedElytraLayer<E extends LivingEntity, T extends LivingEntityPatch<E>, M extends EntityModel<E>> extends PatchedLayer<E, T, M, ElytraLayer<E, M>> {
++public class PatchedElytraLayer<E extends LivingEntity, T extends LivingEntityPatch<E>, M extends EntityModel<?>> extends PatchedLayer<E, T, M, WingsLayer<?, ?>> {
+ 	@Override
+-	protected void renderLayer(T entitypatch, E livingentity, ElytraLayer<E, M> vanillaLayer, PoseStack poseStack, MultiBufferSource buffer, int packedLight, OpenMatrix4f[] poses, float bob, float yRot, float xRot, float partialTicks) {
++	protected void renderLayer(T entitypatch, E livingentity, WingsLayer<?, ?> vanillaLayer, PoseStack poseStack, MultiBufferSource buffer, int packedLight, OpenMatrix4f[] poses, float bob, float yRot, float xRot, float partialTicks) {
+ 		if (livingentity.getItemBySlot(EquipmentSlot.CHEST).is(Items.ELYTRA)) {
+ 			vanillaLayer.getParentModel().copyPropertiesTo((net.minecraft.client.model.EntityModel) ((yesman.epicfight.mixin.client.ElytraLayerAccessor) vanillaLayer).epicfight$getElytraModel());
+ 			OpenMatrix4f modelMatrix = new OpenMatrix4f();
+diff --git a/src/main/java/yesman/epicfight/client/renderer/patched/layer/PatchedEyesLayer.java b/src/main/java/yesman/epicfight/client/renderer/patched/layer/PatchedEyesLayer.java
+index a4ff147..c191049 100644
+--- a/src/main/java/yesman/epicfight/client/renderer/patched/layer/PatchedEyesLayer.java
++++ b/src/main/java/yesman/epicfight/client/renderer/patched/layer/PatchedEyesLayer.java
+@@ -1,4 +1,4 @@
+-package yesman.epicfight.client.renderer.patched.layer;
++package yesman.epicfight.client.renderer.patched.layer;
+ 
+ import com.mojang.blaze3d.vertex.PoseStack;
+ 
+@@ -15,7 +15,7 @@ import yesman.epicfight.api.client.model.SkinnedMesh;
+ import yesman.epicfight.api.utils.math.OpenMatrix4f;
+ import yesman.epicfight.world.capabilities.entitypatch.LivingEntityPatch;
+ 
+-public class PatchedEyesLayer<E extends LivingEntity, T extends LivingEntityPatch<E>, M extends EntityModel<E>, AM extends SkinnedMesh> extends ModelRenderLayer<E, T, M, EyesLayer<E, M>, AM> {
++public class PatchedEyesLayer<E extends LivingEntity, T extends LivingEntityPatch<E>, M extends EntityModel<?>, AM extends SkinnedMesh> extends ModelRenderLayer<E, T, M, EyesLayer<?, ?>, AM> {
+ 	private final RenderType renderType;
+ 	
+ 	public PatchedEyesLayer(ResourceLocation eyeTexture, AssetAccessor<AM> mesh) {
+@@ -24,7 +24,7 @@ public class PatchedEyesLayer<E extends LivingEntity, T extends LivingEntityPatc
+ 	}
+ 	
+ 	@Override
+-	protected void renderLayer(T entitypatch, E entityliving, EyesLayer<E, M> vanillaLayer, PoseStack postStack, MultiBufferSource buffer, int packedLightIn, OpenMatrix4f[] poses, float bob, float yRot, float xRot, float partialTicks) {
++	protected void renderLayer(T entitypatch, E entityliving, EyesLayer<?, ?> vanillaLayer, PoseStack postStack, MultiBufferSource buffer, int packedLightIn, OpenMatrix4f[] poses, float bob, float yRot, float xRot, float partialTicks) {
+ 		this.mesh.get().draw(postStack, buffer, this.renderType, 15728640, 1.0F, 1.0F, 1.0F, 1.0F, OverlayTexture.NO_OVERLAY, entitypatch.getArmature(), poses);
+ 	}
+ }
+\ No newline at end of file
+diff --git a/src/main/java/yesman/epicfight/client/renderer/patched/layer/PatchedGolemCrackLayer.java b/src/main/java/yesman/epicfight/client/renderer/patched/layer/PatchedGolemCrackLayer.java
+index 2e222c3..17803df 100644
+--- a/src/main/java/yesman/epicfight/client/renderer/patched/layer/PatchedGolemCrackLayer.java
++++ b/src/main/java/yesman/epicfight/client/renderer/patched/layer/PatchedGolemCrackLayer.java
+@@ -18,7 +18,7 @@ import yesman.epicfight.api.utils.math.OpenMatrix4f;
+ import yesman.epicfight.client.mesh.IronGolemMesh;
+ import yesman.epicfight.world.capabilities.entitypatch.mob.IronGolemPatch;
+ 
+-public class PatchedGolemCrackLayer extends ModelRenderLayer<IronGolem, IronGolemPatch, IronGolemModel<IronGolem>, IronGolemCrackinessLayer, IronGolemMesh> {
++public class PatchedGolemCrackLayer extends ModelRenderLayer<IronGolem, IronGolemPatch, IronGolemModel, IronGolemCrackinessLayer, IronGolemMesh> {
+ 	private static final Map<Crackiness.Level, ResourceLocation> CRACK_MAP = ImmutableMap.of(
+ 			Crackiness.Level.LOW, ResourceLocation.withDefaultNamespace("textures/entity/iron_golem/iron_golem_crackiness_low.png"),
+ 			Crackiness.Level.MEDIUM, ResourceLocation.withDefaultNamespace("textures/entity/iron_golem/iron_golem_crackiness_medium.png"),
+diff --git a/src/main/java/yesman/epicfight/client/renderer/patched/layer/PatchedHeadLayer.java b/src/main/java/yesman/epicfight/client/renderer/patched/layer/PatchedHeadLayer.java
+index 8cda291..94ba683 100644
+--- a/src/main/java/yesman/epicfight/client/renderer/patched/layer/PatchedHeadLayer.java
++++ b/src/main/java/yesman/epicfight/client/renderer/patched/layer/PatchedHeadLayer.java
+@@ -1,4 +1,4 @@
+-package yesman.epicfight.client.renderer.patched.layer;
++package yesman.epicfight.client.renderer.patched.layer;
+ 
+ import com.mojang.blaze3d.vertex.PoseStack;
+ 
+@@ -15,9 +15,9 @@ import yesman.epicfight.api.utils.math.OpenMatrix4f;
+ import yesman.epicfight.api.utils.math.Vec3f;
+ import yesman.epicfight.world.capabilities.entitypatch.LivingEntityPatch;
+ 
+-public class PatchedHeadLayer<E extends LivingEntity, T extends LivingEntityPatch<E>, M extends EntityModel<E> & HeadedModel> extends PatchedLayer<E, T, M, CustomHeadLayer<E, M>> {
++public class PatchedHeadLayer<E extends LivingEntity, T extends LivingEntityPatch<E>, M extends EntityModel<?> & HeadedModel> extends PatchedLayer<E, T, M, CustomHeadLayer<?, ?>> {
+ 	@Override
+-	protected void renderLayer(T entitypatch, E entityliving, CustomHeadLayer<E, M> vanillaLayer, PoseStack postStack, MultiBufferSource buffer, int packedLightIn, OpenMatrix4f[] poses, float bob, float yRot, float xRot, float partialTicks) {
++	protected void renderLayer(T entitypatch, E entityliving, CustomHeadLayer<?, ?> vanillaLayer, PoseStack postStack, MultiBufferSource buffer, int packedLightIn, OpenMatrix4f[] poses, float bob, float yRot, float xRot, float partialTicks) {
+ 		ItemStack itemstack = entityliving.getItemBySlot(EquipmentSlot.HEAD);
+ 		
+ 		if (!itemstack.isEmpty()) {
+diff --git a/src/main/java/yesman/epicfight/client/renderer/patched/layer/PatchedItemInHandLayer.java b/src/main/java/yesman/epicfight/client/renderer/patched/layer/PatchedItemInHandLayer.java
+index 7d7299a..5cbd610 100644
+--- a/src/main/java/yesman/epicfight/client/renderer/patched/layer/PatchedItemInHandLayer.java
++++ b/src/main/java/yesman/epicfight/client/renderer/patched/layer/PatchedItemInHandLayer.java
+@@ -14,9 +14,9 @@ import yesman.epicfight.client.events.engine.RenderEngine;
+ import yesman.epicfight.client.renderer.patched.item.RenderItemBase;
+ import yesman.epicfight.world.capabilities.entitypatch.LivingEntityPatch;
+ 
+-public class PatchedItemInHandLayer<E extends LivingEntity, T extends LivingEntityPatch<E>, M extends EntityModel<E>> extends PatchedLayer<E, T, M, RenderLayer<E, M>> {
++public class PatchedItemInHandLayer<E extends LivingEntity, T extends LivingEntityPatch<E>, M extends EntityModel<?>> extends PatchedLayer<E, T, M, RenderLayer<?, ?>> {
+ 	@Override
+-	protected void renderLayer(T entitypatch, E entityliving, RenderLayer<E, M> vanillaLayer, PoseStack postStack, MultiBufferSource buffer, int packedLight, OpenMatrix4f[] poses, float bob, float yRot, float xRot, float partialTicks) {
++	protected void renderLayer(T entitypatch, E entityliving, RenderLayer<?, ?> vanillaLayer, PoseStack postStack, MultiBufferSource buffer, int packedLight, OpenMatrix4f[] poses, float bob, float yRot, float xRot, float partialTicks) {
+ 		ItemStack mainHandStack = entitypatch.getOriginal().getMainHandItem();
+ 
+ 		if (mainHandStack.getItem() != Items.AIR && entitypatch.isMainhandItemValid()) {
+diff --git a/src/main/java/yesman/epicfight/client/renderer/patched/layer/PatchedLayer.java b/src/main/java/yesman/epicfight/client/renderer/patched/layer/PatchedLayer.java
+index ccbc1d6..4a8a1f5 100644
+--- a/src/main/java/yesman/epicfight/client/renderer/patched/layer/PatchedLayer.java
++++ b/src/main/java/yesman/epicfight/client/renderer/patched/layer/PatchedLayer.java
+@@ -1,4 +1,4 @@
+-package yesman.epicfight.client.renderer.patched.layer;
++package yesman.epicfight.client.renderer.patched.layer;
+ 
+ import javax.annotation.Nullable;
+ 
+@@ -11,15 +11,15 @@ import net.minecraft.world.entity.LivingEntity;
+ import yesman.epicfight.api.utils.math.OpenMatrix4f;
+ import yesman.epicfight.world.capabilities.entitypatch.LivingEntityPatch;
+ 
+-public abstract class PatchedLayer<E extends LivingEntity, T extends LivingEntityPatch<E>, M extends EntityModel<E>, R extends RenderLayer<E, M>> {
+-	public void renderLayer(E entityliving, T entitypatch, RenderLayer<E, M> vanillaLayer, PoseStack poseStack, MultiBufferSource buffer, int packedLight, OpenMatrix4f[] poses, float bob, float yRot, float xRot, float partialTicks) {
++public abstract class PatchedLayer<E extends LivingEntity, T extends LivingEntityPatch<E>, M extends EntityModel<?>, R extends RenderLayer<?, ?>> {
++	public void renderLayer(E entityliving, T entitypatch, RenderLayer<?, ?> vanillaLayer, PoseStack poseStack, MultiBufferSource buffer, int packedLight, OpenMatrix4f[] poses, float bob, float yRot, float xRot, float partialTicks) {
+ 		this.renderLayer(entitypatch, entityliving, this.castLayer(vanillaLayer), poseStack, buffer, packedLight, poses, bob, yRot, xRot, partialTicks);
+ 	}
+ 	
+ 	protected abstract void renderLayer(T entitypatch, E entityliving, @Nullable R vanillaLayer, PoseStack poseStack, MultiBufferSource buffer, int packedLight, OpenMatrix4f[] poses, float bob, float yRot, float xRot, float partialTicks);
+ 	
+ 	@SuppressWarnings("unchecked")
+-	protected R castLayer(RenderLayer<E, M> layer) {
++	protected R castLayer(RenderLayer<?, ?> layer) {
+ 		return (R)layer;
+ 	}
+ }
+\ No newline at end of file
+diff --git a/src/main/java/yesman/epicfight/client/renderer/patched/layer/PatchedStuckInBodyLayer.java b/src/main/java/yesman/epicfight/client/renderer/patched/layer/PatchedStuckInBodyLayer.java
+index 2b95a93..4ded255 100644
+--- a/src/main/java/yesman/epicfight/client/renderer/patched/layer/PatchedStuckInBodyLayer.java
++++ b/src/main/java/yesman/epicfight/client/renderer/patched/layer/PatchedStuckInBodyLayer.java
+@@ -1,4 +1,4 @@
+-package yesman.epicfight.client.renderer.patched.layer;
++package yesman.epicfight.client.renderer.patched.layer;
+ 
+ import com.mojang.blaze3d.vertex.PoseStack;
+ 
+@@ -15,7 +15,7 @@ import yesman.epicfight.api.utils.math.Vec3f;
+ import yesman.epicfight.config.ClientConfig;
+ import yesman.epicfight.world.capabilities.entitypatch.LivingEntityPatch;
+ 
+-public abstract class PatchedStuckInBodyLayer<E extends LivingEntity, T extends LivingEntityPatch<E>, M extends PlayerModel<E>, R extends StuckInBodyLayer<E, M>> extends PatchedLayer<E, T, M, R> {
++public abstract class PatchedStuckInBodyLayer<E extends LivingEntity, T extends LivingEntityPatch<E>, M extends PlayerModel, R extends StuckInBodyLayer<M, ?>> extends PatchedLayer<E, T, M, R> {
+ 	private static final Vec3f VECTOR = new Vec3f();
+ 	
+ 	@Override
+diff --git a/src/main/java/yesman/epicfight/client/renderer/patched/layer/PatchedVillagerProfessionLayer.java b/src/main/java/yesman/epicfight/client/renderer/patched/layer/PatchedVillagerProfessionLayer.java
+index a0dfa1a..f2f4437 100644
+--- a/src/main/java/yesman/epicfight/client/renderer/patched/layer/PatchedVillagerProfessionLayer.java
++++ b/src/main/java/yesman/epicfight/client/renderer/patched/layer/PatchedVillagerProfessionLayer.java
+@@ -1,5 +1,7 @@
+ package yesman.epicfight.client.renderer.patched.layer;
+ 
++import net.minecraft.client.renderer.entity.state.ZombieVillagerRenderState;
++
+ import com.mojang.blaze3d.vertex.PoseStack;
+ 
+ import net.minecraft.client.model.ZombieVillagerModel;
+@@ -19,13 +21,13 @@ import yesman.epicfight.client.mesh.VillagerMesh;
+ import yesman.epicfight.mixin.client.VillagerProfessionLayerAccessor;
+ import yesman.epicfight.world.capabilities.entitypatch.MobPatch;
+ 
+-public class PatchedVillagerProfessionLayer extends ModelRenderLayer<ZombieVillager, MobPatch<ZombieVillager>, ZombieVillagerModel<ZombieVillager>, VillagerProfessionLayer<ZombieVillager, ZombieVillagerModel<ZombieVillager>>, VillagerMesh> {
++public class PatchedVillagerProfessionLayer extends ModelRenderLayer<ZombieVillager, MobPatch<ZombieVillager>, ZombieVillagerModel<ZombieVillagerRenderState>, VillagerProfessionLayer<ZombieVillager, ZombieVillagerModel<ZombieVillagerRenderState>>, VillagerMesh> {
+ 	public PatchedVillagerProfessionLayer() {
+ 		super(Meshes.VILLAGER_ZOMBIE);
+ 	}
+ 	
+ 	@Override
+-	protected void renderLayer(MobPatch<ZombieVillager> entitypatch, ZombieVillager entityliving, VillagerProfessionLayer<ZombieVillager, ZombieVillagerModel<ZombieVillager>> vanillaLayer, PoseStack postStack, MultiBufferSource buffer, int packedLight,
++	protected void renderLayer(MobPatch<ZombieVillager> entitypatch, ZombieVillager entityliving, VillagerProfessionLayer<ZombieVillager, ZombieVillagerModel<ZombieVillagerRenderState>> vanillaLayer, PoseStack postStack, MultiBufferSource buffer, int packedLight,
+ 			OpenMatrix4f[] poses, float bob, float yRot, float xRot, float partialTicks) {
+ 		
+ 		if (!entityliving.isInvisible()) {
+diff --git a/src/main/java/yesman/epicfight/client/renderer/patched/layer/PatchedWitherArmorLayer.java b/src/main/java/yesman/epicfight/client/renderer/patched/layer/PatchedWitherArmorLayer.java
+index 41f4ec9..7d4e7a7 100644
+--- a/src/main/java/yesman/epicfight/client/renderer/patched/layer/PatchedWitherArmorLayer.java
++++ b/src/main/java/yesman/epicfight/client/renderer/patched/layer/PatchedWitherArmorLayer.java
+@@ -1,4 +1,4 @@
+-package yesman.epicfight.client.renderer.patched.layer;
++package yesman.epicfight.client.renderer.patched.layer;
+ 
+ import com.mojang.blaze3d.vertex.PoseStack;
+ 
+@@ -20,7 +20,7 @@ import yesman.epicfight.client.renderer.EpicFightRenderTypes;
+ import yesman.epicfight.gameasset.Animations;
+ import yesman.epicfight.world.capabilities.entitypatch.boss.WitherPatch;
+ 
+-public class PatchedWitherArmorLayer extends ModelRenderLayer<WitherBoss, WitherPatch, WitherBossModel<WitherBoss>, WitherArmorLayer, WitherMesh> {
++public class PatchedWitherArmorLayer extends ModelRenderLayer<WitherBoss, WitherPatch, WitherBossModel, WitherArmorLayer, WitherMesh> {
+ 	private static final ResourceLocation WITHER_ARMOR_LOCATION = ResourceLocation.withDefaultNamespace("textures/entity/wither/wither_armor.png");
+ 	
+ 	public PatchedWitherArmorLayer() {
+diff --git a/src/main/java/yesman/epicfight/client/renderer/patched/layer/RenderOriginalModelLayer.java b/src/main/java/yesman/epicfight/client/renderer/patched/layer/RenderOriginalModelLayer.java
+index 0c2ce2d..283863f 100644
+--- a/src/main/java/yesman/epicfight/client/renderer/patched/layer/RenderOriginalModelLayer.java
++++ b/src/main/java/yesman/epicfight/client/renderer/patched/layer/RenderOriginalModelLayer.java
+@@ -1,4 +1,4 @@
+-package yesman.epicfight.client.renderer.patched.layer;
++package yesman.epicfight.client.renderer.patched.layer;
+ 
+ import com.mojang.blaze3d.vertex.PoseStack;
+ import com.mojang.math.Axis;
+@@ -12,7 +12,7 @@ import yesman.epicfight.api.utils.math.OpenMatrix4f;
+ import yesman.epicfight.api.utils.math.Vec3f;
+ import yesman.epicfight.world.capabilities.entitypatch.LivingEntityPatch;
+ 
+-public class RenderOriginalModelLayer<E extends LivingEntity, T extends LivingEntityPatch<E>, M extends EntityModel<E>> extends PatchedLayer<E, T, M, RenderLayer<E, M>> {
++public class RenderOriginalModelLayer<E extends LivingEntity, T extends LivingEntityPatch<E>, M extends EntityModel<?>> extends PatchedLayer<E, T, M, RenderLayer<?, ?>> {
+ 	private final String parentJoint;
+ 	private final Vec3f vec;
+ 	private final Vec3f rot;
+@@ -24,7 +24,7 @@ public class RenderOriginalModelLayer<E extends LivingEntity, T extends LivingEn
+ 	}
+ 	
+ 	@Override
+-	protected void renderLayer(T entitypatch, E entityliving, RenderLayer<E, M> vanillaLayer, PoseStack poseStack, MultiBufferSource buffer, int packedLight, OpenMatrix4f[] poses, float bob, float yRot, float xRot, float partialTicks) {
++	protected void renderLayer(T entitypatch, E entityliving, RenderLayer<?, ?> vanillaLayer, PoseStack poseStack, MultiBufferSource buffer, int packedLight, OpenMatrix4f[] poses, float bob, float yRot, float xRot, float partialTicks) {
+ 		OpenMatrix4f modelMatrix = poses[entitypatch.getArmature().searchJointByName(this.parentJoint).getId()];
+ 		
+ 		poseStack.pushPose();
+diff --git a/src/main/java/yesman/epicfight/client/renderer/patched/layer/UniqueLayer.java b/src/main/java/yesman/epicfight/client/renderer/patched/layer/UniqueLayer.java
+index 74a4b57..bfa1d74 100644
+--- a/src/main/java/yesman/epicfight/client/renderer/patched/layer/UniqueLayer.java
++++ b/src/main/java/yesman/epicfight/client/renderer/patched/layer/UniqueLayer.java
+@@ -1,4 +1,4 @@
+-package yesman.epicfight.client.renderer.patched.layer;
++package yesman.epicfight.client.renderer.patched.layer;
+ 
+ import com.mojang.blaze3d.vertex.PoseStack;
+ 
+@@ -9,10 +9,10 @@ import net.minecraft.world.entity.LivingEntity;
+ import yesman.epicfight.api.utils.math.OpenMatrix4f;
+ import yesman.epicfight.world.capabilities.entitypatch.LivingEntityPatch;
+ 
+-public abstract class UniqueLayer<E extends LivingEntity, T extends LivingEntityPatch<E>, M extends EntityModel<E>> extends PatchedLayer<E, T, M, RenderLayer<E, M>> {
++public abstract class UniqueLayer<E extends LivingEntity, T extends LivingEntityPatch<E>, M extends EntityModel<?>> extends PatchedLayer<E, T, M, RenderLayer<?, ?>> {
+ 	// parameter vanillaLayer is always null
+ 	@Override
+-	protected void renderLayer(T entitypatch, E entityliving, RenderLayer<E, M> vanillaLayer, PoseStack poseStack, MultiBufferSource buffer, int packedLight, OpenMatrix4f[] poses, float bob, float yRot, float xRot, float partialTicks) {
++	protected void renderLayer(T entitypatch, E entityliving, RenderLayer<?, ?> vanillaLayer, PoseStack poseStack, MultiBufferSource buffer, int packedLight, OpenMatrix4f[] poses, float bob, float yRot, float xRot, float partialTicks) {
+ 		this.renderLayer(entitypatch, entityliving, poseStack, buffer, packedLight, poses, bob, yRot, xRot, partialTicks);
+ 	}
+ 	
+diff --git a/src/main/java/yesman/epicfight/client/renderer/patched/layer/WearableItemLayer.java b/src/main/java/yesman/epicfight/client/renderer/patched/layer/WearableItemLayer.java
+index 82ab4d3..a3c43c1 100644
+--- a/src/main/java/yesman/epicfight/client/renderer/patched/layer/WearableItemLayer.java
++++ b/src/main/java/yesman/epicfight/client/renderer/patched/layer/WearableItemLayer.java
+@@ -57,7 +57,7 @@ import yesman.epicfight.client.mesh.HumanoidMesh;
+ import yesman.epicfight.client.renderer.EpicFightRenderTypes;
+ import yesman.epicfight.world.capabilities.entitypatch.LivingEntityPatch;
+ 
+-public class WearableItemLayer<E extends LivingEntity, T extends LivingEntityPatch<E>, M extends HumanoidModel<E>, AM extends HumanoidMesh> extends ModelRenderLayer<E, T, M, HumanoidArmorLayer<E, M, M>, AM> {
++public class WearableItemLayer<E extends LivingEntity, T extends LivingEntityPatch<E>, M extends HumanoidModel<?>, AM extends HumanoidMesh> extends ModelRenderLayer<E, T, M, HumanoidArmorLayer<?, ?, ?>, AM> {
+ 	private static final Map<ResourceLocation, SkinnedMesh> ARMOR_MODELS = new HashMap<> ();
+ 	private static final Map<String, ResourceLocation> EPICFIGHT_OVERRIDING_TEXTURES = new HashMap<> ();
+ 	
+@@ -107,7 +107,7 @@ public class WearableItemLayer<E extends LivingEntity, T extends LivingEntityPat
+ 	
+ 	@SuppressWarnings("unchecked")
+ 	@Override
+-	public void renderLayer(T entitypatch, E livingentity, HumanoidArmorLayer<E, M, M> vanillaLayer, PoseStack poseStack, MultiBufferSource buffers, int packedLight, OpenMatrix4f[] poses, float bob, float yRot, float xRot, float partialTicks) {
++	public void renderLayer(T entitypatch, E livingentity, HumanoidArmorLayer<?, ?, ?> vanillaLayer, PoseStack poseStack, MultiBufferSource buffers, int packedLight, OpenMatrix4f[] poses, float bob, float yRot, float xRot, float partialTicks) {
+ 		for (EquipmentSlot slot : EquipmentSlot.values()) {
+ 			if (slot.getType() != EquipmentSlot.Type.HUMANOID_ARMOR) {
+ 				continue;
+@@ -237,7 +237,7 @@ public class WearableItemLayer<E extends LivingEntity, T extends LivingEntityPat
+ 		}
+ 	}
+ 	
+-	private SkinnedMesh getArmorModel(HumanoidArmorLayer<E, M, M> originalRenderer, M originalModel, Model forgeHooksArmorModel, E entityliving, ArmorItem armorItem, ItemStack itemstack, EquipmentSlot slot) {
++	private SkinnedMesh getArmorModel(HumanoidArmorLayer<?, ?, ?> originalRenderer, M originalModel, Model forgeHooksArmorModel, E entityliving, ArmorItem armorItem, ItemStack itemstack, EquipmentSlot slot) {
+ 		ResourceLocation registryName = BuiltInRegistries.ITEM.getKey(armorItem);
+ 		
+ 		if (ARMOR_MODELS.containsKey(registryName) && !RenderEngine.getInstance().shouldRenderVanillaModel()) {
+diff --git a/src/main/java/yesman/epicfight/client/renderer/patched/layer/WrappedConditionalLayer.java b/src/main/java/yesman/epicfight/client/renderer/patched/layer/WrappedConditionalLayer.java
+index 7bbfc00..3561886 100644
+--- a/src/main/java/yesman/epicfight/client/renderer/patched/layer/WrappedConditionalLayer.java
++++ b/src/main/java/yesman/epicfight/client/renderer/patched/layer/WrappedConditionalLayer.java
+@@ -1,4 +1,4 @@
+-package yesman.epicfight.client.renderer.patched.layer;
++package yesman.epicfight.client.renderer.patched.layer;
+ 
+ import java.util.function.Function;
+ 
+@@ -13,7 +13,7 @@ import net.minecraft.world.entity.LivingEntity;
+ import yesman.epicfight.api.utils.math.OpenMatrix4f;
+ import yesman.epicfight.world.capabilities.entitypatch.LivingEntityPatch;
+ 
+-public class WrappedConditionalLayer<E extends LivingEntity, T extends LivingEntityPatch<E>, M extends EntityModel<E>, R extends RenderLayer<E, M>> extends PatchedLayer<E, T, M, R> {
++public class WrappedConditionalLayer<E extends LivingEntity, T extends LivingEntityPatch<E>, M extends EntityModel<?>, R extends RenderLayer<?, ?>> extends PatchedLayer<E, T, M, R> {
+ 	private final PatchedLayer<E, T, M, R> layer;
+ 	private final Function<LivingEntityPatch<?>, Boolean> renderCondition;
+ 	
+diff --git a/src/main/java/yesman/epicfight/compat/fgm/WildfireFGMCompat.java b/src/main/java/yesman/epicfight/compat/fgm/WildfireFGMCompat.java
+index 9c65dbc..4831f6b 100644
+--- a/src/main/java/yesman/epicfight/compat/fgm/WildfireFGMCompat.java
++++ b/src/main/java/yesman/epicfight/compat/fgm/WildfireFGMCompat.java
+@@ -82,7 +82,7 @@ public class WildfireFGMCompat implements ICompatModule {
+ 
+     }
+ 
+-    public static class EpicFightWildfireRenderLayer extends PatchedLayer<AbstractClientPlayer, AbstractClientPlayerPatch<AbstractClientPlayer>, PlayerModel<AbstractClientPlayer>, GenderLayer<AbstractClientPlayer, PlayerModel<AbstractClientPlayer>>> {
++    public static class EpicFightWildfireRenderLayer extends PatchedLayer<AbstractClientPlayer, AbstractClientPlayerPatch<AbstractClientPlayer>, PlayerModel, GenderLayer<AbstractClientPlayer, PlayerModel>> {
+         private static final WildfireModelRenderer.OverlayModelBox lBreastWear = new WildfireModelRenderer.OverlayModelBox(true, 64, 64, 17, 34, -4.0F, 0.0F, 0.0F, 4, 5, 3, 0.0F, false);
+         private static final WildfireModelRenderer.OverlayModelBox rBreastWear = new WildfireModelRenderer.OverlayModelBox(false, 64, 64, 21, 34, 0.0F, 0.0F, 0.0F, 4, 5, 3, 0.0F, false);
+         private static final WildfireModelRenderer.BreastModelBox lBoobArmor = new WildfireModelRenderer.BreastModelBox(64, 32, 16, 17, -4.0F, 0.0F, 0.0F, 4, 5, 3, 0.0F, false);
+@@ -94,7 +94,7 @@ public class WildfireFGMCompat implements ICompatModule {
+         float preOffsetZ;
+ 
+         @Override
+-        protected void renderLayer(AbstractClientPlayerPatch<AbstractClientPlayer> entityPatch, AbstractClientPlayer entity, @Nullable GenderLayer<AbstractClientPlayer, PlayerModel<AbstractClientPlayer>> vanillaLayer, PoseStack poseStack, MultiBufferSource buffer, int packedLight, OpenMatrix4f[] poses, float bob, float yRot, float xRot, float partialTicks) {
++        protected void renderLayer(AbstractClientPlayerPatch<AbstractClientPlayer> entityPatch, AbstractClientPlayer entity, @Nullable GenderLayer<AbstractClientPlayer, PlayerModel> vanillaLayer, PoseStack poseStack, MultiBufferSource buffer, int packedLight, OpenMatrix4f[] poses, float bob, float yRot, float xRot, float partialTicks) {
+             if (vanillaLayer instanceof yesman.epicfight.compat.fgm.mixin.FemaleLayerAccessor<?, ?> accessor) {
+                 if (!entity.isSpectator()) {
+                     try {
+diff --git a/src/main/java/yesman/epicfight/compat/skinlayer3d/SkinLayer3DCompat.java b/src/main/java/yesman/epicfight/compat/skinlayer3d/SkinLayer3DCompat.java
+index f6e01de..218e1d6 100644
+--- a/src/main/java/yesman/epicfight/compat/skinlayer3d/SkinLayer3DCompat.java
++++ b/src/main/java/yesman/epicfight/compat/skinlayer3d/SkinLayer3DCompat.java
+@@ -108,7 +108,7 @@ public class SkinLayer3DCompat implements ICompatModule {
+ 		}
+ 	}
+ 	
+-	public static class EpicFight3DSkinLayerRenderer extends ModelRenderLayer<AbstractClientPlayer, AbstractClientPlayerPatch<AbstractClientPlayer>, PlayerModel<AbstractClientPlayer>, CustomLayerFeatureRenderer, HumanoidMesh> {
++	public static class EpicFight3DSkinLayerRenderer extends ModelRenderLayer<AbstractClientPlayer, AbstractClientPlayerPatch<AbstractClientPlayer>, PlayerModel, CustomLayerFeatureRenderer, HumanoidMesh> {
+ 		private final Map<PlayerModelPart, Function<Player, Boolean>> partVisibilities = Maps.newHashMap();
+ 
+ 		public EpicFight3DSkinLayerRenderer() {
+diff --git a/src/main/java/yesman/epicfight/compat/trinkets/TrinketsCompat.java b/src/main/java/yesman/epicfight/compat/trinkets/TrinketsCompat.java
+index 1d939ea..351c8f5 100644
+--- a/src/main/java/yesman/epicfight/compat/trinkets/TrinketsCompat.java
++++ b/src/main/java/yesman/epicfight/compat/trinkets/TrinketsCompat.java
+@@ -44,12 +44,12 @@ public class TrinketsCompat implements ICompatModule {
+ 	public void onInitializeClientServer() {
+ 	}
+ 
+-	public static class PatchedTrinketsLayer extends PatchedLayer<AbstractClientPlayer, AbstractClientPlayerPatch<AbstractClientPlayer>, PlayerModel<AbstractClientPlayer>, TrinketFeatureRenderer<AbstractClientPlayer, PlayerModel<AbstractClientPlayer>>> {
++	public static class PatchedTrinketsLayer extends PatchedLayer<AbstractClientPlayer, AbstractClientPlayerPatch<AbstractClientPlayer>, PlayerModel, TrinketFeatureRenderer<AbstractClientPlayer, PlayerModel>> {
+ 		@Override
+ 		protected void renderLayer(
+ 			  AbstractClientPlayerPatch<AbstractClientPlayer> entitypatch
+ 			, AbstractClientPlayer livingEntity
+-			, TrinketFeatureRenderer<AbstractClientPlayer, PlayerModel<AbstractClientPlayer>> vanillaLayer
++			, TrinketFeatureRenderer<AbstractClientPlayer, PlayerModel> vanillaLayer
+ 			, PoseStack poseStack
+ 			, MultiBufferSource buffers
+ 			, int packedLight
+diff --git a/src/main/java/yesman/epicfight/mixin/client/MixinCustomFeatureRenderer.java b/src/main/java/yesman/epicfight/mixin/client/MixinCustomFeatureRenderer.java
+new file mode 100644
+index 0000000..1e49d1d
+--- /dev/null
++++ b/src/main/java/yesman/epicfight/mixin/client/MixinCustomFeatureRenderer.java
+@@ -0,0 +1,18 @@
++package yesman.epicfight.mixin.client;
++
++import net.minecraft.client.renderer.MultiBufferSource;
++import net.minecraft.client.renderer.SubmitNodeCollection;
++import net.minecraft.client.renderer.feature.CustomFeatureRenderer;
++import org.spongepowered.asm.mixin.Mixin;
++import org.spongepowered.asm.mixin.injection.At;
++import org.spongepowered.asm.mixin.injection.Inject;
++import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
++import yesman.epicfight.client.renderer.EntityRenderTasks;
++
++@Mixin(CustomFeatureRenderer.class)
++abstract class MixinCustomFeatureRenderer {
++    @Inject(method = "render", at = @At("HEAD"))
++    private void epicfight$renderEntities(SubmitNodeCollection submits, MultiBufferSource.BufferSource buffers, CallbackInfo ci) {
++        for (var draw : ((EntityRenderTasks)submits).epicfight$entityDraws()) draw.accept(buffers);
++    }
++}
+diff --git a/src/main/java/yesman/epicfight/mixin/client/MixinEntityRenderExtraction.java b/src/main/java/yesman/epicfight/mixin/client/MixinEntityRenderExtraction.java
+new file mode 100644
+index 0000000..9cc0a45
+--- /dev/null
++++ b/src/main/java/yesman/epicfight/mixin/client/MixinEntityRenderExtraction.java
+@@ -0,0 +1,18 @@
++package yesman.epicfight.mixin.client;
++
++import net.minecraft.client.renderer.entity.EntityRenderer;
++import net.minecraft.client.renderer.entity.state.EntityRenderState;
++import net.minecraft.world.entity.Entity;
++import org.spongepowered.asm.mixin.Mixin;
++import org.spongepowered.asm.mixin.injection.At;
++import org.spongepowered.asm.mixin.injection.Inject;
++import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
++import yesman.epicfight.client.renderer.EntityRenderSource;
++
++@Mixin(EntityRenderer.class)
++abstract class MixinEntityRenderExtraction {
++    @Inject(method = "createRenderState(Lnet/minecraft/world/entity/Entity;F)Lnet/minecraft/client/renderer/entity/state/EntityRenderState;", at = @At("RETURN"))
++    private void epicfight$capture(Entity entity, float partialTick, CallbackInfoReturnable<EntityRenderState> result) {
++        ((EntityRenderSource)result.getReturnValue()).epicfight$capture(entity, partialTick);
++    }
++}
+diff --git a/src/main/java/yesman/epicfight/mixin/client/MixinEntityRenderState.java b/src/main/java/yesman/epicfight/mixin/client/MixinEntityRenderState.java
+new file mode 100644
+index 0000000..35eb15d
+--- /dev/null
++++ b/src/main/java/yesman/epicfight/mixin/client/MixinEntityRenderState.java
+@@ -0,0 +1,20 @@
++package yesman.epicfight.mixin.client;
++
++import net.minecraft.client.renderer.entity.state.EntityRenderState;
++import net.minecraft.world.entity.Entity;
++import org.spongepowered.asm.mixin.Mixin;
++import org.spongepowered.asm.mixin.Unique;
++import yesman.epicfight.client.renderer.EntityRenderSource;
++
++@Mixin(EntityRenderState.class)
++abstract class MixinEntityRenderState implements EntityRenderSource {
++    @Unique private Entity epicfight$entity;
++    @Unique private float epicfight$partialTick;
++
++    @Override public void epicfight$capture(Entity entity, float partialTick) {
++        this.epicfight$entity = entity;
++        this.epicfight$partialTick = partialTick;
++    }
++    @Override public Entity epicfight$entity() { return this.epicfight$entity; }
++    @Override public float epicfight$partialTick() { return this.epicfight$partialTick; }
++}
+diff --git a/src/main/java/yesman/epicfight/mixin/client/MixinEntityRenderer.java b/src/main/java/yesman/epicfight/mixin/client/MixinEntityRenderer.java
+index dbc316e..d362562 100644
+--- a/src/main/java/yesman/epicfight/mixin/client/MixinEntityRenderer.java
++++ b/src/main/java/yesman/epicfight/mixin/client/MixinEntityRenderer.java
+@@ -1,20 +1,15 @@
+ package yesman.epicfight.mixin.client;
+ 
+-import org.spongepowered.asm.mixin.Mixin;
+-import org.spongepowered.asm.mixin.gen.Invoker;
+-
+ import com.mojang.blaze3d.vertex.PoseStack;
+-
+-import net.minecraft.client.renderer.MultiBufferSource;
++import net.minecraft.client.renderer.SubmitNodeCollector;
+ import net.minecraft.client.renderer.entity.EntityRenderer;
+-import net.minecraft.network.chat.Component;
+-import net.minecraft.world.entity.Entity;
++import net.minecraft.client.renderer.entity.state.EntityRenderState;
++import net.minecraft.client.renderer.state.CameraRenderState;
++import org.spongepowered.asm.mixin.Mixin;
++import org.spongepowered.asm.mixin.gen.Invoker;
+ 
+-@Mixin(value = EntityRenderer.class)
++@Mixin(EntityRenderer.class)
+ public interface MixinEntityRenderer {
+-	@Invoker("shouldShowName")
+-	public boolean invokeShouldShowName(Entity entity);
+-	
+-	@Invoker("renderNameTag")
+-	public void invokeRenderNameTag(Entity entity, Component name, PoseStack poseStack, MultiBufferSource bufferSource, int i1, float partialTick);
++    @Invoker("submitNameTag")
++    void invokeSubmitNameTag(EntityRenderState state, PoseStack pose, SubmitNodeCollector collector, CameraRenderState camera);
+ }
+diff --git a/src/main/java/yesman/epicfight/mixin/client/MixinLivingEntityRenderer.java b/src/main/java/yesman/epicfight/mixin/client/MixinLivingEntityRenderer.java
+index 8b9614a..f95bc97 100644
+--- a/src/main/java/yesman/epicfight/mixin/client/MixinLivingEntityRenderer.java
++++ b/src/main/java/yesman/epicfight/mixin/client/MixinLivingEntityRenderer.java
+@@ -1,20 +1,20 @@
+-package yesman.epicfight.mixin.client;
+-
+-import org.spongepowered.asm.mixin.Mixin;
+-import org.spongepowered.asm.mixin.gen.Invoker;
+-
+-import net.minecraft.client.renderer.RenderType;
+-import net.minecraft.client.renderer.entity.LivingEntityRenderer;
+-import net.minecraft.world.entity.LivingEntity;
+-
+-@Mixin(value = LivingEntityRenderer.class)
+-public interface MixinLivingEntityRenderer {
+-	@Invoker("isBodyVisible")
+-	public boolean invokeIsBodyVisible(LivingEntity entity);
+-
+-	@Invoker("getRenderType")
+-	public RenderType invokeGetRenderType(LivingEntity entity, boolean flag1, boolean flag2, boolean flag3);
+-
+-	@Invoker("getBob")
+-	public float invokeGetBob(LivingEntity entity, float partialTicks);
+-}
++package yesman.epicfight.mixin.client;
++
++import net.minecraft.client.renderer.entity.LivingEntityRenderer;
++import net.minecraft.client.renderer.entity.state.LivingEntityRenderState;
++import net.minecraft.client.renderer.rendertype.RenderType;
++import net.minecraft.world.entity.LivingEntity;
++import org.spongepowered.asm.mixin.Mixin;
++import org.spongepowered.asm.mixin.gen.Invoker;
++
++@Mixin(LivingEntityRenderer.class)
++public interface MixinLivingEntityRenderer {
++    @Invoker("isBodyVisible")
++    boolean invokeIsBodyVisible(LivingEntityRenderState state);
++
++    @Invoker("getRenderType")
++    RenderType invokeGetRenderType(LivingEntityRenderState state, boolean visible, boolean translucent, boolean glowing);
++
++    @Invoker("isEntityUpsideDown")
++    boolean invokeIsEntityUpsideDown(LivingEntity entity);
++}
+diff --git a/src/main/java/yesman/epicfight/mixin/client/MixinLivingEntityRendererInject.java b/src/main/java/yesman/epicfight/mixin/client/MixinLivingEntityRendererInject.java
+index f649822..30e22c4 100644
+--- a/src/main/java/yesman/epicfight/mixin/client/MixinLivingEntityRendererInject.java
++++ b/src/main/java/yesman/epicfight/mixin/client/MixinLivingEntityRendererInject.java
+@@ -1,33 +1,27 @@
+-package yesman.epicfight.mixin.client;
+-
+-import com.mojang.blaze3d.vertex.PoseStack;
+-import net.minecraft.client.renderer.MultiBufferSource;
+-import net.minecraft.client.renderer.entity.LivingEntityRenderer;
+-import net.minecraft.world.entity.LivingEntity;
+-import org.spongepowered.asm.mixin.Mixin;
+-import org.spongepowered.asm.mixin.injection.At;
+-import org.spongepowered.asm.mixin.injection.Inject;
+-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+-import yesman.epicfight.api.client.event.EpicFightClientEventHooks;
+-import yesman.epicfight.api.client.event.types.render.RenderLivingPreEvent;
+-
+-/// Class mixin for [LivingEntityRenderer] that intercepts [render] at HEAD to fire [RenderLivingPreEvent].
+-///
+-/// This is separate from [MixinLivingEntityRenderer] (the interface accessor mixin) because
+-/// `@Inject` requires a class mixin, while `@Invoker` methods work in interface mixins.
+-@Mixin(value = LivingEntityRenderer.class)
+-public abstract class MixinLivingEntityRendererInject {
+-	@Inject(
+-		method = "render(Lnet/minecraft/world/entity/LivingEntity;FFLcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;I)V",
+-		at = @At("HEAD"),
+-		cancellable = true
+-	)
+-	private void epicfight$renderLivingPre(LivingEntity entity, float entityYaw, float partialTick, PoseStack poseStack, MultiBufferSource bufferSource, int packedLight, CallbackInfo callbackInfo) {
+-		LivingEntityRenderer<?, ?> self = (LivingEntityRenderer<?, ?>)(Object)this;
+-		RenderLivingPreEvent event = new RenderLivingPreEvent(entity, self, partialTick, poseStack, bufferSource, packedLight);
+-
+-		if (EpicFightClientEventHooks.Render.RENDER_LIVING_PRE.post(event).isCanceled()) {
+-			callbackInfo.cancel();
+-		}
+-	}
+-}
++package yesman.epicfight.mixin.client;
++
++import com.mojang.blaze3d.vertex.PoseStack;
++import net.minecraft.client.renderer.SubmitNodeCollector;
++import net.minecraft.client.renderer.entity.LivingEntityRenderer;
++import net.minecraft.client.renderer.entity.state.LivingEntityRenderState;
++import net.minecraft.client.renderer.state.CameraRenderState;
++import net.minecraft.world.entity.LivingEntity;
++import org.spongepowered.asm.mixin.Mixin;
++import org.spongepowered.asm.mixin.injection.At;
++import org.spongepowered.asm.mixin.injection.Inject;
++import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
++import yesman.epicfight.api.client.event.EpicFightClientEventHooks;
++import yesman.epicfight.api.client.event.types.render.RenderLivingPreEvent;
++import yesman.epicfight.client.renderer.EntityRenderSource;
++
++@Mixin(LivingEntityRenderer.class)
++abstract class MixinLivingEntityRendererInject {
++    @Inject(method = "submit(Lnet/minecraft/client/renderer/entity/state/LivingEntityRenderState;Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;Lnet/minecraft/client/renderer/state/CameraRenderState;)V", at = @At("HEAD"), cancellable = true)
++    private void epicfight$submitLiving(LivingEntityRenderState state, PoseStack pose, SubmitNodeCollector collector, CameraRenderState camera, CallbackInfo ci) {
++        var source = (EntityRenderSource)state;
++        if (!(source.epicfight$entity() instanceof LivingEntity entity)) return;
++        var renderer = (LivingEntityRenderer<?, ?, ?>)(Object)this;
++        var event = new RenderLivingPreEvent(entity, renderer, source.epicfight$partialTick(), pose, collector, state.lightCoords);
++        if (EpicFightClientEventHooks.Render.RENDER_LIVING_PRE.post(event).isCanceled()) ci.cancel();
++    }
++}
+diff --git a/src/main/java/yesman/epicfight/mixin/client/MixinSubmitNodeCollection.java b/src/main/java/yesman/epicfight/mixin/client/MixinSubmitNodeCollection.java
+index 66edb19..07ee8a2 100644
+--- a/src/main/java/yesman/epicfight/mixin/client/MixinSubmitNodeCollection.java
++++ b/src/main/java/yesman/epicfight/mixin/client/MixinSubmitNodeCollection.java
+@@ -2,6 +2,8 @@ package yesman.epicfight.mixin.client;
+ 
+ import java.util.ArrayList;
+ import java.util.List;
++import java.util.function.Consumer;
++import net.minecraft.client.renderer.MultiBufferSource;
+ import net.minecraft.client.renderer.SubmitNodeCollection;
+ import org.spongepowered.asm.mixin.Mixin;
+ import org.spongepowered.asm.mixin.Unique;
+@@ -9,11 +11,17 @@ import org.spongepowered.asm.mixin.injection.At;
+ import org.spongepowered.asm.mixin.injection.Inject;
+ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+ import yesman.epicfight.client.particle.ParticleAfterimages;
++import yesman.epicfight.client.renderer.EntityRenderTasks;
+ 
+ @Mixin(SubmitNodeCollection.class)
+-abstract class MixinSubmitNodeCollection implements ParticleAfterimages {
++abstract class MixinSubmitNodeCollection implements ParticleAfterimages, EntityRenderTasks {
+     @Unique private final List<Runnable> epicfight$afterimages = new ArrayList<>();
+ 
++    @Unique private final List<Consumer<MultiBufferSource.BufferSource>> epicfight$entityDraws = new ArrayList<>();
++
++    @Override
++    public List<Consumer<MultiBufferSource.BufferSource>> epicfight$entityDraws() { return this.epicfight$entityDraws; }
++
+     @Override
+     public List<Runnable> epicfight$afterimages() {
+         return this.epicfight$afterimages;
+@@ -22,5 +30,6 @@ abstract class MixinSubmitNodeCollection implements ParticleAfterimages {
+     @Inject(method = "clear", at = @At("TAIL"))
+     private void epicfight$clearAfterimages(CallbackInfo ci) {
+         this.epicfight$afterimages.clear();
++        this.epicfight$entityDraws.clear();
+     }
+ }
+diff --git a/src/main/resources/epicfight.mixins.json b/src/main/resources/epicfight.mixins.json
+index 32a6589..1b5793d 100644
+--- a/src/main/resources/epicfight.mixins.json
++++ b/src/main/resources/epicfight.mixins.json
+@@ -11,6 +11,9 @@
+         "client.MixinClientPacketListener",
+         "client.MixinEnderDragonRenderer",
+         "client.MixinEntityRenderer",
++        "client.MixinEntityRenderExtraction",
++        "client.MixinEntityRenderState",
++        "client.MixinCustomFeatureRenderer",
+         "client.MixinGameRenderer",
+         "client.MixinGui",
+         "client.MixinInventory",
