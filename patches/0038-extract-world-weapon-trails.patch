@@ -1,0 +1,333 @@
+diff --git a/src/main/java/yesman/epicfight/client/gui/datapack/widgets/ModelPreviewer.java b/src/main/java/yesman/epicfight/client/gui/datapack/widgets/ModelPreviewer.java
+index 729dbdb..1d6ea6d 100644
+--- a/src/main/java/yesman/epicfight/client/gui/datapack/widgets/ModelPreviewer.java
++++ b/src/main/java/yesman/epicfight/client/gui/datapack/widgets/ModelPreviewer.java
+@@ -50,7 +50,6 @@ import yesman.epicfight.api.physics.SimulationTypes;
+ import yesman.epicfight.api.physics.bezier.CubicBezierCurve;
+ import yesman.epicfight.api.utils.math.*;
+ import yesman.epicfight.client.particle.AnimationTrailParticle;
+-import yesman.epicfight.client.particle.EpicFightParticleRenderTypes;
+ import yesman.epicfight.gameasset.Animations;
+ import yesman.epicfight.main.EpicFightSharedConstants;
+ import yesman.epicfight.world.capabilities.entitypatch.Faction;
+@@ -1021,10 +1020,6 @@ public class ModelPreviewer extends AbstractWidget implements ResizableComponent
+ 			super(ModelPreviewer.this.entitypatch.getArmature(), ModelPreviewer.this.entitypatch, joint, animation, trailInfo);
+ 		}
+ 
+-        @Override
+-        public ParticleRenderType getRenderType() {
+-            return EpicFightParticleRenderTypes.TRAIL_EFFECT.apply(this.trailInfo.texturePath());
+-        }
+ 
+ 		@Override
+ 		public void tick() {
+diff --git a/src/main/java/yesman/epicfight/client/particle/AbstractTrailParticle.java b/src/main/java/yesman/epicfight/client/particle/AbstractTrailParticle.java
+index 2bbf083..e83f834 100644
+--- a/src/main/java/yesman/epicfight/client/particle/AbstractTrailParticle.java
++++ b/src/main/java/yesman/epicfight/client/particle/AbstractTrailParticle.java
+@@ -12,7 +12,9 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
+ import net.minecraft.client.Camera;
+ import net.minecraft.client.multiplayer.ClientLevel;
+ import net.minecraft.client.particle.ParticleRenderType;
+-import net.minecraft.client.particle.TextureSheetParticle;
++import net.minecraft.client.particle.Particle;
++import net.minecraft.util.ARGB;
++import javax.annotation.Nullable;
+ import net.minecraft.client.renderer.LevelRenderer;
+ import net.minecraft.core.BlockPos;
+ import net.minecraft.util.Mth;
+@@ -24,7 +26,9 @@ import net.minecraft.world.phys.Vec3;
+ import yesman.epicfight.api.client.animation.property.TrailInfo;
+ import yesman.epicfight.world.capabilities.entitypatch.EntityPatch;
+ 
+-public abstract class AbstractTrailParticle<T extends EntityPatch<?>> extends TextureSheetParticle {
++public abstract class AbstractTrailParticle<T extends EntityPatch<?>> extends Particle {
++    protected float rCol, gCol, bCol;
++    protected float alpha = 1.0F;
+ 	protected final TrailInfo trailInfo;
+ 	protected final T owner;
+ 	protected final List<TrailEdge> trailEdges;
+@@ -102,11 +106,15 @@ public abstract class AbstractTrailParticle<T extends EntityPatch<?>> extends Te
+ 		this.createNextCurve();
+ 	}
+ 	
+-	public void render(VertexConsumer vertexConsumer, Camera camera, float partialTick) {
+-		if (this.trailEdges.isEmpty()) {
+-			return;
+-		}
+-		
++    public void render(VertexConsumer consumer, Camera camera, float partialTick) {
++        TrailGeometry geometry = this.extractTrail(camera, partialTick);
++        if (geometry != null) geometry.draw(consumer);
++    }
++
++    @Nullable
++    TrailGeometry extractTrail(Camera camera, float partialTick) {
++        if (this.trailEdges.size() < 2) return null;
++
+ 		PoseStack poseStack = new PoseStack();
+ 		int light = this.getLightColor(partialTick);
+ 		this.setupPoseStack(poseStack, camera, partialTick);
+@@ -116,7 +124,9 @@ public abstract class AbstractTrailParticle<T extends EntityPatch<?>> extends Te
+ 		boolean endFade = this.trailEdges.get(edges).lifetime == this.trailInfo.trailLifetime();
+ 		float startEdge = (startFade ? this.trailInfo.interpolateCount() * 2 * partialTick : 0.0F) + this.startEdgeCorrection;
+ 		float endEdge = endFade ? Math.min(edges - (this.trailInfo.interpolateCount() * 2) * (1.0F - partialTick), edges - 1) : edges - 1;
+-		float interval = 1.0F / (endEdge - startEdge);
++        if (endEdge <= startEdge || startEdge < 0 || (int)endEdge >= edges) return null;
++        TrailGeometry geometry = new TrailGeometry(this.trailInfo.texturePath(), ((int)endEdge - (int)startEdge + 1) * 4, light);
++        float interval = 1.0F / (endEdge - startEdge);
+ 		float fading = 1.0F;
+ 		
+ 		if (this.shouldRemove) {
+@@ -152,22 +162,24 @@ public abstract class AbstractTrailParticle<T extends EntityPatch<?>> extends Te
+ 			float alphaFrom = Mth.clamp(from, 0.0F, 1.0F);
+ 			float alphaTo = Mth.clamp(to, 0.0F, 1.0F);
+ 			
+-			vertexConsumer.addVertex(pos1.x(), pos1.y(), pos1.z()).setUv(from, 1.0F).setColor(this.rCol, this.gCol, this.bCol, this.alpha * alphaFrom * fading).setLight(light);
+-			vertexConsumer.addVertex(pos2.x(), pos2.y(), pos2.z()).setUv(from, 0.0F).setColor(this.rCol, this.gCol, this.bCol, this.alpha * alphaFrom * fading).setLight(light);
+-			vertexConsumer.addVertex(pos3.x(), pos3.y(), pos3.z()).setUv(to, 0.0F).setColor(this.rCol, this.gCol, this.bCol, this.alpha * alphaTo * fading).setLight(light);
+-			vertexConsumer.addVertex(pos4.x(), pos4.y(), pos4.z()).setUv(to, 1.0F).setColor(this.rCol, this.gCol, this.bCol, this.alpha * alphaTo * fading).setLight(light);
++			geometry.add(pos1.x(), pos1.y(), pos1.z(), from, 1.0F, ARGB.colorFromFloat(this.alpha * alphaFrom * fading, this.rCol, this.gCol, this.bCol));
++			geometry.add(pos2.x(), pos2.y(), pos2.z(), from, 0.0F, ARGB.colorFromFloat(this.alpha * alphaFrom * fading, this.rCol, this.gCol, this.bCol));
++			geometry.add(pos3.x(), pos3.y(), pos3.z(), to, 0.0F, ARGB.colorFromFloat(this.alpha * alphaTo * fading, this.rCol, this.gCol, this.bCol));
++			geometry.add(pos4.x(), pos4.y(), pos4.z(), to, 1.0F, ARGB.colorFromFloat(this.alpha * alphaTo * fading, this.rCol, this.gCol, this.bCol));
+ 			
+ 			from += interval;
+ 			to += interval;
+ 		}
++        return geometry;
+ 	}
+ 	
+ 	public AABB getRenderBoundingBox(float partialTicks) {
+         return new AABB(Double.NEGATIVE_INFINITY, Double.NEGATIVE_INFINITY, Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY);
+     }
+ 	
+-		public ParticleRenderType getRenderType() {
+-		return EpicFightParticleRenderTypes.TRAIL_EFFECT.apply(this.trailInfo.texturePath());
++	@Override
++	public ParticleRenderType getGroup() {
++		return TrailParticleGroup.ID;
+ 	}
+ 	
+ 	protected void setupPoseStack(PoseStack poseStack, Camera camera, float partialTicks) {
+diff --git a/src/main/java/yesman/epicfight/client/particle/AnimationTrailParticle.java b/src/main/java/yesman/epicfight/client/particle/AnimationTrailParticle.java
+index ec5da81..0840336 100644
+--- a/src/main/java/yesman/epicfight/client/particle/AnimationTrailParticle.java
++++ b/src/main/java/yesman/epicfight/client/particle/AnimationTrailParticle.java
+@@ -3,19 +3,13 @@ package yesman.epicfight.client.particle;
+ import java.util.List;
+ import java.util.Optional;
+ 
+-import org.lwjgl.opengl.GL11;
+-import org.lwjgl.opengl.GL12;
+ 
+ import com.google.common.collect.Lists;
+-import com.mojang.blaze3d.systems.RenderSystem;
+ 
+-import net.minecraft.client.Minecraft;
+ import net.minecraft.util.RandomSource;
+ import net.minecraft.client.multiplayer.ClientLevel;
+ import net.minecraft.client.particle.Particle;
+ import net.minecraft.client.particle.ParticleProvider;
+-import net.minecraft.client.renderer.texture.AbstractTexture;
+-import net.minecraft.client.renderer.texture.TextureManager;
+ import net.minecraft.core.particles.SimpleParticleType;
+ import net.minecraft.world.entity.Entity;
+ import net.minecraft.world.item.ItemStack;
+@@ -91,15 +85,7 @@ public class AnimationTrailParticle extends AbstractTrailParticle<LivingEntityPa
+ 		this.rCol = Math.max(this.trailInfo.rCol(), 0.0F);
+ 		this.gCol = Math.max(this.trailInfo.gCol(), 0.0F);
+ 		this.bCol = Math.max(this.trailInfo.bCol(), 0.0F);
+-		
+-		if (this.trailInfo.texturePath() != null) {
+-			TextureManager texturemanager = Minecraft.getInstance().getTextureManager();
+-			AbstractTexture abstracttexture = texturemanager.getTexture(this.trailInfo.texturePath());
+-		    
+-			RenderSystem.bindTexture(abstracttexture.getId());
+-			RenderSystem.texParameter(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_S, GL12.GL_CLAMP_TO_EDGE);
+-		    RenderSystem.texParameter(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_T, GL12.GL_CLAMP_TO_EDGE);
+-		}
++
+ 	}
+ 	
+ 	@Deprecated /** This constructor is only for {@link ModelPreviewer} **/
+@@ -132,15 +118,7 @@ public class AnimationTrailParticle extends AbstractTrailParticle<LivingEntityPa
+ 		this.rCol = Math.max(this.trailInfo.rCol(), 0.0F);
+ 		this.gCol = Math.max(this.trailInfo.gCol(), 0.0F);
+ 		this.bCol = Math.max(this.trailInfo.bCol(), 0.0F);
+-		
+-		if (this.trailInfo.texturePath() != null) {
+-			TextureManager texturemanager = Minecraft.getInstance().getTextureManager();
+-			AbstractTexture abstracttexture = texturemanager.getTexture(this.trailInfo.texturePath());
+-		    
+-			RenderSystem.bindTexture(abstracttexture.getId());
+-			RenderSystem.texParameter(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_S, GL12.GL_CLAMP_TO_EDGE);
+-		    RenderSystem.texParameter(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_T, GL12.GL_CLAMP_TO_EDGE);
+-		}
++
+ 	}
+ 	
+ 	@Override
+diff --git a/src/main/java/yesman/epicfight/client/particle/TrailGeometry.java b/src/main/java/yesman/epicfight/client/particle/TrailGeometry.java
+new file mode 100644
+index 0000000..5ba89d5
+--- /dev/null
++++ b/src/main/java/yesman/epicfight/client/particle/TrailGeometry.java
+@@ -0,0 +1,60 @@
++package yesman.epicfight.client.particle;
++
++import com.mojang.blaze3d.pipeline.BlendFunction;
++import com.mojang.blaze3d.pipeline.RenderPipeline;
++import com.mojang.blaze3d.systems.RenderSystem;
++import com.mojang.blaze3d.textures.FilterMode;
++import com.mojang.blaze3d.vertex.PoseStack;
++import com.mojang.blaze3d.vertex.VertexConsumer;
++import net.minecraft.client.renderer.RenderPipelines;
++import net.minecraft.client.renderer.SubmitNodeCollector;
++import net.minecraft.client.renderer.rendertype.RenderSetup;
++import net.minecraft.client.renderer.rendertype.RenderType;
++import net.minecraft.resources.Identifier;
++import net.minecraft.util.Util;
++import java.util.function.Function;
++
++/** Camera-relative trail vertices captured during particle extraction. */
++public final class TrailGeometry {
++    private static final RenderPipeline PIPELINE = RenderPipeline.builder(RenderPipelines.PARTICLE_SNIPPET)
++        .withLocation(Identifier.fromNamespaceAndPath("epicfight", "pipeline/weapon_trail")).withBlend(BlendFunction.TRANSLUCENT)
++        .withDepthWrite(false).withCull(false).build();
++    private static final Function<Identifier, RenderType> TYPES = Util.memoize(texture -> RenderType.create(
++        "epicfight:weapon_trail", RenderSetup.builder(PIPELINE).useLightmap()
++            .withTexture("Sampler0", texture, () -> RenderSystem.getSamplerCache().getClampToEdge(FilterMode.LINEAR))
++            .createRenderSetup()));
++    private final Identifier texture;
++    private final float[] positionsAndUVs;
++    private final int[] colors;
++    private final int light;
++    private int size;
++
++    TrailGeometry(Identifier texture, int vertices, int light) {
++        this.texture = texture;
++        this.positionsAndUVs = new float[vertices * 5];
++        this.colors = new int[vertices];
++        this.light = light;
++    }
++
++    void add(float x, float y, float z, float u, float v, int argb) {
++        int off = size * 5;
++        positionsAndUVs[off] = x;
++        positionsAndUVs[off+1] = y;
++        positionsAndUVs[off+2] = z;
++        positionsAndUVs[off+3] = u;
++        positionsAndUVs[off+4] = v;
++        colors[size++] = argb;
++    }
++
++    void submit(SubmitNodeCollector collector, PoseStack stack) {
++        collector.submitCustomGeometry(stack, TYPES.apply(texture), (pose, consumer) -> draw(consumer));
++    }
++
++    void draw(VertexConsumer consumer) {
++        for (int i = 0; i < size; ++i) {
++            int off = i * 5;
++            consumer.addVertex(positionsAndUVs[off], positionsAndUVs[off+1], positionsAndUVs[off+2])
++                .setUv(positionsAndUVs[off+3], positionsAndUVs[off+4]).setColor(colors[i]).setLight(light);
++        }
++    }
++}
+diff --git a/src/main/java/yesman/epicfight/client/particle/TrailParticleGroup.java b/src/main/java/yesman/epicfight/client/particle/TrailParticleGroup.java
+new file mode 100644
+index 0000000..77fb04b
+--- /dev/null
++++ b/src/main/java/yesman/epicfight/client/particle/TrailParticleGroup.java
+@@ -0,0 +1,39 @@
++package yesman.epicfight.client.particle;
++
++import com.mojang.blaze3d.vertex.PoseStack;
++import net.minecraft.client.Camera;
++import net.minecraft.client.particle.ParticleEngine;
++import net.minecraft.client.particle.ParticleGroup;
++import net.minecraft.client.particle.ParticleRenderType;
++import net.minecraft.client.renderer.SubmitNodeCollector;
++import net.minecraft.client.renderer.culling.Frustum;
++import net.minecraft.client.renderer.state.CameraRenderState;
++import net.minecraft.client.renderer.state.ParticleGroupRenderState;
++import java.util.ArrayList;
++import java.util.List;
++
++public final class TrailParticleGroup extends ParticleGroup<AbstractTrailParticle<?>> {
++    public static final ParticleRenderType ID = new ParticleRenderType("epicfight:weapon_trails");
++
++    public TrailParticleGroup(ParticleEngine engine) {
++        super(engine);
++    }
++
++    @Override public ParticleGroupRenderState extractRenderState(Frustum frustum, Camera camera, float partialTick) {
++        List<TrailGeometry> ribbons = new ArrayList<>(particles.size());
++        // A trail can extend far outside its owner's box. Each strip supplies its own visible edges.
++        for (AbstractTrailParticle<?> particle : particles) {
++            TrailGeometry ribbon = particle.extractTrail(camera, partialTick);
++            if (ribbon != null) ribbons.add(ribbon);
++        }
++        return new Frame(ribbons);
++    }
++
++    private record Frame(List<TrailGeometry> ribbons) implements ParticleGroupRenderState {
++        @Override public void submit(SubmitNodeCollector collector, CameraRenderState camera) {
++            PoseStack origin = new PoseStack();
++            for (TrailGeometry ribbon : ribbons) ribbon.submit(collector, origin);
++        }
++        @Override public void clear() { ribbons.clear(); }
++    }
++}
+diff --git a/src/main/java/yesman/epicfight/mixin/client/MixinTrailParticleEngine.java b/src/main/java/yesman/epicfight/mixin/client/MixinTrailParticleEngine.java
+new file mode 100644
+index 0000000..3c87d82
+--- /dev/null
++++ b/src/main/java/yesman/epicfight/mixin/client/MixinTrailParticleEngine.java
+@@ -0,0 +1,34 @@
++package yesman.epicfight.mixin.client;
++
++import net.minecraft.client.Camera;
++import net.minecraft.client.particle.ParticleEngine;
++import net.minecraft.client.particle.ParticleGroup;
++import net.minecraft.client.particle.ParticleRenderType;
++import net.minecraft.client.renderer.culling.Frustum;
++import net.minecraft.client.renderer.state.ParticlesRenderState;
++import org.spongepowered.asm.mixin.Final;
++import org.spongepowered.asm.mixin.Mixin;
++import org.spongepowered.asm.mixin.Shadow;
++import org.spongepowered.asm.mixin.injection.At;
++import org.spongepowered.asm.mixin.injection.Inject;
++import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
++import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
++import yesman.epicfight.client.particle.TrailParticleGroup;
++import java.util.Map;
++
++@Mixin(ParticleEngine.class)
++abstract class MixinTrailParticleEngine {
++    @Shadow @Final private Map<ParticleRenderType, ParticleGroup<?>> particles;
++
++    @Inject(method = "createParticleGroup", at = @At("HEAD"), cancellable = true)
++    private void epicfight$createTrailGroup(ParticleRenderType type, CallbackInfoReturnable<ParticleGroup<?>> callback) {
++        if (type.equals(TrailParticleGroup.ID)) callback.setReturnValue(new TrailParticleGroup((ParticleEngine)(Object)this));
++    }
++
++    @Inject(method = "extract", at = @At("TAIL"))
++    private void epicfight$extractTrails(ParticlesRenderState frame, Frustum frustum, Camera camera,
++                                         float partialTick, CallbackInfo callback) {
++        ParticleGroup<?> group = particles.get(TrailParticleGroup.ID);
++        if (group != null && !group.isEmpty()) frame.add(group.extractRenderState(frustum, camera, partialTick));
++    }
++}
+diff --git a/src/main/resources/epicfight.mixins.json b/src/main/resources/epicfight.mixins.json
+index 19e17a6..a5986cc 100644
+--- a/src/main/resources/epicfight.mixins.json
++++ b/src/main/resources/epicfight.mixins.json
+@@ -31,6 +31,7 @@
+         "client.MixinMouseHandler",
+         "client.MixinOptions",
+         "client.MixinParticleEngine",
++        "client.MixinTrailParticleEngine",
+         "client.MixinClientResourceReload",
+         "client.MixinThrownTridentRenderer",
+         "client.MixinBossHealthOverlay",

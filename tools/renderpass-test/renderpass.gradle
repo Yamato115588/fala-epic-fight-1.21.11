@@ -6,6 +6,7 @@ rootProject { project ->
         def src = project.file('src/main/java/yesman/epicfight/client/renderer/shader/compute')
         def compileProbe = project.tasks.register('compileComputeRenderPassTest', JavaCompile) {
             source new File(probeDir, 'ComputeRenderPassTest.java'), new File(probeDir, 'SkinningInputs.java'), new File(src, 'ComputeVertexBuffer.java')
+            source new File(probeDir, 'TrailGeometryTest.java'), project.file('src/main/java/yesman/epicfight/client/particle/TrailGeometry.java')
             source(['ComputeProgram', 'ComputeShader', 'Uniform'].collect { new File(src, "backend/program/${it}.java") })
             classpath = project.configurations.compileClasspath
             destinationDirectory.set(dest)

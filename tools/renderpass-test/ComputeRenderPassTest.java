@@ -63,6 +63,7 @@ public final class ComputeRenderPassTest {
                 RenderSystem.initRenderer(window, 0, false,
                     (name, stage) -> stage == ShaderType.VERTEX ? VERTEX : PIXEL, false);
                 run(Path.of(args[0]), Path.of(args[1]));
+                yesman.epicfight.client.particle.TrailGeometryTest.run();
             } finally { GLFW.glfwDestroyWindow(window); }
         } finally { GLFW.glfwTerminate(); }
     }
