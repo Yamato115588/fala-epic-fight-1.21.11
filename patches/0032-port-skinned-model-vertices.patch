@@ -1,0 +1,786 @@
+diff --git a/src/main/java/yesman/epicfight/api/client/model/transformer/MeshVertex.java b/src/main/java/yesman/epicfight/api/client/model/transformer/MeshVertex.java
+new file mode 100644
+index 0000000..9fc1a57
+--- /dev/null
++++ b/src/main/java/yesman/epicfight/api/client/model/transformer/MeshVertex.java
+@@ -0,0 +1,49 @@
++package yesman.epicfight.api.client.model.transformer;
++
++import net.minecraft.client.model.geom.ModelPart;
++import net.minecraft.core.Vec3i;
++import org.jetbrains.annotations.ApiStatus;
++import org.joml.Matrix4fc;
++import org.joml.Vector3f;
++
++/** Model-space position and UV while splitting armor polygons at joint-weight boundaries. */
++@ApiStatus.Internal
++public class MeshVertex {
++    public final Vector3f pos;
++    public final float u;
++    public final float v;
++
++    public MeshVertex(Vector3f pos, float u, float v) {
++        this.pos = pos;
++        this.u = u;
++        this.v = v;
++    }
++
++    public MeshVertex(float x, float y, float z, float u, float v) {
++        this(new Vector3f(x, y, z), u, v);
++    }
++
++    public static MeshVertex transform(ModelPart.Vertex vertex, Matrix4fc matrix) {
++        Vector3f position = matrix.transformPosition(vertex.x(), vertex.y(), vertex.z(), new Vector3f());
++        return new MeshVertex(position, vertex.u(), vertex.v());
++    }
++
++    public static final class AnimatedVertex extends MeshVertex {
++        public final Vec3i jointId;
++        public final Vector3f weight;
++
++        public AnimatedVertex(MeshVertex source, int joint) {
++            this(source, joint, 0, 0, 1.0F, 0.0F, 0.0F);
++        }
++
++        public AnimatedVertex(MeshVertex source, int first, int second, int third, float w1, float w2, float w3) {
++            this(source, source.u, source.v, new Vec3i(first, second, third), new Vector3f(w1, w2, w3));
++        }
++
++        public AnimatedVertex(MeshVertex source, float u, float v, Vec3i joints, Vector3f weights) {
++            super(new Vector3f(source.pos), u, v);
++            this.jointId = joints;
++            this.weight = weights;
++        }
++    }
++}
+diff --git a/src/main/java/yesman/epicfight/api/client/model/transformer/VanillaModelTransformer.java b/src/main/java/yesman/epicfight/api/client/model/transformer/VanillaModelTransformer.java
+index f4e65c8..6ce0fb8 100644
+--- a/src/main/java/yesman/epicfight/api/client/model/transformer/VanillaModelTransformer.java
++++ b/src/main/java/yesman/epicfight/api/client/model/transformer/VanillaModelTransformer.java
+@@ -1,5 +1,6 @@
+ package yesman.epicfight.api.client.model.transformer;
+ 
++import yesman.epicfight.api.client.model.transformer.MeshVertex.AnimatedVertex;
+ import java.util.ArrayList;
+ import java.util.List;
+ import java.util.Map;
+@@ -8,6 +9,7 @@ import java.util.function.Supplier;
+ import org.joml.Matrix4f;
+ import org.joml.Quaternionf;
+ import org.joml.Vector3f;
++import org.joml.Vector3fc;
+ import org.joml.Vector4f;
+ 
+ import com.google.common.collect.Lists;
+@@ -19,7 +21,6 @@ import net.minecraft.client.model.HumanoidModel;
+ import net.minecraft.client.model.geom.ModelPart;
+ import net.minecraft.client.model.geom.PartPose;
+ import net.minecraft.core.Direction;
+-import net.minecraft.core.Vec3i;
+ import net.minecraft.world.phys.AABB;
+ import net.minecraft.world.phys.Vec3;
+ import yesman.epicfight.api.client.model.Mesh.RenderProperties;
+@@ -164,8 +165,8 @@ public class VanillaModelTransformer extends HumanoidModelTransformer {
+ 		PartPose initialPose = part.getInitialPose();
+ 		
+ 		poseStack.pushPose();
+-		poseStack.translate(initialPose.x, initialPose.y, initialPose.z);
+-		poseStack.mulPose(new Quaternionf().rotationZYX(initialPose.zRot, initialPose.yRot, initialPose.xRot));
++		poseStack.translate(initialPose.x(), initialPose.y(), initialPose.z());
++		poseStack.mulPose(new Quaternionf().rotationZYX(initialPose.zRot(), initialPose.yRot(), initialPose.xRot()));
+ 		
+ 		if (!bindPart) {
+ 			poseStack.scale(part.xScale, part.yScale, part.zScale);
+@@ -212,16 +213,16 @@ public class VanillaModelTransformer extends HumanoidModelTransformer {
+ 		
+ 		public void bakeCube(PoseStack poseStack, MeshPartDefinition partDefinition, ModelPart.Cube cube, List<SingleGroupVertexBuilder> vertices, Map<MeshPartDefinition, IntList> indices, PartTransformer.IndexCounter indexCounter) {
+ 			for (ModelPart.Polygon quad : cube.polygons) {
+-				Vector3f norm = new Vector3f(quad.normal);
++				Vector3f norm = new Vector3f(quad.normal());
+ 				norm.mul(poseStack.last().normal());
+ 				
+-				for (ModelPart.Vertex vertex : quad.vertices) {
+-					Vector4f pos = new Vector4f(vertex.pos, 1.0F);
++				for (ModelPart.Vertex vertex : quad.vertices()) {
++					Vector4f pos = new Vector4f(vertex.x(), vertex.y(), vertex.z(), 1.0F);
+ 					pos.mul(poseStack.last().pose());
+ 					vertices.add(new SingleGroupVertexBuilder()
+ 						.setPosition(new Vec3f(pos.x(), pos.y(), pos.z()).scale(0.0625F))
+ 						.setNormal(new Vec3f(norm.x(), norm.y(), norm.z()))
+-						.setTextureCoordinate(new Vec2f(vertex.u, vertex.v))
++						.setTextureCoordinate(new Vec2f(vertex.u(), vertex.v()))
+ 						.setEffectiveJointIDs(new Vec3f(this.jointId, 0, 0))
+ 						.setEffectiveJointWeights(new Vec3f(1.0F, 0.0F, 0.0F))
+ 						.setEffectiveJointNumber(1)
+@@ -271,11 +272,11 @@ public class VanillaModelTransformer extends HumanoidModelTransformer {
+ 			for (ModelPart.Polygon polygon : cube.polygons) {
+ 				Matrix4f matrix = poseStack.last().pose();
+ 				
+-				ModelPart.Vertex pos0 = getTranslatedVertex(polygon.vertices[0], matrix);
+-				ModelPart.Vertex pos1 = getTranslatedVertex(polygon.vertices[1], matrix);
+-				ModelPart.Vertex pos2 = getTranslatedVertex(polygon.vertices[2], matrix);
+-				ModelPart.Vertex pos3 = getTranslatedVertex(polygon.vertices[3], matrix);
+-				Direction direction = getDirectionFromVector(polygon.normal);
++				MeshVertex pos0 = MeshVertex.transform(polygon.vertices()[0], matrix);
++				MeshVertex pos1 = MeshVertex.transform(polygon.vertices()[1], matrix);
++				MeshVertex pos2 = MeshVertex.transform(polygon.vertices()[2], matrix);
++				MeshVertex pos3 = MeshVertex.transform(polygon.vertices()[3], matrix);
++				Direction direction = getDirectionFromVector(polygon.normal());
+ 				
+ 				VertexWeight pos0Weight = getYClipWeight(pos0.pos.y());
+ 				VertexWeight pos1Weight = getYClipWeight(pos1.pos.y());
+@@ -285,8 +286,8 @@ public class VanillaModelTransformer extends HumanoidModelTransformer {
+ 				if (pos1.pos.x() > X_PLANE != pos2.pos.x() > X_PLANE) {
+ 					float distance = pos2.pos.x() - pos1.pos.x();
+ 					float textureU = pos1.u + (pos2.u - pos1.u) * ((X_PLANE - pos1.pos.x()) / distance);
+-					ModelPart.Vertex pos4 = new ModelPart.Vertex(X_PLANE, pos0.pos.y(), pos0.pos.z(), textureU, pos0.v);
+-					ModelPart.Vertex pos5 = new ModelPart.Vertex(X_PLANE, pos1.pos.y(), pos1.pos.z(), textureU, pos1.v);
++					MeshVertex pos4 = new MeshVertex(X_PLANE, pos0.pos.y(), pos0.pos.z(), textureU, pos0.v);
++					MeshVertex pos5 = new MeshVertex(X_PLANE, pos1.pos.y(), pos1.pos.z(), textureU, pos1.v);
+ 					
+ 					xClipPolygons.add(new AnimatedPolygon(new AnimatedVertex[] {
+ 						new AnimatedVertex(pos0, 8, 7, 0, pos0Weight.chestWeight, pos0Weight.torsoWeight, 0),
+@@ -328,8 +329,8 @@ public class VanillaModelTransformer extends HumanoidModelTransformer {
+ 						float textureV = pos1.v + (pos2.v - pos1.v) * ((vertexWeight.yClipCoord - pos1.pos.y()) / distance);
+ 						Vector3f clipPos1 = getClipPoint(pos1.pos, pos2.pos, vertexWeight.yClipCoord);
+ 						Vector3f clipPos2 = getClipPoint(pos0.pos, pos3.pos, vertexWeight.yClipCoord);
+-						ModelPart.Vertex pos4 = new ModelPart.Vertex(clipPos2, pos0.u, textureV);
+-						ModelPart.Vertex pos5 = new ModelPart.Vertex(clipPos1, pos1.u, textureV);
++						MeshVertex pos4 = new MeshVertex(clipPos2, pos0.u, textureV);
++						MeshVertex pos5 = new MeshVertex(clipPos1, pos1.u, textureV);
+ 						animatedVertices.add(new AnimatedVertex(pos4, 8, 7, 0, vertexWeight.chestWeight, vertexWeight.torsoWeight, 0));
+ 						animatedVertices.add(new AnimatedVertex(pos5, 8, 7, 0, vertexWeight.chestWeight, vertexWeight.torsoWeight, 0));
+ 					}
+@@ -454,19 +455,19 @@ public class VanillaModelTransformer extends HumanoidModelTransformer {
+ 			
+ 			for (ModelPart.Polygon quad : cube.polygons) {
+ 				Matrix4f matrix = poseStack.last().pose();
+-				ModelPart.Vertex pos0 = getTranslatedVertex(quad.vertices[0], matrix);
+-				ModelPart.Vertex pos1 = getTranslatedVertex(quad.vertices[1], matrix);
+-				ModelPart.Vertex pos2 = getTranslatedVertex(quad.vertices[2], matrix);
+-				ModelPart.Vertex pos3 = getTranslatedVertex(quad.vertices[3], matrix);
+-				Direction direction = getDirectionFromVector(quad.normal);
++				MeshVertex pos0 = MeshVertex.transform(quad.vertices()[0], matrix);
++				MeshVertex pos1 = MeshVertex.transform(quad.vertices()[1], matrix);
++				MeshVertex pos2 = MeshVertex.transform(quad.vertices()[2], matrix);
++				MeshVertex pos3 = MeshVertex.transform(quad.vertices()[3], matrix);
++				Direction direction = getDirectionFromVector(quad.normal());
+ 				
+ 				if (pos1.pos.y() > this.yClipCoord != pos2.pos.y() > this.yClipCoord) {
+ 					float distance = pos2.pos.y() - pos1.pos.y();
+ 					float textureV = pos1.v + (pos2.v - pos1.v) * ((this.yClipCoord - pos1.pos.y()) / distance);
+ 					Vector3f clipPos1 = getClipPoint(pos1.pos, pos2.pos, this.yClipCoord);
+ 					Vector3f clipPos2 = getClipPoint(pos0.pos, pos3.pos, this.yClipCoord);
+-					ModelPart.Vertex pos4 = new ModelPart.Vertex(clipPos2, pos0.u, textureV);
+-					ModelPart.Vertex pos5 = new ModelPart.Vertex(clipPos1, pos1.u, textureV);
++					MeshVertex pos4 = new MeshVertex(clipPos2, pos0.u, textureV);
++					MeshVertex pos5 = new MeshVertex(clipPos1, pos1.u, textureV);
+ 					
+ 					int upperId, lowerId;
+ 					if (distance > 0) {
+@@ -546,7 +547,7 @@ public class VanillaModelTransformer extends HumanoidModelTransformer {
+ 		}
+ 	}
+ 	
+-	static Direction getDirectionFromVector(Vector3f directionVec) {
++	static Direction getDirectionFromVector(Vector3fc directionVec) {
+ 		for (Direction direction : Direction.values()) {
+ 			Vector3f direcVec = new Vector3f(Float.compare(directionVec.x(), -0.0F) == 0 ? 0.0F : directionVec.x(), directionVec.y(), directionVec.z());
+ 			if (direcVec.equals(direction.step())) {
+@@ -568,8 +569,8 @@ public class VanillaModelTransformer extends HumanoidModelTransformer {
+ 		Matrix4f matrix = poseStack.last().pose();
+ 		
+ 		for (ModelPart.Polygon quad : cube.polygons) {
+-			for (ModelPart.Vertex v : quad.vertices) {
+-				Vector4f translatedPosition = new Vector4f(v.pos, 1.0F);
++			for (ModelPart.Vertex v : quad.vertices()) {
++				Vector4f translatedPosition = new Vector4f(v.x(), v.y(), v.z(), 1.0F);
+ 				translatedPosition.mul(matrix);
+ 				
+ 				if (minX > translatedPosition.x()) {
+@@ -612,35 +613,7 @@ public class VanillaModelTransformer extends HumanoidModelTransformer {
+ 		return clipPoint;
+ 	}
+ 	
+-	static ModelPart.Vertex getTranslatedVertex(ModelPart.Vertex original, Matrix4f matrix) {
+-		Vector4f translatedPosition = new Vector4f(original.pos, 1.0F);
+-		translatedPosition.mul(matrix);
+-		
+-		return new ModelPart.Vertex(translatedPosition.x(), translatedPosition.y(), translatedPosition.z(), original.u, original.v);
+-	}
+ 	
+-	static class AnimatedVertex extends ModelPart.Vertex {
+-		final Vec3i jointId;
+-		final Vec3f weight;
+-		
+-		public AnimatedVertex(ModelPart.Vertex posTexVertx, int jointId) {
+-			this(posTexVertx, jointId, 0, 0, 1.0F, 0.0F, 0.0F);
+-		}
+-		
+-		public AnimatedVertex(ModelPart.Vertex posTexVertx, int jointId1, int jointId2, int jointId3, float weight1, float weight2, float weight3) {
+-			this(posTexVertx, new Vec3i(jointId1, jointId2, jointId3), new Vec3f(weight1, weight2, weight3));
+-		}
+-		
+-		public AnimatedVertex(ModelPart.Vertex posTexVertx, Vec3i ids, Vec3f weights) {
+-			this(posTexVertx, posTexVertx.u, posTexVertx.v, ids, weights);
+-		}
+-		
+-		public AnimatedVertex(ModelPart.Vertex posTexVertx, float u, float v, Vec3i ids, Vec3f weights) {
+-			super(posTexVertx.pos.x(), posTexVertx.pos.y(), posTexVertx.pos.z(), u, v);
+-			this.jointId = ids;
+-			this.weight = weights;
+-		}
+-	}
+ 	
+ 	static class AnimatedPolygon {
+ 		public final AnimatedVertex[] animatedVertexPositions;
+@@ -707,10 +680,10 @@ public class VanillaModelTransformer extends HumanoidModelTransformer {
+ 				ModelPart lastPart = part;
+ 				PartPose partPose = part.getInitialPose();
+ 				OpenMatrix4f partAnimation = OpenMatrix4f.mulMatrices(animParentTransform,
+-																	  new OpenMatrix4f().mulBack(OpenMatrix4f.fromQuaternion(new Quaternionf().rotationZYX(partPose.zRot, partPose.yRot, partPose.xRot)).transpose().invert())
+-																						.translate(new Vec3f(lastPart.x - partPose.x, lastPart.y - partPose.y, lastPart.z - partPose.z).scale(0.0625F))
+-																						.mulBack(OpenMatrix4f.fromQuaternion(new Quaternionf().rotationZYX(partPose.zRot, partPose.yRot, partPose.xRot)).transpose())
+-																						.mulBack(OpenMatrix4f.fromQuaternion(new Quaternionf().rotationZYX(lastPart.zRot - partPose.zRot, lastPart.yRot - partPose.yRot, lastPart.xRot - partPose.xRot)).transpose())
++																	  new OpenMatrix4f().mulBack(OpenMatrix4f.fromQuaternion(new Quaternionf().rotationZYX(partPose.zRot(), partPose.yRot(), partPose.xRot())).transpose().invert())
++																						.translate(new Vec3f(lastPart.x - partPose.x(), lastPart.y - partPose.y(), lastPart.z - partPose.z()).scale(0.0625F))
++																						.mulBack(OpenMatrix4f.fromQuaternion(new Quaternionf().rotationZYX(partPose.zRot(), partPose.yRot(), partPose.xRot())).transpose())
++																						.mulBack(OpenMatrix4f.fromQuaternion(new Quaternionf().rotationZYX(lastPart.zRot - partPose.zRot(), lastPart.yRot - partPose.yRot(), lastPart.xRot - partPose.xRot())).transpose())
+ 																						.scale(new Vec3f(lastPart.xScale, lastPart.yScale, lastPart.zScale)),
+ 																	  this.invertedParentTransform);
+ 				
+@@ -722,8 +695,8 @@ public class VanillaModelTransformer extends HumanoidModelTransformer {
+ 			PartPose initialPose = part.getInitialPose();
+ 			
+ 			if (last) {
+-				poseStack.translate(initialPose.x, initialPose.y, initialPose.z);
+-				poseStack.mulPose(new Quaternionf().rotationZYX(initialPose.zRot, initialPose.yRot, initialPose.xRot));
++				poseStack.translate(initialPose.x(), initialPose.y(), initialPose.z());
++				poseStack.mulPose(new Quaternionf().rotationZYX(initialPose.zRot(), initialPose.yRot(), initialPose.xRot()));
+ 			} else {
+ 				poseStack.translate(part.x, part.y, part.z);
+ 				poseStack.mulPose(new Quaternionf().rotationZYX(part.zRot, part.yRot, part.xRot));
+diff --git a/src/main/java/yesman/epicfight/compat/azurelib/client/AzureArmorTransformer.java b/src/main/java/yesman/epicfight/compat/azurelib/client/AzureArmorTransformer.java
+index 092aedc..2845c6e 100644
+--- a/src/main/java/yesman/epicfight/compat/azurelib/client/AzureArmorTransformer.java
++++ b/src/main/java/yesman/epicfight/compat/azurelib/client/AzureArmorTransformer.java
+@@ -1,5 +1,7 @@
+ package yesman.epicfight.compat.azurelib.client;
+ 
++import yesman.epicfight.api.client.model.transformer.MeshVertex.AnimatedVertex;
++import yesman.epicfight.api.client.model.transformer.MeshVertex;
+ import java.util.ArrayList;
+ import java.util.List;
+ import java.util.Map;
+@@ -27,7 +29,6 @@ import mod.azure.azurelibarmor.common.util.client.RenderUtils;
+ import net.minecraft.client.model.HumanoidModel;
+ import net.minecraft.client.model.geom.ModelPart;
+ import net.minecraft.core.Direction;
+-import net.minecraft.core.Vec3i;
+ import net.minecraft.world.entity.EquipmentSlot;
+ import net.minecraft.world.entity.LivingEntity;
+ import net.minecraft.world.item.ItemStack;
+@@ -268,10 +269,10 @@ public class AzureArmorTransformer extends HumanoidModelTransformer {
+ 			for (GeoQuad polygon : cube.quads()) {
+ 				Matrix4f matrix = poseStack.last().pose();
+ 
+-				ModelPart.Vertex pos0 = getTranslatedVertex(polygon.vertices()[0], matrix);
+-				ModelPart.Vertex pos1 = getTranslatedVertex(polygon.vertices()[1], matrix);
+-				ModelPart.Vertex pos2 = getTranslatedVertex(polygon.vertices()[2], matrix);
+-				ModelPart.Vertex pos3 = getTranslatedVertex(polygon.vertices()[3], matrix);
++				MeshVertex pos0 = getTranslatedVertex(polygon.vertices()[0], matrix);
++				MeshVertex pos1 = getTranslatedVertex(polygon.vertices()[1], matrix);
++				MeshVertex pos2 = getTranslatedVertex(polygon.vertices()[2], matrix);
++				MeshVertex pos3 = getTranslatedVertex(polygon.vertices()[3], matrix);
+ 				Direction direction = getDirectionFromVector(polygon.normal());
+ 				VertexWeight pos0Weight = getYClipWeight(pos0.pos.y());
+ 				VertexWeight pos1Weight = getYClipWeight(pos1.pos.y());
+@@ -281,8 +282,8 @@ public class AzureArmorTransformer extends HumanoidModelTransformer {
+ 				if (pos1.pos.x() > X_PLANE != pos2.pos.x() > X_PLANE) {
+ 					float distance = pos2.pos.x() - pos1.pos.x();
+ 					float textureU = pos1.u + (pos2.u - pos1.u) * ((X_PLANE - pos1.pos.x()) / distance);
+-					ModelPart.Vertex pos4 = new ModelPart.Vertex(X_PLANE, pos0.pos.y(), pos0.pos.z(), textureU, pos0.v);
+-					ModelPart.Vertex pos5 = new ModelPart.Vertex(X_PLANE, pos1.pos.y(), pos1.pos.z(), textureU, pos1.v);
++					MeshVertex pos4 = new MeshVertex(X_PLANE, pos0.pos.y(), pos0.pos.z(), textureU, pos0.v);
++					MeshVertex pos5 = new MeshVertex(X_PLANE, pos1.pos.y(), pos1.pos.z(), textureU, pos1.v);
+ 
+ 					xClipPolygons.add(new AnimatedPolygon(new AnimatedVertex[] {
+ 						new AnimatedVertex(pos0, 8, 7, 0, pos0Weight.chestWeight, pos0Weight.torsoWeight, 0),
+@@ -324,8 +325,8 @@ public class AzureArmorTransformer extends HumanoidModelTransformer {
+ 						float textureV = pos1.v + (pos2.v - pos1.v) * ((vertexWeight.yClipCoord - pos1.pos.y()) / distance);
+ 						Vector3f clipPos1 = getClipPoint(pos1.pos, pos2.pos, vertexWeight.yClipCoord);
+ 						Vector3f clipPos2 = getClipPoint(pos0.pos, pos3.pos, vertexWeight.yClipCoord);
+-						ModelPart.Vertex pos4 = new ModelPart.Vertex(clipPos2, pos0.u, textureV);
+-						ModelPart.Vertex pos5 = new ModelPart.Vertex(clipPos1, pos1.u, textureV);
++						MeshVertex pos4 = new MeshVertex(clipPos2, pos0.u, textureV);
++						MeshVertex pos5 = new MeshVertex(clipPos1, pos1.u, textureV);
+ 						animatedVertices.add(new AnimatedVertex(pos4, 8, 7, 0, vertexWeight.chestWeight, vertexWeight.torsoWeight, 0));
+ 						animatedVertices.add(new AnimatedVertex(pos5, 8, 7, 0, vertexWeight.chestWeight, vertexWeight.torsoWeight, 0));
+ 					}
+@@ -369,7 +370,7 @@ public class AzureArmorTransformer extends HumanoidModelTransformer {
+ 					vertices.add(new SingleGroupVertexBuilder()
+ 						.setPosition(new Vec3f(pos.x(), pos.y(), pos.z()))
+ 						.setNormal(new Vec3f(norm.x(), norm.y(), norm.z()))
+-						.setTextureCoordinate(new Vec2f(vertex.texU(), vertex.texV()))
++						.setTextureCoordinate(new Vec2f(vertex.u, vertex.v))
+ 						.setEffectiveJointIDs(new Vec3f(joint1, joint2, 0))
+ 						.setEffectiveJointWeights(new Vec3f(weight1, weight2, 0.0F))
+ 						.setEffectiveJointNumber(count)
+@@ -460,10 +461,10 @@ public class AzureArmorTransformer extends HumanoidModelTransformer {
+ 
+ 			for (GeoQuad quad : cube.quads()) {
+ 				Matrix4f matrix = poseStack.last().pose();
+-				ModelPart.Vertex pos0 = getTranslatedVertex(quad.vertices()[0], matrix);
+-				ModelPart.Vertex pos1 = getTranslatedVertex(quad.vertices()[1], matrix);
+-				ModelPart.Vertex pos2 = getTranslatedVertex(quad.vertices()[2], matrix);
+-				ModelPart.Vertex pos3 = getTranslatedVertex(quad.vertices()[3], matrix);
++				MeshVertex pos0 = getTranslatedVertex(quad.vertices()[0], matrix);
++				MeshVertex pos1 = getTranslatedVertex(quad.vertices()[1], matrix);
++				MeshVertex pos2 = getTranslatedVertex(quad.vertices()[2], matrix);
++				MeshVertex pos3 = getTranslatedVertex(quad.vertices()[3], matrix);
+ 				Direction direction = getDirectionFromVector(quad.normal());
+ 
+ 				if (pos1.pos.y() > this.yClipCoord != pos2.pos.y() > this.yClipCoord) {
+@@ -471,8 +472,8 @@ public class AzureArmorTransformer extends HumanoidModelTransformer {
+ 					float textureV = pos1.v + (pos2.v - pos1.v) * ((this.yClipCoord - pos1.pos.y()) / distance);
+ 					Vector3f clipPos1 = getClipPoint(pos1.pos, pos2.pos, this.yClipCoord);
+ 					Vector3f clipPos2 = getClipPoint(pos0.pos, pos3.pos, this.yClipCoord);
+-					ModelPart.Vertex pos4 = new ModelPart.Vertex(clipPos2, pos0.u, textureV);
+-					ModelPart.Vertex pos5 = new ModelPart.Vertex(clipPos1, pos1.u, textureV);
++					MeshVertex pos4 = new MeshVertex(clipPos2, pos0.u, textureV);
++					MeshVertex pos5 = new MeshVertex(clipPos1, pos1.u, textureV);
+ 
+ 					int upperId, lowerId;
+ 					if (distance > 0) {
+@@ -541,7 +542,7 @@ public class AzureArmorTransformer extends HumanoidModelTransformer {
+ 					vertices.add(new SingleGroupVertexBuilder()
+ 						.setPosition(new Vec3f(pos.x(), pos.y(), pos.z()))
+ 						.setNormal(new Vec3f(norm.x(), norm.y(), norm.z()))
+-						.setTextureCoordinate(new Vec2f(vertex.texU(), vertex.texV()))
++						.setTextureCoordinate(new Vec2f(vertex.u, vertex.v))
+ 						.setEffectiveJointIDs(new Vec3f(vertex.jointId.getX(), 0, 0))
+ 						.setEffectiveJointWeights(new Vec3f(1.0F, 0.0F, 0.0F))
+ 						.setEffectiveJointNumber(1)
+@@ -619,37 +620,13 @@ public class AzureArmorTransformer extends HumanoidModelTransformer {
+ 		return clipPoint;
+ 	}
+ 
+-	static ModelPart.Vertex getTranslatedVertex(GeoVertex original, Matrix4f matrix) {
++	static MeshVertex getTranslatedVertex(GeoVertex original, Matrix4f matrix) {
+ 		Vector4f translatedPosition = new Vector4f(original.position(), 1.0F);
+ 		translatedPosition.mul(matrix);
+ 
+-		return new ModelPart.Vertex(translatedPosition.x(), translatedPosition.y(), translatedPosition.z(), original.texU(), original.texV());
++		return new MeshVertex(translatedPosition.x(), translatedPosition.y(), translatedPosition.z(), original.texU(), original.texV());
+ 	}
+ 
+-	static class AnimatedVertex extends ModelPart.Vertex {
+-        public float texU() { return this.u; }
+-        public float texV() { return this.v; }
+-		final Vec3i jointId;
+-		final Vec3f weight;
+-
+-		public AnimatedVertex(ModelPart.Vertex posTexVertx, int jointId) {
+-			this(posTexVertx, jointId, 0, 0, 1.0F, 0.0F, 0.0F);
+-		}
+-
+-		public AnimatedVertex(ModelPart.Vertex posTexVertx, int jointId1, int jointId2, int jointId3, float weight1, float weight2, float weight3) {
+-			this(posTexVertx, new Vec3i(jointId1, jointId2, jointId3), new Vec3f(weight1, weight2, weight3));
+-		}
+-
+-		public AnimatedVertex(ModelPart.Vertex posTexVertx, Vec3i ids, Vec3f weights) {
+-			this(posTexVertx, posTexVertx.u, posTexVertx.v, ids, weights);
+-		}
+-
+-		public AnimatedVertex(ModelPart.Vertex posTexVertx, float u, float v, Vec3i ids, Vec3f weights) {
+-			super(posTexVertx.pos.x(), posTexVertx.pos.y(), posTexVertx.pos.z(), u, v);
+-			this.jointId = ids;
+-			this.weight = weights;
+-		}
+-	}
+ 
+ 	static class AnimatedPolygon {
+ 		public final AnimatedVertex[] animatedVertexPositions;
+diff --git a/src/main/java/yesman/epicfight/compat/azurelib/client/AzureModelTransformer.java b/src/main/java/yesman/epicfight/compat/azurelib/client/AzureModelTransformer.java
+index 13f697a..1dd126e 100644
+--- a/src/main/java/yesman/epicfight/compat/azurelib/client/AzureModelTransformer.java
++++ b/src/main/java/yesman/epicfight/compat/azurelib/client/AzureModelTransformer.java
+@@ -1,5 +1,7 @@
+ package yesman.epicfight.compat.azurelib.client;
+ 
++import yesman.epicfight.api.client.model.transformer.MeshVertex.AnimatedVertex;
++import yesman.epicfight.api.client.model.transformer.MeshVertex;
+ import java.util.ArrayList;
+ import java.util.List;
+ import java.util.Map;
+@@ -28,7 +30,6 @@ import mod.azure.azurelib.common.util.client.RenderUtils;
+ import net.minecraft.client.model.HumanoidModel;
+ import net.minecraft.client.model.geom.ModelPart;
+ import net.minecraft.core.Direction;
+-import net.minecraft.core.Vec3i;
+ import net.minecraft.world.entity.EquipmentSlot;
+ import net.minecraft.world.entity.LivingEntity;
+ import net.minecraft.world.item.ItemStack;
+@@ -269,10 +270,10 @@ public class AzureModelTransformer extends HumanoidModelTransformer {
+ 			for (GeoQuad polygon : cube.quads()) {
+ 				Matrix4f matrix = poseStack.last().pose();
+ 
+-				ModelPart.Vertex pos0 = getTranslatedVertex(polygon.vertices()[0], matrix);
+-				ModelPart.Vertex pos1 = getTranslatedVertex(polygon.vertices()[1], matrix);
+-				ModelPart.Vertex pos2 = getTranslatedVertex(polygon.vertices()[2], matrix);
+-				ModelPart.Vertex pos3 = getTranslatedVertex(polygon.vertices()[3], matrix);
++				MeshVertex pos0 = getTranslatedVertex(polygon.vertices()[0], matrix);
++				MeshVertex pos1 = getTranslatedVertex(polygon.vertices()[1], matrix);
++				MeshVertex pos2 = getTranslatedVertex(polygon.vertices()[2], matrix);
++				MeshVertex pos3 = getTranslatedVertex(polygon.vertices()[3], matrix);
+ 				Direction direction = getDirectionFromVector(polygon.normal());
+ 				VertexWeight pos0Weight = getYClipWeight(pos0.pos.y());
+ 				VertexWeight pos1Weight = getYClipWeight(pos1.pos.y());
+@@ -282,8 +283,8 @@ public class AzureModelTransformer extends HumanoidModelTransformer {
+ 				if (pos1.pos.x() > X_PLANE != pos2.pos.x() > X_PLANE) {
+ 					float distance = pos2.pos.x() - pos1.pos.x();
+ 					float textureU = pos1.u + (pos2.u - pos1.u) * ((X_PLANE - pos1.pos.x()) / distance);
+-					ModelPart.Vertex pos4 = new ModelPart.Vertex(X_PLANE, pos0.pos.y(), pos0.pos.z(), textureU, pos0.v);
+-					ModelPart.Vertex pos5 = new ModelPart.Vertex(X_PLANE, pos1.pos.y(), pos1.pos.z(), textureU, pos1.v);
++					MeshVertex pos4 = new MeshVertex(X_PLANE, pos0.pos.y(), pos0.pos.z(), textureU, pos0.v);
++					MeshVertex pos5 = new MeshVertex(X_PLANE, pos1.pos.y(), pos1.pos.z(), textureU, pos1.v);
+ 
+ 					xClipPolygons.add(new AnimatedPolygon(new AnimatedVertex[] {
+ 						new AnimatedVertex(pos0, 8, 7, 0, pos0Weight.chestWeight, pos0Weight.torsoWeight, 0),
+@@ -325,8 +326,8 @@ public class AzureModelTransformer extends HumanoidModelTransformer {
+ 						float textureV = pos1.v + (pos2.v - pos1.v) * ((vertexWeight.yClipCoord - pos1.pos.y()) / distance);
+ 						Vector3f clipPos1 = getClipPoint(pos1.pos, pos2.pos, vertexWeight.yClipCoord);
+ 						Vector3f clipPos2 = getClipPoint(pos0.pos, pos3.pos, vertexWeight.yClipCoord);
+-						ModelPart.Vertex pos4 = new ModelPart.Vertex(clipPos2, pos0.u, textureV);
+-						ModelPart.Vertex pos5 = new ModelPart.Vertex(clipPos1, pos1.u, textureV);
++						MeshVertex pos4 = new MeshVertex(clipPos2, pos0.u, textureV);
++						MeshVertex pos5 = new MeshVertex(clipPos1, pos1.u, textureV);
+ 						animatedVertices.add(new AnimatedVertex(pos4, 8, 7, 0, vertexWeight.chestWeight, vertexWeight.torsoWeight, 0));
+ 						animatedVertices.add(new AnimatedVertex(pos5, 8, 7, 0, vertexWeight.chestWeight, vertexWeight.torsoWeight, 0));
+ 					}
+@@ -370,7 +371,7 @@ public class AzureModelTransformer extends HumanoidModelTransformer {
+ 					vertices.add(new SingleGroupVertexBuilder()
+ 						.setPosition(new Vec3f(pos.x(), pos.y(), pos.z()))
+ 						.setNormal(new Vec3f(norm.x(), norm.y(), norm.z()))
+-						.setTextureCoordinate(new Vec2f(vertex.texU(), vertex.texV()))
++						.setTextureCoordinate(new Vec2f(vertex.u, vertex.v))
+ 						.setEffectiveJointIDs(new Vec3f(joint1, joint2, 0))
+ 						.setEffectiveJointWeights(new Vec3f(weight1, weight2, 0.0F))
+ 						.setEffectiveJointNumber(count)
+@@ -461,10 +462,10 @@ public class AzureModelTransformer extends HumanoidModelTransformer {
+ 
+ 			for (GeoQuad quad : cube.quads()) {
+ 				Matrix4f matrix = poseStack.last().pose();
+-				ModelPart.Vertex pos0 = getTranslatedVertex(quad.vertices()[0], matrix);
+-				ModelPart.Vertex pos1 = getTranslatedVertex(quad.vertices()[1], matrix);
+-				ModelPart.Vertex pos2 = getTranslatedVertex(quad.vertices()[2], matrix);
+-				ModelPart.Vertex pos3 = getTranslatedVertex(quad.vertices()[3], matrix);
++				MeshVertex pos0 = getTranslatedVertex(quad.vertices()[0], matrix);
++				MeshVertex pos1 = getTranslatedVertex(quad.vertices()[1], matrix);
++				MeshVertex pos2 = getTranslatedVertex(quad.vertices()[2], matrix);
++				MeshVertex pos3 = getTranslatedVertex(quad.vertices()[3], matrix);
+ 				Direction direction = getDirectionFromVector(quad.normal());
+ 
+ 				if (pos1.pos.y() > this.yClipCoord != pos2.pos.y() > this.yClipCoord) {
+@@ -472,8 +473,8 @@ public class AzureModelTransformer extends HumanoidModelTransformer {
+ 					float textureV = pos1.v + (pos2.v - pos1.v) * ((this.yClipCoord - pos1.pos.y()) / distance);
+ 					Vector3f clipPos1 = getClipPoint(pos1.pos, pos2.pos, this.yClipCoord);
+ 					Vector3f clipPos2 = getClipPoint(pos0.pos, pos3.pos, this.yClipCoord);
+-					ModelPart.Vertex pos4 = new ModelPart.Vertex(clipPos2, pos0.u, textureV);
+-					ModelPart.Vertex pos5 = new ModelPart.Vertex(clipPos1, pos1.u, textureV);
++					MeshVertex pos4 = new MeshVertex(clipPos2, pos0.u, textureV);
++					MeshVertex pos5 = new MeshVertex(clipPos1, pos1.u, textureV);
+ 
+ 					int upperId, lowerId;
+ 					if (distance > 0) {
+@@ -542,7 +543,7 @@ public class AzureModelTransformer extends HumanoidModelTransformer {
+ 					vertices.add(new SingleGroupVertexBuilder()
+ 						.setPosition(new Vec3f(pos.x(), pos.y(), pos.z()))
+ 						.setNormal(new Vec3f(norm.x(), norm.y(), norm.z()))
+-						.setTextureCoordinate(new Vec2f(vertex.texU(), vertex.texV()))
++						.setTextureCoordinate(new Vec2f(vertex.u, vertex.v))
+ 						.setEffectiveJointIDs(new Vec3f(vertex.jointId.getX(), 0, 0))
+ 						.setEffectiveJointWeights(new Vec3f(1.0F, 0.0F, 0.0F))
+ 						.setEffectiveJointNumber(1)
+@@ -620,37 +621,13 @@ public class AzureModelTransformer extends HumanoidModelTransformer {
+ 		return clipPoint;
+ 	}
+ 
+-	static ModelPart.Vertex getTranslatedVertex(GeoVertex original, Matrix4f matrix) {
++	static MeshVertex getTranslatedVertex(GeoVertex original, Matrix4f matrix) {
+ 		Vector4f translatedPosition = new Vector4f(original.position(), 1.0F);
+ 		translatedPosition.mul(matrix);
+ 
+-		return new ModelPart.Vertex(translatedPosition.x(), translatedPosition.y(), translatedPosition.z(), original.texU(), original.texV());
++		return new MeshVertex(translatedPosition.x(), translatedPosition.y(), translatedPosition.z(), original.texU(), original.texV());
+ 	}
+ 
+-	static class AnimatedVertex extends ModelPart.Vertex {
+-        public float texU() { return this.u; }
+-        public float texV() { return this.v; }
+-		final Vec3i jointId;
+-		final Vec3f weight;
+-
+-		public AnimatedVertex(ModelPart.Vertex posTexVertx, int jointId) {
+-			this(posTexVertx, jointId, 0, 0, 1.0F, 0.0F, 0.0F);
+-		}
+-
+-		public AnimatedVertex(ModelPart.Vertex posTexVertx, int jointId1, int jointId2, int jointId3, float weight1, float weight2, float weight3) {
+-			this(posTexVertx, new Vec3i(jointId1, jointId2, jointId3), new Vec3f(weight1, weight2, weight3));
+-		}
+-
+-		public AnimatedVertex(ModelPart.Vertex posTexVertx, Vec3i ids, Vec3f weights) {
+-			this(posTexVertx, posTexVertx.u, posTexVertx.v, ids, weights);
+-		}
+-
+-		public AnimatedVertex(ModelPart.Vertex posTexVertx, float u, float v, Vec3i ids, Vec3f weights) {
+-			super(posTexVertx.pos.x(), posTexVertx.pos.y(), posTexVertx.pos.z(), u, v);
+-			this.jointId = ids;
+-			this.weight = weights;
+-		}
+-	}
+ 
+ 	static class AnimatedPolygon {
+ 		public final AnimatedVertex[] animatedVertexPositions;
+diff --git a/src/main/java/yesman/epicfight/compat/geckolib/client/GeoModelTransformer.java b/src/main/java/yesman/epicfight/compat/geckolib/client/GeoModelTransformer.java
+index 61074ff..47cc353 100644
+--- a/src/main/java/yesman/epicfight/compat/geckolib/client/GeoModelTransformer.java
++++ b/src/main/java/yesman/epicfight/compat/geckolib/client/GeoModelTransformer.java
+@@ -1,5 +1,7 @@
+ package yesman.epicfight.compat.geckolib.client;
+ 
++import yesman.epicfight.api.client.model.transformer.MeshVertex.AnimatedVertex;
++import yesman.epicfight.api.client.model.transformer.MeshVertex;
+ import java.util.ArrayList;
+ import java.util.List;
+ import java.util.Map;
+@@ -20,7 +22,6 @@ import net.minecraft.client.model.HumanoidModel;
+ import net.minecraft.client.model.geom.ModelPart;
+ import net.minecraft.client.renderer.rendertype.RenderTypes;
+ import net.minecraft.core.Direction;
+-import net.minecraft.core.Vec3i;
+ import net.minecraft.world.entity.EquipmentSlot;
+ import net.minecraft.world.entity.LivingEntity;
+ import net.minecraft.world.item.ItemStack;
+@@ -292,10 +293,10 @@ public class GeoModelTransformer extends HumanoidModelTransformer {
+ 			for (GeoQuad polygon : cube.quads()) {
+ 				Matrix4f matrix = poseStack.last().pose();
+ 				
+-				ModelPart.Vertex pos0 = getTranslatedVertex(polygon.vertices()[0], matrix);
+-				ModelPart.Vertex pos1 = getTranslatedVertex(polygon.vertices()[1], matrix);
+-				ModelPart.Vertex pos2 = getTranslatedVertex(polygon.vertices()[2], matrix);
+-				ModelPart.Vertex pos3 = getTranslatedVertex(polygon.vertices()[3], matrix);
++				MeshVertex pos0 = getTranslatedVertex(polygon.vertices()[0], matrix);
++				MeshVertex pos1 = getTranslatedVertex(polygon.vertices()[1], matrix);
++				MeshVertex pos2 = getTranslatedVertex(polygon.vertices()[2], matrix);
++				MeshVertex pos3 = getTranslatedVertex(polygon.vertices()[3], matrix);
+ 				Direction direction = getDirectionFromVector(polygon.normal());
+ 				VertexWeight pos0Weight = getYClipWeight(pos0.pos.y());
+ 				VertexWeight pos1Weight = getYClipWeight(pos1.pos.y());
+@@ -305,8 +306,8 @@ public class GeoModelTransformer extends HumanoidModelTransformer {
+ 				if (pos1.pos.x() > X_PLANE != pos2.pos.x() > X_PLANE) {
+ 					float distance = pos2.pos.x() - pos1.pos.x();
+ 					float textureU = pos1.u + (pos2.u - pos1.u) * ((X_PLANE - pos1.pos.x()) / distance);
+-					ModelPart.Vertex pos4 = new ModelPart.Vertex(X_PLANE, pos0.pos.y(), pos0.pos.z(), textureU, pos0.v);
+-					ModelPart.Vertex pos5 = new ModelPart.Vertex(X_PLANE, pos1.pos.y(), pos1.pos.z(), textureU, pos1.v);
++					MeshVertex pos4 = new MeshVertex(X_PLANE, pos0.pos.y(), pos0.pos.z(), textureU, pos0.v);
++					MeshVertex pos5 = new MeshVertex(X_PLANE, pos1.pos.y(), pos1.pos.z(), textureU, pos1.v);
+ 					
+ 					xClipPolygons.add(new AnimatedPolygon(new AnimatedVertex[] {
+ 						new AnimatedVertex(pos0, 8, 7, 0, pos0Weight.chestWeight, pos0Weight.torsoWeight, 0),
+@@ -348,8 +349,8 @@ public class GeoModelTransformer extends HumanoidModelTransformer {
+ 						float textureV = pos1.v + (pos2.v - pos1.v) * ((vertexWeight.yClipCoord - pos1.pos.y()) / distance);
+ 						Vector3f clipPos1 = getClipPoint(pos1.pos, pos2.pos, vertexWeight.yClipCoord);
+ 						Vector3f clipPos2 = getClipPoint(pos0.pos, pos3.pos, vertexWeight.yClipCoord);
+-						ModelPart.Vertex pos4 = new ModelPart.Vertex(clipPos2, pos0.u, textureV);
+-						ModelPart.Vertex pos5 = new ModelPart.Vertex(clipPos1, pos1.u, textureV);
++						MeshVertex pos4 = new MeshVertex(clipPos2, pos0.u, textureV);
++						MeshVertex pos5 = new MeshVertex(clipPos1, pos1.u, textureV);
+ 						animatedVertices.add(new AnimatedVertex(pos4, 8, 7, 0, vertexWeight.chestWeight, vertexWeight.torsoWeight, 0));
+ 						animatedVertices.add(new AnimatedVertex(pos5, 8, 7, 0, vertexWeight.chestWeight, vertexWeight.torsoWeight, 0));
+ 					}
+@@ -484,10 +485,10 @@ public class GeoModelTransformer extends HumanoidModelTransformer {
+ 			
+ 			for (GeoQuad quad : cube.quads()) {
+ 				Matrix4f matrix = poseStack.last().pose();
+-				ModelPart.Vertex pos0 = getTranslatedVertex(quad.vertices()[0], matrix);
+-				ModelPart.Vertex pos1 = getTranslatedVertex(quad.vertices()[1], matrix);
+-				ModelPart.Vertex pos2 = getTranslatedVertex(quad.vertices()[2], matrix);
+-				ModelPart.Vertex pos3 = getTranslatedVertex(quad.vertices()[3], matrix);
++				MeshVertex pos0 = getTranslatedVertex(quad.vertices()[0], matrix);
++				MeshVertex pos1 = getTranslatedVertex(quad.vertices()[1], matrix);
++				MeshVertex pos2 = getTranslatedVertex(quad.vertices()[2], matrix);
++				MeshVertex pos3 = getTranslatedVertex(quad.vertices()[3], matrix);
+ 				Direction direction = getDirectionFromVector(quad.normal());
+ 				
+ 				if (pos1.pos.y() > this.yClipCoord != pos2.pos.y() > this.yClipCoord) {
+@@ -495,8 +496,8 @@ public class GeoModelTransformer extends HumanoidModelTransformer {
+ 					float textureV = pos1.v + (pos2.v - pos1.v) * ((this.yClipCoord - pos1.pos.y()) / distance);
+ 					Vector3f clipPos1 = getClipPoint(pos1.pos, pos2.pos, this.yClipCoord);
+ 					Vector3f clipPos2 = getClipPoint(pos0.pos, pos3.pos, this.yClipCoord);
+-					ModelPart.Vertex pos4 = new ModelPart.Vertex(clipPos2, pos0.u, textureV);
+-					ModelPart.Vertex pos5 = new ModelPart.Vertex(clipPos1, pos1.u, textureV);
++					MeshVertex pos4 = new MeshVertex(clipPos2, pos0.u, textureV);
++					MeshVertex pos5 = new MeshVertex(clipPos1, pos1.u, textureV);
+ 					
+ 					int upperId, lowerId;
+ 					if (distance > 0) {
+@@ -643,35 +644,13 @@ public class GeoModelTransformer extends HumanoidModelTransformer {
+ 		return clipPoint;
+ 	}
+ 	
+-	static ModelPart.Vertex getTranslatedVertex(GeoVertex original, Matrix4f matrix) {
++	static MeshVertex getTranslatedVertex(GeoVertex original, Matrix4f matrix) {
+ 		Vector4f translatedPosition = new Vector4f(original.position(), 1.0F);
+ 		translatedPosition.mul(matrix);
+ 		
+-		return new ModelPart.Vertex(translatedPosition.x(), translatedPosition.y(), translatedPosition.z(), original.texU(), original.texV());
++		return new MeshVertex(translatedPosition.x(), translatedPosition.y(), translatedPosition.z(), original.texU(), original.texV());
+ 	}
+ 	
+-	static class AnimatedVertex extends ModelPart.Vertex {
+-		final Vec3i jointId;
+-		final Vec3f weight;
+-		
+-		public AnimatedVertex(ModelPart.Vertex posTexVertx, int jointId) {
+-			this(posTexVertx, jointId, 0, 0, 1.0F, 0.0F, 0.0F);
+-		}
+-		
+-		public AnimatedVertex(ModelPart.Vertex posTexVertx, int jointId1, int jointId2, int jointId3, float weight1, float weight2, float weight3) {
+-			this(posTexVertx, new Vec3i(jointId1, jointId2, jointId3), new Vec3f(weight1, weight2, weight3));
+-		}
+-		
+-		public AnimatedVertex(ModelPart.Vertex posTexVertx, Vec3i ids, Vec3f weights) {
+-			this(posTexVertx, posTexVertx.u, posTexVertx.v, ids, weights);
+-		}
+-		
+-		public AnimatedVertex(ModelPart.Vertex posTexVertx, float u, float v, Vec3i ids, Vec3f weights) {
+-			super(posTexVertx.pos.x(), posTexVertx.pos.y(), posTexVertx.pos.z(), u, v);
+-			this.jointId = ids;
+-			this.weight = weights;
+-		}
+-	}
+ 	
+ 	static class AnimatedPolygon {
+ 		public final AnimatedVertex[] animatedVertexPositions;
+diff --git a/src/main/java/yesman/epicfight/compat/skinlayer3d/client/SkinLayer3DTransformer.java b/src/main/java/yesman/epicfight/compat/skinlayer3d/client/SkinLayer3DTransformer.java
+index 3c9d2af..7f6688d 100644
+--- a/src/main/java/yesman/epicfight/compat/skinlayer3d/client/SkinLayer3DTransformer.java
++++ b/src/main/java/yesman/epicfight/compat/skinlayer3d/client/SkinLayer3DTransformer.java
+@@ -1,5 +1,7 @@
+ package yesman.epicfight.compat.skinlayer3d.client;
+ 
++import yesman.epicfight.api.client.model.transformer.MeshVertex.AnimatedVertex;
++import yesman.epicfight.api.client.model.transformer.MeshVertex;
+ import java.util.List;
+ import java.util.Map;
+ import java.util.function.Consumer;
+@@ -24,7 +26,6 @@ import net.minecraft.client.model.geom.ModelPart;
+ import net.minecraft.client.model.geom.ModelPart.Cube;
+ import net.minecraft.client.player.AbstractClientPlayer;
+ import net.minecraft.core.Direction;
+-import net.minecraft.core.Vec3i;
+ import net.minecraft.world.entity.player.PlayerModelPart;
+ import yesman.epicfight.api.client.model.MeshPartDefinition;
+ import yesman.epicfight.api.client.model.SingleGroupVertexBuilder;
+@@ -237,10 +238,10 @@ public class SkinLayer3DTransformer extends CustomizableCube {
+ 				}
+ 				
+ 				Matrix4f matrix = poseStack.last().pose();
+-				ModelPart.Vertex pos0 = getTranslatedVertex(polygon.vertices[0], matrix);
+-				ModelPart.Vertex pos1 = getTranslatedVertex(polygon.vertices[1], matrix);
+-				ModelPart.Vertex pos2 = getTranslatedVertex(polygon.vertices[2], matrix);
+-				ModelPart.Vertex pos3 = getTranslatedVertex(polygon.vertices[3], matrix);
++				MeshVertex pos0 = getTranslatedVertex(polygon.vertices[0], matrix);
++				MeshVertex pos1 = getTranslatedVertex(polygon.vertices[1], matrix);
++				MeshVertex pos2 = getTranslatedVertex(polygon.vertices[2], matrix);
++				MeshVertex pos3 = getTranslatedVertex(polygon.vertices[3], matrix);
+ 				Direction direction = getDirectionFromVector(polygon.normal.x, polygon.normal.y, polygon.normal.z);
+ 				
+ 				VertexWeight pos0Weight = getYClipWeight(pos0.pos.y());
+@@ -251,8 +252,8 @@ public class SkinLayer3DTransformer extends CustomizableCube {
+ 				if (pos1.pos.x() > X_PLANE != pos2.pos.x() > X_PLANE) {
+ 					float distance = pos2.pos.x() - pos1.pos.x();
+ 					float textureU = pos1.u + (pos2.u - pos1.u) * ((X_PLANE - pos1.pos.x()) / distance);
+-					ModelPart.Vertex pos4 = new ModelPart.Vertex(X_PLANE, pos0.pos.y(), pos0.pos.z(), textureU, pos0.v);
+-					ModelPart.Vertex pos5 = new ModelPart.Vertex(X_PLANE, pos1.pos.y(), pos1.pos.z(), textureU, pos1.v);
++					MeshVertex pos4 = new MeshVertex(X_PLANE, pos0.pos.y(), pos0.pos.z(), textureU, pos0.v);
++					MeshVertex pos5 = new MeshVertex(X_PLANE, pos1.pos.y(), pos1.pos.z(), textureU, pos1.v);
+ 					
+ 					xClipPolygons.add(new AnimatedPolygon(new AnimatedVertex[] {
+ 						new AnimatedVertex(pos0, 8, 7, 0, pos0Weight.chestWeight, pos0Weight.torsoWeight, 0),
+@@ -294,8 +295,8 @@ public class SkinLayer3DTransformer extends CustomizableCube {
+ 						float textureV = pos1.v + (pos2.v - pos1.v) * ((vertexWeight.yClipCoord - pos1.pos.y()) / distance);
+ 						Vector3f clipPos1 = getClipPoint(pos1.pos, pos2.pos, vertexWeight.yClipCoord);
+ 						Vector3f clipPos2 = getClipPoint(pos0.pos, pos3.pos, vertexWeight.yClipCoord);
+-						ModelPart.Vertex pos4 = new ModelPart.Vertex(clipPos2, pos0.u, textureV);
+-						ModelPart.Vertex pos5 = new ModelPart.Vertex(clipPos1, pos1.u, textureV);
++						MeshVertex pos4 = new MeshVertex(clipPos2, pos0.u, textureV);
++						MeshVertex pos5 = new MeshVertex(clipPos1, pos1.u, textureV);
+ 						animatedVertices.add(new AnimatedVertex(pos4, 8, 7, 0, vertexWeight.chestWeight, vertexWeight.torsoWeight, 0));
+ 						animatedVertices.add(new AnimatedVertex(pos5, 8, 7, 0, vertexWeight.chestWeight, vertexWeight.torsoWeight, 0));
+ 					}
+@@ -417,10 +418,10 @@ public class SkinLayer3DTransformer extends CustomizableCube {
+ 				}
+ 				
+ 				Matrix4f matrix = poseStack.last().pose();
+-				ModelPart.Vertex pos0 = getTranslatedVertex(polygon.vertices[0], matrix);
+-				ModelPart.Vertex pos1 = getTranslatedVertex(polygon.vertices[1], matrix);
+-				ModelPart.Vertex pos2 = getTranslatedVertex(polygon.vertices[2], matrix);
+-				ModelPart.Vertex pos3 = getTranslatedVertex(polygon.vertices[3], matrix);
++				MeshVertex pos0 = getTranslatedVertex(polygon.vertices[0], matrix);
++				MeshVertex pos1 = getTranslatedVertex(polygon.vertices[1], matrix);
++				MeshVertex pos2 = getTranslatedVertex(polygon.vertices[2], matrix);
++				MeshVertex pos3 = getTranslatedVertex(polygon.vertices[3], matrix);
+ 				Direction direction = getDirectionFromVector(polygon.normal.x, polygon.normal.y, polygon.normal.z);
+ 				
+ 				if (pos1.pos.y() > this.yClipCoord != pos2.pos.y() > this.yClipCoord) {
+@@ -428,8 +429,8 @@ public class SkinLayer3DTransformer extends CustomizableCube {
+ 					float textureV = pos1.v + (pos2.v - pos1.v) * ((this.yClipCoord - pos1.pos.y()) / distance);
+ 					Vector3f clipPos1 = getClipPoint(pos1.pos, pos2.pos, this.yClipCoord);
+ 					Vector3f clipPos2 = getClipPoint(pos0.pos, pos3.pos, this.yClipCoord);
+-					ModelPart.Vertex pos4 = new ModelPart.Vertex(clipPos2, pos0.u, textureV);
+-					ModelPart.Vertex pos5 = new ModelPart.Vertex(clipPos1, pos1.u, textureV);
++					MeshVertex pos4 = new MeshVertex(clipPos2, pos0.u, textureV);
++					MeshVertex pos5 = new MeshVertex(clipPos1, pos1.u, textureV);
+ 					int upperId, lowerId;
+ 					
+ 					if (distance > 0) {
+@@ -532,35 +533,13 @@ public class SkinLayer3DTransformer extends CustomizableCube {
+ 		return clipPoint;
+ 	}
+ 	
+-	static ModelPart.Vertex getTranslatedVertex(CustomizableCube.Vertex original, Matrix4f matrix) {
++	static MeshVertex getTranslatedVertex(CustomizableCube.Vertex original, Matrix4f matrix) {
+ 		Vector4f translatedPosition = new Vector4f(original.pos.x, original.pos.y, original.pos.z, 1.0F);
+ 		translatedPosition.mul(matrix);
+ 		
+-		return new ModelPart.Vertex(translatedPosition.x(), translatedPosition.y(), translatedPosition.z(), original.u, original.v);
++		return new MeshVertex(translatedPosition.x(), translatedPosition.y(), translatedPosition.z(), original.u, original.v);
+ 	}
+ 	
+-	static class AnimatedVertex extends ModelPart.Vertex {
+-		final Vec3i jointId;
+-		final Vec3f weight;
+-		
+-		public AnimatedVertex(ModelPart.Vertex posTexVertx, int jointId) {
+-			this(posTexVertx, jointId, 0, 0, 1.0F, 0.0F, 0.0F);
+-		}
+-		
+-		public AnimatedVertex(ModelPart.Vertex posTexVertx, int jointId1, int jointId2, int jointId3, float weight1, float weight2, float weight3) {
+-			this(posTexVertx, new Vec3i(jointId1, jointId2, jointId3), new Vec3f(weight1, weight2, weight3));
+-		}
+-		
+-		public AnimatedVertex(ModelPart.Vertex posTexVertx, Vec3i ids, Vec3f weights) {
+-			this(posTexVertx, posTexVertx.u, posTexVertx.v, ids, weights);
+-		}
+-		
+-		public AnimatedVertex(ModelPart.Vertex posTexVertx, float u, float v, Vec3i ids, Vec3f weights) {
+-			super(posTexVertx.pos.x(), posTexVertx.pos.y(), posTexVertx.pos.z(), u, v);
+-			this.jointId = ids;
+-			this.weight = weights;
+-		}
+-	}
+ 	
+ 	static class AnimatedPolygon {
+ 		public final AnimatedVertex[] animatedVertexPositions;
