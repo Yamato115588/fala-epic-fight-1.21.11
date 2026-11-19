@@ -1,0 +1,1429 @@
+diff --git a/src/main/java/yesman/epicfight/api/client/model/Mesh.java b/src/main/java/yesman/epicfight/api/client/model/Mesh.java
+index 6325307..030d98b 100644
+--- a/src/main/java/yesman/epicfight/api/client/model/Mesh.java
++++ b/src/main/java/yesman/epicfight/api/client/model/Mesh.java
+@@ -1,24 +1,19 @@
+ package yesman.epicfight.api.client.model;
+ 
+-import java.nio.ByteBuffer;
+-import java.nio.IntBuffer;
+ 
+ import javax.annotation.Nullable;
+ 
+-import org.joml.Matrix3f;
+-import org.joml.Matrix4f;
+ import org.joml.Vector3f;
+-import org.joml.Vector4f;
+-import org.lwjgl.system.MemoryStack;
+ 
+-import com.mojang.blaze3d.vertex.DefaultVertexFormat;
+ import com.mojang.blaze3d.vertex.PoseStack;
+ import com.mojang.blaze3d.vertex.VertexConsumer;
+ 
+ import net.minecraft.client.renderer.MultiBufferSource;
+ import net.minecraft.client.renderer.RenderType;
+ import net.minecraft.client.renderer.block.model.BakedQuad;
+-import net.minecraft.core.Vec3i;
++import net.minecraft.client.model.geom.builders.UVPair;
++import net.minecraft.client.renderer.LightTexture;
++import net.minecraft.util.ARGB;
+ import net.minecraft.resources.ResourceLocation;
+ 
+ import yesman.epicfight.api.model.Armature;
+@@ -78,7 +73,7 @@ public interface Mesh {
+ 	public interface DrawingFunction {
+ 		public static final DrawingFunction NEW_ENTITY = (builder, posX, posY, posZ, normX, normY, normZ, packedLight, r, g, b, a, u, v, overlay) -> {
+ 			builder.addVertex(posX, posY, posZ)
+-			        .setColor(r, g, b, a)
++			        .setColor(ARGB.colorFromFloat(a, r, g, b))
+ 			        .setUv(u, v)
+ 			        .setOverlay(overlay)
+ 			        .setLight(packedLight)
+@@ -93,117 +88,52 @@ public interface Mesh {
+ 		public static final DrawingFunction POSITION_TEX_COLOR_NORMAL = (builder, posX, posY, posZ, normX, normY, normZ, packedLight, r, g, b, a, u, v, overlay) -> {
+ 			builder.addVertex(posX, posY, posZ)
+ 					.setUv(u, v)
+-					.setColor(r, g, b, a)
++					.setColor(ARGB.colorFromFloat(a, r, g, b))
+ 					.setNormal(normX, normY, normZ);
+ 		};
+ 		
+ 		public static final DrawingFunction POSITION_TEX_COLOR_LIGHTMAP = (builder, posX, posY, posZ, normX, normY, normZ, packedLight, r, g, b, a, u, v, overlay) -> {
+ 			builder.addVertex(posX, posY, posZ)
+ 					.setUv(u, v)
+-					.setColor(r, g, b, a)
++					.setColor(ARGB.colorFromFloat(a, r, g, b))
+ 					.setLight(packedLight);
+ 		};
+ 		
++        public static final DrawingFunction POSITION_COLOR = (builder, x, y, z, nx, ny, nz, light, r, g, b, a, u, v, overlay) ->
++            builder.addVertex(x, y, z).setColor(ARGB.colorFromFloat(a, r, g, b));
++
+ 		public static final DrawingFunction POSITION_COLOR_LIGHTMAP = (builder, posX, posY, posZ, normX, normY, normZ, packedLight, r, g, b, a, u, v, overlay) -> {
+ 			builder.addVertex(posX, posY, posZ)
+-					.setColor(r, g, b, a)
++					.setColor(ARGB.colorFromFloat(a, r, g, b))
+ 					.setLight(packedLight);
+ 		};
+ 		
+ 		public static final DrawingFunction POSITION_COLOR_NORMAL = (builder, posX, posY, posZ, normX, normY, normZ, packedLight, r, g, b, a, u, v, overlay) -> {
+ 			builder.addVertex(posX, posY, posZ)
+-					.setColor(r, g, b, a)
++					.setColor(ARGB.colorFromFloat(a, r, g, b))
+ 					.setNormal(normX, normY, normZ);
+ 		};
+ 		
+ 		public static final DrawingFunction POSITION_COLOR_TEX_LIGHTMAP = (builder, posX, posY, posZ, normX, normY, normZ, packedLight, r, g, b, a, u, v, overlay) -> {
+ 			builder.addVertex(posX, posY, posZ)
+-					.setColor(r, g, b, a)
++					.setColor(ARGB.colorFromFloat(a, r, g, b))
+ 					.setUv(u, v)
+ 					.setLight(packedLight);
+ 		};
+ 		
+ 		public void draw(VertexConsumer vertexConsumer, float posX, float posY, float posZ, float normX, float normY, float normZ, int packedLight, float r, float g, float b, float a, float u, float v, int overlay);
+ 		
+-	    default void putBulkData(PoseStack.Pose pose, BakedQuad bakedQuad, VertexConsumer vertexConsumer, float red, float green, float blue, float alpha, int packedLight, int packedOverlay, boolean readExistingColor) {
+-	    	putBulkDataWithDrawingFunction(this, vertexConsumer, pose, bakedQuad, new float[] { 1.0F, 1.0F, 1.0F, 1.0F }, red, green, blue, alpha, new int[] { packedLight, packedLight, packedLight, packedLight }, packedOverlay, readExistingColor);
+-	    }
+-	    
+-		static void putBulkDataWithDrawingFunction(DrawingFunction drawingFunction, VertexConsumer builder, PoseStack.Pose pPoseEntry, BakedQuad pQuad, float[] pColorMuls, float pRed, float pGreen, float pBlue, float alpha, int[] pCombinedLights, int pCombinedOverlay, boolean pMulColor) {
+-			float[] afloat = new float[] { pColorMuls[0], pColorMuls[1], pColorMuls[2], pColorMuls[3] };
+-			int[] aint1 = pQuad.getVertices();
+-			Vec3i vec3i = pQuad.getDirection().getNormal();
+-			Matrix4f matrix4f = pPoseEntry.pose();
+-			Vector3f vector3f = pPoseEntry.normal().transform(new Vector3f((float) vec3i.getX(), (float) vec3i.getY(), (float) vec3i.getZ()));
+-			int j = aint1.length / 8;
+-
+-			try (MemoryStack memorystack = MemoryStack.stackPush()) {
+-				ByteBuffer bytebuffer = memorystack.malloc(DefaultVertexFormat.BLOCK.getVertexSize());
+-				IntBuffer intbuffer = bytebuffer.asIntBuffer();
+-
+-				for (int k = 0; k < j; ++k) {
+-					intbuffer.clear();
+-					intbuffer.put(aint1, k * 8, 8);
+-					float f = bytebuffer.getFloat(0);
+-					float f1 = bytebuffer.getFloat(4);
+-					float f2 = bytebuffer.getFloat(8);
+-					float f3;
+-					float f4;
+-					float f5;
+-					
+-					if (pMulColor) {
+-						float f6 = (float) (bytebuffer.get(12) & 255) / 255.0F;
+-						float f7 = (float) (bytebuffer.get(13) & 255) / 255.0F;
+-						float f8 = (float) (bytebuffer.get(14) & 255) / 255.0F;
+-						f3 = f6 * afloat[k] * pRed;
+-						f4 = f7 * afloat[k] * pGreen;
+-						f5 = f8 * afloat[k] * pBlue;
+-					} else {
+-						f3 = afloat[k] * pRed;
+-						f4 = afloat[k] * pGreen;
+-						f5 = afloat[k] * pBlue;
+-					}
+-
+-					int l = applyBakedLighting(pCombinedLights[k], bytebuffer);
+-					float f9 = bytebuffer.getFloat(16);
+-					float f10 = bytebuffer.getFloat(20);
+-					Vector4f vector4f = matrix4f.transform(new Vector4f(f, f1, f2, 1.0F));
+-					applyBakedNormals(vector3f, bytebuffer, pPoseEntry.normal());
+-					float vertexAlpha = pMulColor ? alpha * (float) (bytebuffer.get(15) & 255) / 255.0F : alpha;
+-					drawingFunction.draw(builder, vector4f.x(), vector4f.y(), vector4f.z(), vector3f.x(), vector3f.y(), vector3f.z(), l, f3, f4, f5, vertexAlpha, f9, f10, pCombinedOverlay);
+-				}
+-			}
+-		}
+-		
+-		/**
+-		 * Code copy from {@link IForgeVertexConsumer#applyBakedLighting}
+-		 */
+-		static int applyBakedLighting(int packedLight, ByteBuffer data) {
+-	        int bl = packedLight & 0xFFFF;
+-	        int sl = (packedLight >> 16) & 0xFFFF;
+-	        // DefaultVertexFormat.BLOCK is Position, Color, UV0, UV2, Normal, so the lightmap (UV2)
+-		// starts at int 6 (byte 24) - this is NeoForge's IQuadTransformer.UV2, which has no
+-		// Fabric equivalent. Reading int 4 here would decode the UV0 texture floats as light.
+-		int offset = 6 * 4;
+-	        int blBaked = Short.toUnsignedInt(data.getShort(offset));
+-	        int slBaked = Short.toUnsignedInt(data.getShort(offset + 2));
+-	        bl = Math.max(bl, blBaked);
+-	        sl = Math.max(sl, slBaked);
+-	        return bl | (sl << 16);
+-	    }
+-		
+-		/**
+-		 * Code copy from {@link IForgeVertexConsumer#applyBakedNormals}
+-		 */
+-	    static void applyBakedNormals(Vector3f generated, ByteBuffer data, Matrix3f normalTransform) {
+-	        byte nx = data.get(28);
+-	        byte ny = data.get(29);
+-	        byte nz = data.get(30);
+-	        if (nx != 0 || ny != 0 || nz != 0)
+-	        {
+-	            generated.set(nx / 127f, ny / 127f, nz / 127f);
+-	            generated.mul(normalTransform);
+-	        }
+-	    }
+-	}
+-}
+\ No newline at end of file
++        default void putBulkData(PoseStack.Pose pose, BakedQuad quad, VertexConsumer consumer,
++                                 float red, float green, float blue, float alpha, int light, int overlay) {
++            Vector3f normal = pose.transformNormal(quad.direction().step(), new Vector3f());
++            int emittedLight = LightTexture.lightCoordsWithEmission(light, quad.lightEmission());
++            Vector3f position = new Vector3f();
++            for (int i = 0; i < 4; ++i) {
++                pose.pose().transformPosition(quad.position(i), position);
++                long uv = quad.packedUV(i);
++                draw(consumer, position.x, position.y, position.z, normal.x, normal.y, normal.z, emittedLight,
++                    red, green, blue, alpha, UVPair.unpackU(uv), UVPair.unpackV(uv), overlay);
++            }
++        }
++    }
++}
+diff --git a/src/main/java/yesman/epicfight/api/client/particle/ParticleRenderTypeExtension.java b/src/main/java/yesman/epicfight/api/client/particle/ParticleRenderTypeExtension.java
+index 21c4216..62e33d4 100644
+--- a/src/main/java/yesman/epicfight/api/client/particle/ParticleRenderTypeExtension.java
++++ b/src/main/java/yesman/epicfight/api/client/particle/ParticleRenderTypeExtension.java
+@@ -2,15 +2,12 @@ package yesman.epicfight.api.client.particle;
+ 
+ import net.fabricmc.api.EnvType;
+ import net.fabricmc.api.Environment;
+-import net.minecraft.client.particle.ParticleRenderType;
++import net.minecraft.client.particle.ParticleEngine;
++import net.minecraft.client.particle.ParticleGroup;
+ 
+-/**
+- * Optional hook for custom {@link ParticleRenderType}s drawn by Epic Fight's
+- * particle loop: {@link #end()} is invoked exactly once per rendered layer, in a
+- * finally block after begin/render/upload, so a type can restore framebuffer or
+- * pipeline state even when particle rendering or the mesh upload throws.
+- */
++/** Creates the group that ticks and extracts a custom particle type on Fabric. */
++@FunctionalInterface
+ @Environment(EnvType.CLIENT)
+-public interface ParticleRenderTypeExtension extends ParticleRenderType {
+-	void end();
++public interface ParticleRenderTypeExtension {
++    ParticleGroup<?> createGroup(ParticleEngine engine);
+ }
+diff --git a/src/main/java/yesman/epicfight/api/utils/EntitySnapshot.java b/src/main/java/yesman/epicfight/api/utils/EntitySnapshot.java
+index 7d7f605..98b9244 100644
+--- a/src/main/java/yesman/epicfight/api/utils/EntitySnapshot.java
++++ b/src/main/java/yesman/epicfight/api/utils/EntitySnapshot.java
+@@ -1,32 +1,28 @@
+ package yesman.epicfight.api.utils;
+ import yesman.epicfight.client.online.SkinTextures;
+-import yesman.epicfight.platform.neoforged.client.ClientHooks;
+ 
+ import com.google.common.collect.ImmutableList;
+ import com.mojang.blaze3d.vertex.PoseStack;
+ import com.mojang.blaze3d.vertex.VertexConsumer;
+ import com.mojang.datafixers.util.Pair;
+ import net.minecraft.client.Minecraft;
+-import net.minecraft.client.model.EntityModel;
+ import net.minecraft.client.renderer.MultiBufferSource;
+ import net.minecraft.client.renderer.RenderType;
+ import net.minecraft.client.renderer.block.model.BakedQuad;
+-import net.minecraft.client.renderer.entity.ItemRenderer;
+ import net.minecraft.client.renderer.entity.LivingEntityRenderer;
+ import net.minecraft.client.renderer.texture.OverlayTexture;
+-import net.minecraft.client.resources.model.BakedModel;
+-import net.minecraft.core.Direction;
++import net.minecraft.client.renderer.entity.state.LivingEntityRenderState;
++import net.minecraft.client.renderer.SubmitNodeStorage;
++import net.minecraft.client.renderer.item.ItemStackRenderState;
++import net.minecraft.core.component.DataComponents;
+ import net.minecraft.resources.ResourceLocation;
+ import net.minecraft.util.Mth;
+-import net.minecraft.util.RandomSource;
+ import net.minecraft.world.InteractionHand;
+ import net.minecraft.world.entity.EquipmentSlot;
+ import net.minecraft.world.entity.LivingEntity;
+ import net.minecraft.world.entity.player.PlayerModelPart;
+-import net.minecraft.world.item.ArmorItem;
+ import net.minecraft.world.item.ItemDisplayContext;
+ import net.minecraft.world.item.ItemStack;
+-import net.minecraft.world.level.block.state.BlockState;
+ import net.minecraft.world.phys.Vec3;
+ 
+ import org.apache.logging.log4j.Logger;
+@@ -48,7 +44,6 @@ import yesman.epicfight.client.renderer.patched.layer.PatchedCapeLayer;
+ import yesman.epicfight.client.renderer.patched.layer.WearableItemLayer;
+ import yesman.epicfight.client.world.capabilites.entitypatch.player.AbstractClientPlayerPatch;
+ import yesman.epicfight.main.EpicFightMod;
+-import yesman.epicfight.mixin.client.MinecraftAccessor;
+ import yesman.epicfight.world.capabilities.entitypatch.LivingEntityPatch;
+ 
+ import java.util.List;
+@@ -85,11 +80,11 @@ public class EntitySnapshot<T extends LivingEntityPatch<?>> {
+ 	
+ 	@SuppressWarnings({ "rawtypes", "unchecked" })
+ 	public EntitySnapshot(T entitypatch) {
+-		LivingEntityRenderer<LivingEntity, EntityModel<LivingEntity>> vanillarenderer = (LivingEntityRenderer<LivingEntity, EntityModel<LivingEntity>>)Minecraft.getInstance().getEntityRenderDispatcher().getRenderer(entitypatch.getOriginal());
++		LivingEntityRenderer vanillarenderer = (LivingEntityRenderer)Minecraft.getInstance().getEntityRenderDispatcher().getRenderer(entitypatch.getOriginal());
+ 		PatchedEntityRenderer patchedrenderer = (PatchedEntityRenderer)RenderEngine.getInstance().getEntityRenderer(entitypatch.getOriginal());
+ 		AssetAccessor<SkinnedMesh> meshAccessor = patchedrenderer.getMeshProvider(entitypatch);
+ 		
+-		ResourceLocation textureLocation = vanillarenderer.getTextureLocation(entitypatch.getOriginal());
++		ResourceLocation textureLocation = vanillarenderer.getTextureLocation((LivingEntityRenderState)vanillarenderer.createRenderState(entitypatch.getOriginal(), 1.0F));
+ 		
+ 		if (textureLocation == null) {
+ 			EpicFightMod.logAndStacktraceIfDevSide(Logger::warn, "No texture for " + entitypatch.getOriginal(), NullPointerException::new, "No texture is provided by vanilla renderer " + vanillarenderer.getClass().getSimpleName());
+@@ -108,20 +103,17 @@ public class EntitySnapshot<T extends LivingEntityPatch<?>> {
+ 		
+ 		ImmutableList.Builder<RenderableFigure> builder = ImmutableList.builder();
+ 		
+-		entitypatch.getOriginal().getArmorSlots().forEach(itemstack -> {
+-			if (!(itemstack.getItem() instanceof ArmorItem)) {
+-				return;
+-			}
+-			
+-			EquipmentSlot armorSlot = ((ArmorItem)itemstack.getItem()).getEquipmentSlot();
+-			SkinnedMesh armor = WearableItemLayer.getCachedModel(itemstack.getItem());
+-			ResourceLocation texture = WearableItemLayer.getArmorResource(entitypatch.getOriginal(), itemstack, armorSlot, null);
+-			
+-			if (armor != null) {
+-				builder.add(new RenderableFigure(armor, texture));
+-			}
+-		});
+-		
++        for (EquipmentSlot armorSlot : List.of(EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET)) {
++            ItemStack itemstack = entitypatch.getOriginal().getItemBySlot(armorSlot);
++            var equipment = itemstack.get(DataComponents.EQUIPPABLE);
++            if (equipment == null || equipment.slot() != armorSlot || equipment.assetId().isEmpty()) continue;
++            SkinnedMesh armor = WearableItemLayer.getCachedModel(itemstack.getItem());
++            if (armor != null) {
++                Identifier texture = WearableItemLayer.getArmorResource(entitypatch.getOriginal(), itemstack, armorSlot, null);
++                if (texture != null) builder.add(new RenderableFigure(armor, texture));
++            }
++        }
++
+ 		this.armorMeshes = builder.build();
+ 		
+ 		ImmutableList.Builder<Pair<InteractionHand, ItemStack>> builder$2 = ImmutableList.builder();
+@@ -130,7 +122,7 @@ public class EntitySnapshot<T extends LivingEntityPatch<?>> {
+ 			ItemStack itemstack = entitypatch.getAdvancedHoldingItemStack(hand);
+ 			
+ 			if (!itemstack.isEmpty()) {
+-				builder$2.add(Pair.of(hand, itemstack));
++				builder$2.add(Pair.of(hand, itemstack.copy()));
+ 			}
+ 		}
+ 		
+@@ -169,26 +161,30 @@ public class EntitySnapshot<T extends LivingEntityPatch<?>> {
+ 		}
+ 	}
+ 	
+-	public void renderItems(PoseStack poseStack, MultiBufferSource buffers, RenderType rendertype, Mesh.DrawingFunction drawingFunction, int packedLight, float alpha) {
+-		for (Pair<InteractionHand, ItemStack> items : this.handItems) {
+-			ItemStack itemstack = items.getSecond();
+-			
+-			if (RenderEngine.getInstance().getItemRenderer(itemstack).appearedInAfterimage()) {
+-				poseStack.pushPose();
+-				BakedModel bakedmodel = Minecraft.getInstance().getItemRenderer().getModel(itemstack, this.entitypatch.getOriginal().level(), this.entitypatch.getOriginal(), this.entitypatch.getOriginal().getId() + ItemDisplayContext.THIRD_PERSON_RIGHT_HAND.ordinal());
+-				
+-				if (!bakedmodel.isCustomRenderer()) {
+-					MathUtils.mulStack(poseStack, RenderEngine.getInstance().getItemRenderer(itemstack).getCorrectionMatrix(this.entitypatch, items.getFirst(), this.poseMatrices));
+-					bakedmodel = ClientHooks.handleCameraTransforms(poseStack, bakedmodel, ItemDisplayContext.THIRD_PERSON_RIGHT_HAND, false);
+-					poseStack.translate(-0.5F, -0.5F, -0.5F);
++    public void renderItems(PoseStack poseStack, MultiBufferSource buffers, RenderType renderType, Mesh.DrawingFunction draw, int packedLight, float alpha) {
++        Minecraft minecraft = Minecraft.getInstance();
++        var original = this.entitypatch.getOriginal();
++        for (Pair<InteractionHand, ItemStack> items : this.handItems) {
++            ItemStack stack = items.getSecond();
++            var renderer = RenderEngine.getInstance().getItemRenderer(stack);
++            if (!renderer.appearedInAfterimage()) continue;
++
++            poseStack.pushPose();
++            MathUtils.mulStack(poseStack, renderer.getCorrectionMatrix(this.entitypatch, items.getFirst(), this.poseMatrices));
++            ItemStackRenderState model = new ItemStackRenderState();
++            minecraft.getItemModelResolver().updateForLiving(model, stack, ItemDisplayContext.THIRD_PERSON_RIGHT_HAND, original);
++            SubmitNodeStorage captured = new SubmitNodeStorage();
++            model.submit(poseStack, captured, packedLight, OverlayTexture.NO_OVERLAY, 0);
++            poseStack.popPose();
++
++            for (var group : captured.getSubmitsPerOrder().values()) {
++                for (var item : group.getItemSubmits()) {
++                    renderQuadList(item, buffers.getBuffer(renderType), alpha, draw);
++                }
++            }
++        }
++    }
+ 
+-					renderModelLists(bakedmodel, itemstack, packedLight, OverlayTexture.NO_OVERLAY, alpha, poseStack, buffers.getBuffer(rendertype), drawingFunction);
+-				}
+-				poseStack.popPose();
+-			}
+-		}
+-	}
+-	
+ 	public OpenMatrix4f[] poseMatrices() {
+ 		return this.poseMatrices;
+ 	}
+@@ -209,41 +205,17 @@ public class EntitySnapshot<T extends LivingEntityPatch<?>> {
+ 		return this.position;
+ 	}
+ 	
+-	/**
+-	 * Code copy from {@link ItemRenderer#renderModelLists} but replaces putting bulk data to follow DrawingFunction
+-	 */
+-	@SuppressWarnings("deprecation")
+-	public static void renderModelLists(BakedModel pModel, ItemStack pStack, int pCombinedLight, int pCombinedOverlay, float alpha, PoseStack pPoseStack, VertexConsumer pBuffer, Mesh.DrawingFunction drawingFunction) {
+-		RandomSource randomsource = RandomSource.create();
+-		
+-		for (Direction direction : Direction.values()) {
+-			randomsource.setSeed(42L);
+-			renderQuadList(pPoseStack, pBuffer, pModel.getQuads((BlockState)null, direction, randomsource), pStack, pCombinedLight, pCombinedOverlay, alpha, drawingFunction);
+-		}
++    private static void renderQuadList(SubmitNodeStorage.ItemSubmit item, VertexConsumer consumer, float alpha, Mesh.DrawingFunction draw) {
++        for (BakedQuad quad : item.quads()) {
++            int index = quad.tintIndex();
++            int color = index >= 0 && index < item.tintLayers().length ? item.tintLayers()[index] : -1;
++            float red = (color >> 16 & 255) / 255.0F;
++            float green = (color >> 8 & 255) / 255.0F;
++            float blue = (color & 255) / 255.0F;
++            draw.putBulkData(item.pose(), quad, consumer, red, green, blue, alpha, item.lightCoords(), item.overlayCoords());
++        }
++    }
+ 
+-		randomsource.setSeed(42L);
+-		renderQuadList(pPoseStack, pBuffer, pModel.getQuads((BlockState)null, (Direction)null, randomsource), pStack, pCombinedLight, pCombinedOverlay, alpha, drawingFunction);
+-	}
+-	
+-	public static void renderQuadList(PoseStack pPoseStack, VertexConsumer pBuffer, List<BakedQuad> pQuads, ItemStack pItemStack, int pCombinedLight, int pCombinedOverlay, float alpha, Mesh.DrawingFunction drawingFunction) {
+-		boolean flag = !pItemStack.isEmpty();
+-		PoseStack.Pose posestack$pose = pPoseStack.last();
+-		
+-		for (BakedQuad bakedquad : pQuads) {
+-			int i = -1;
+-			
+-			if (flag && bakedquad.isTinted()) {
+-				i = ((MinecraftAccessor) Minecraft.getInstance()).epicfight$getItemColors().getColor(pItemStack, bakedquad.getTintIndex());
+-			}
+-			
+-			float f = (float) (i >> 16 & 255) / 255.0F;
+-			float f1 = (float) (i >> 8 & 255) / 255.0F;
+-			float f2 = (float) (i & 255) / 255.0F;
+-			
+-			drawingFunction.putBulkData(posestack$pose, bakedquad, pBuffer, f, f1, f2, alpha, pCombinedLight, pCombinedOverlay, true);
+-		}
+-	}
+-	
+ 	public record RenderableFigure(Mesh mesh, ResourceLocation texture) {
+ 	}
+ 	
+diff --git a/src/main/java/yesman/epicfight/client/ClientEngine.java b/src/main/java/yesman/epicfight/client/ClientEngine.java
+index 87e766b..1a70fdf 100644
+--- a/src/main/java/yesman/epicfight/client/ClientEngine.java
++++ b/src/main/java/yesman/epicfight/client/ClientEngine.java
+@@ -1,20 +1,16 @@
+ package yesman.epicfight.client;
+ 
+ import net.minecraft.client.Minecraft;
+-import net.minecraft.client.particle.ParticleRenderType;
+ import net.minecraft.client.resources.sounds.SimpleSoundInstance;
+ import net.minecraft.client.resources.sounds.SoundInstance;
+ 
+ import yesman.epicfight.platform.neoforged.common.ModConfigSpec;
+-import yesman.epicfight.client.particle.EpicFightParticleRenderTypes;
+ import yesman.epicfight.client.world.capabilites.entitypatch.player.LocalPlayerPatch;
+ import yesman.epicfight.main.AuthenticationHelper;
+ import yesman.epicfight.network.server.SPPlayUISound;
+ import yesman.epicfight.world.capabilities.EpicFightCapabilities;
+ 
+ import javax.annotation.Nullable;
+-import java.util.Comparator;
+-import java.util.List;
+ 
+ public class ClientEngine {
+     private static ClientEngine instance = new ClientEngine();
+@@ -90,33 +86,4 @@ public class ClientEngine {
+         return localPlayerPatch.isEpicFightMode();
+     }
+ 
+-    /// Copy from [ClientHooks#makeParticleRenderTypeComparator] but prioritize [ParticleRenderType#CUSTOM] lowest since it resets GL parameters setup
+-    public static Comparator<ParticleRenderType> makeCustomLowestParticleRenderTypeComparator(List<ParticleRenderType> renderOrder) {
+-        Comparator<ParticleRenderType> vanillaComparator = Comparator.comparingInt(renderOrder::indexOf);
+-
+-        return (t1, t2) -> {
+-            boolean vanillaType1 = renderOrder.contains(t1);
+-            boolean vanillaType2 = renderOrder.contains(t2);
+-
+-            if (vanillaType1 && vanillaType2) {
+-                return vanillaComparator.compare(t1, t2);
+-            }
+-
+-            if (t1.equals(t2)) {
+-                return 0;
+-            }
+-
+-            if (t1 == ParticleRenderType.CUSTOM || t1 == EpicFightParticleRenderTypes.ENTITY_PARTICLE) {
+-                return 1;
+-            } else if (t2 == ParticleRenderType.CUSTOM || t2 == EpicFightParticleRenderTypes.ENTITY_PARTICLE) {
+-                return -1;
+-            }
+-
+-            if (!vanillaType1 && !vanillaType2) {
+-                return Integer.compare(System.identityHashCode(t1), System.identityHashCode(t2));
+-            }
+-
+-            return vanillaType1 ? -1 : 1;
+-        };
+-    }
+-}
+\ No newline at end of file
++}
+diff --git a/src/main/java/yesman/epicfight/client/particle/AirBurstParticle.java b/src/main/java/yesman/epicfight/client/particle/AirBurstParticle.java
+index 3f30081..e1f8250 100644
+--- a/src/main/java/yesman/epicfight/client/particle/AirBurstParticle.java
++++ b/src/main/java/yesman/epicfight/client/particle/AirBurstParticle.java
+@@ -4,7 +4,6 @@ import net.minecraft.client.multiplayer.ClientLevel;
+ import net.minecraft.util.RandomSource;
+ import net.minecraft.client.particle.Particle;
+ import net.minecraft.client.particle.ParticleProvider;
+-import net.minecraft.client.particle.ParticleRenderType;
+ import net.minecraft.core.particles.SimpleParticleType;
+ import net.minecraft.resources.ResourceLocation;
+ import yesman.epicfight.api.asset.AssetAccessor;
+@@ -27,10 +26,6 @@ public class AirBurstParticle extends TexturedCustomModelParticle {
+ 		this.yawO = (float)yd;
+ 	}
+ 	
+-	@Override
+-	public ParticleRenderType getRenderType() {
+-		return EpicFightParticleRenderTypes.PARTICLE_MODEL_NO_NORMAL;
+-	}
+ 	
+ 	@Override
+ 	public void tick() {
+diff --git a/src/main/java/yesman/epicfight/client/particle/CustomModelParticle.java b/src/main/java/yesman/epicfight/client/particle/CustomModelParticle.java
+index d6f6915..f19b28a 100644
+--- a/src/main/java/yesman/epicfight/client/particle/CustomModelParticle.java
++++ b/src/main/java/yesman/epicfight/client/particle/CustomModelParticle.java
+@@ -3,11 +3,11 @@ package yesman.epicfight.client.particle;
+ import org.joml.Quaternionf;
+ 
+ import com.mojang.blaze3d.vertex.PoseStack;
+-import com.mojang.blaze3d.vertex.VertexConsumer;
++
+ 
+ import net.minecraft.client.Camera;
+ import net.minecraft.client.multiplayer.ClientLevel;
+-import net.minecraft.client.particle.Particle;
++import net.minecraft.client.renderer.rendertype.RenderType;
+ import net.minecraft.client.renderer.texture.OverlayTexture;
+ import net.minecraft.util.Mth;
+ import net.minecraft.world.phys.Vec3;
+@@ -15,7 +15,7 @@ import yesman.epicfight.api.asset.AssetAccessor;
+ import yesman.epicfight.api.client.model.Mesh;
+ import yesman.epicfight.api.utils.math.QuaternionUtils;
+ 
+-public abstract class CustomModelParticle<M extends Mesh> extends Particle {
++public abstract class CustomModelParticle<M extends Mesh> extends ExtractedParticle {
+ 	protected final AssetAccessor<M> particleMeshProvider;
+ 	protected float rCol = 1.0F;
+ 	protected float gCol = 1.0F;
+@@ -39,17 +39,28 @@ public abstract class CustomModelParticle<M extends Mesh> extends Particle {
+ 		this.alpha = alpha;
+ 	}
+ 
+-	@Override
+-	public void render(VertexConsumer vertexConsumer, Camera camera, float partialTicks) {
+-		PoseStack poseStack = new PoseStack();
+-		poseStack.pushPose();
+-		this.setupPoseStack(poseStack, camera, partialTicks);
+-		this.prepareDraw(poseStack, partialTicks);
+-		this.particleMeshProvider.get().draw(poseStack, vertexConsumer, Mesh.DrawingFunction.POSITION_TEX_COLOR_LIGHTMAP, this.getLightColor(partialTicks), this.rCol, this.gCol, this.bCol, this.alpha, OverlayTexture.NO_OVERLAY);
+-		this.revert(poseStack);
+-		poseStack.popPose();
+-	}
+-	
++    @Override
++    Draw extract(Camera camera, float partialTicks) {
++        PoseStack pose = new PoseStack();
++        this.setupPoseStack(pose, camera, partialTicks);
++        this.prepareDraw(pose, partialTicks);
++        M mesh = this.particleMeshProvider.get();
++        int light = this.getLightColor(partialTicks);
++        float red = this.rCol, green = this.gCol, blue = this.bCol, opacity = this.alpha;
++        Mesh.DrawingFunction vertices = drawingFunction();
++        RenderType type = renderType();
++        return collector -> collector.submitCustomGeometry(pose, type, (transform, consumer) ->
++            mesh.draw(pose, consumer, vertices, light, red, green, blue, opacity, OverlayTexture.NO_OVERLAY));
++    }
++
++    protected RenderType renderType() {
++        return ParticleEffectPipelines.GLOWING_MODEL;
++    }
++
++    protected Mesh.DrawingFunction drawingFunction() {
++        return Mesh.DrawingFunction.POSITION_COLOR;
++    }
++
+ 	@Override
+ 	public void tick() {
+ 		if (this.age++ >= this.lifetime) {
+@@ -66,7 +77,6 @@ public abstract class CustomModelParticle<M extends Mesh> extends Particle {
+ 	}
+ 	
+ 	protected void setupPoseStack(PoseStack poseStack, Camera camera, float partialTicks) {
+-		poseStack.pushPose();
+ 		
+ 		Vec3 cameraPosition = camera.position();
+ 		float x = (float)(Mth.lerp(partialTicks, this.xo, this.x) - cameraPosition.x());
+@@ -87,7 +97,4 @@ public abstract class CustomModelParticle<M extends Mesh> extends Particle {
+ 		poseStack.scale(scale, scale, scale);
+ 	}
+ 	
+-	protected void revert(PoseStack poseStack) {
+-		poseStack.popPose();
+-	}
+-}
+\ No newline at end of file
++}
+diff --git a/src/main/java/yesman/epicfight/client/particle/EntityAfterimageParticle.java b/src/main/java/yesman/epicfight/client/particle/EntityAfterimageParticle.java
+index e2ed0c5..28d4beb 100644
+--- a/src/main/java/yesman/epicfight/client/particle/EntityAfterimageParticle.java
++++ b/src/main/java/yesman/epicfight/client/particle/EntityAfterimageParticle.java
+@@ -1,7 +1,6 @@
+ package yesman.epicfight.client.particle;
+ 
+ import com.mojang.blaze3d.vertex.PoseStack;
+-import com.mojang.blaze3d.vertex.VertexConsumer;
+ import net.minecraft.client.Camera;
+ import net.minecraft.util.RandomSource;
+ import net.minecraft.client.Minecraft;
+@@ -52,32 +51,40 @@ public class EntityAfterimageParticle extends CustomModelParticle<SkinnedMesh> {
+ 		this.ticktask.accept(this);
+ 	}
+ 	
+-	@Override
+-	public void render(VertexConsumer vertexConsumer, Camera camera, float partialTick) {
+-		float alpha = Mth.lerp(partialTick, this.alphaO, this.alpha);
+-		int lightColor = this.getLightColor(partialTick);
+-		PoseStack poseStack = new PoseStack();
+-		this.setupPoseStack(poseStack, camera, partialTick);
+-		MultiBufferSource.BufferSource buffers = Minecraft.getInstance().renderBuffers().bufferSource();
+-		this.entitySnapshot.renderTextured(poseStack, buffers, EpicFightRenderTypes::entityAfterimageStencil, Mesh.DrawingFunction.POSITION_TEX, 0, 0.0F, 0.0F, 0.0F, 1.0F);
+-		this.entitySnapshot.renderItems(poseStack, buffers, EpicFightRenderTypes.itemAfterimageStencil(), Mesh.DrawingFunction.POSITION_TEX, lightColor, 1.0F);
+-		buffers.endLastBatch();
+-		
+-		this.entitySnapshot.renderTextured(poseStack, buffers, EpicFightRenderTypes::entityAfterimageTranslucent, Mesh.DrawingFunction.NEW_ENTITY, lightColor, this.rCol, this.gCol, this.bCol, alpha);
+-		this.entitySnapshot.renderItems(poseStack, buffers, EpicFightRenderTypes.itemAfterimageTranslucent(), Mesh.DrawingFunction.NEW_ENTITY, lightColor, alpha);
+-		buffers.endLastBatch();
+-		
+-		this.revert(poseStack);
+-	}
++    @Override
++    Draw extract(Camera camera, float partialTick) {
++        PoseStack poseStack = new PoseStack();
++        this.setupPoseStack(poseStack, camera, partialTick);
++        float alpha = Mth.lerp(partialTick, this.alphaO, this.alpha);
++        int light = this.getLightColor(partialTick);
++        float red = this.rCol, green = this.gCol, blue = this.bCol;
++        boolean white = this instanceof WhiteAfterimageParticle;
++        return collector -> ParticleAfterimages.submit(collector, () -> renderAfterimage(poseStack, light, red, green, blue, alpha, white));
++    }
++
++    private void renderAfterimage(PoseStack poseStack, int light, float red, float green, float blue, float alpha, boolean white) {
++        MultiBufferSource.BufferSource buffers = Minecraft.getInstance().renderBuffers().bufferSource();
++        buffers.endBatch();
++        this.entitySnapshot.renderTextured(poseStack, buffers, EpicFightRenderTypes::entityAfterimageStencil, Mesh.DrawingFunction.POSITION_TEX, 0, 0, 0, 0, 1);
++        this.entitySnapshot.renderItems(poseStack, buffers, EpicFightRenderTypes.itemAfterimageStencil(), Mesh.DrawingFunction.POSITION_TEX, light, 1);
++        buffers.endBatch();
++        if (white) {
++            this.entitySnapshot.render(poseStack, buffers, EpicFightRenderTypes.entityAfterimageWhite(), Mesh.DrawingFunction.POSITION_TEX_COLOR_LIGHTMAP, light, red, green, blue, alpha);
++            this.entitySnapshot.renderItems(poseStack, buffers, EpicFightRenderTypes.itemAfterimageWhite(), Mesh.DrawingFunction.POSITION_TEX_COLOR_LIGHTMAP, light, alpha);
++        } else {
++            this.entitySnapshot.renderTextured(poseStack, buffers, EpicFightRenderTypes::entityAfterimageTranslucent, Mesh.DrawingFunction.NEW_ENTITY, light, red, green, blue, alpha);
++            this.entitySnapshot.renderItems(poseStack, buffers, EpicFightRenderTypes.itemAfterimageTranslucent(), Mesh.DrawingFunction.NEW_ENTITY, light, alpha);
++        }
++        buffers.endBatch();
++    }
++
++    @Override
++    public ParticleRenderType getGroup() {
++        return EpicFightParticleRenderTypes.AFTERIMAGE;
++    }
+ 
+-	@Override
+-	public ParticleRenderType getRenderType() {
+-		return EpicFightParticleRenderTypes.ENTITY_PARTICLE;
+-	}
+-	
+ 	@Override
+ 	protected void setupPoseStack(PoseStack poseStack, Camera camera, float partialTick) {
+-		poseStack.pushPose();
+ 		Vec3 cameraPosition = camera.position();
+ 		float x = (float) (Mth.lerp(partialTick, this.xo, this.x) - cameraPosition.x());
+ 		float y = (float) (Mth.lerp(partialTick, this.yo, this.y) - cameraPosition.y());
+@@ -109,22 +116,6 @@ public class EntityAfterimageParticle extends CustomModelParticle<SkinnedMesh> {
+ 			super(level, x, y, z, xd, yd, zd, entitySnapshot, ticktask);
+ 		}
+ 
+-		@Override
+-		public void render(VertexConsumer vertexConsumer, Camera camera, float partialTick) {
+-			float alpha = Mth.lerp(partialTick, this.alphaO, this.alpha);
+-			int lightColor = this.getLightColor(partialTick);
+-			PoseStack poseStack = new PoseStack();
+-			this.setupPoseStack(poseStack, camera, partialTick);
+-			MultiBufferSource.BufferSource buffers = Minecraft.getInstance().renderBuffers().bufferSource();
+-			this.entitySnapshot.renderTextured(poseStack, buffers, EpicFightRenderTypes::entityAfterimageStencil, Mesh.DrawingFunction.POSITION_TEX, 0, 0.0F, 0.0F, 0.0F, 1.0F);
+-			this.entitySnapshot.renderItems(poseStack, buffers, EpicFightRenderTypes.itemAfterimageStencil(), Mesh.DrawingFunction.POSITION_TEX, lightColor, 1.0F);
+-			buffers.endLastBatch();
+-			
+-			this.entitySnapshot.render(poseStack, buffers, EpicFightRenderTypes.entityAfterimageWhite(), Mesh.DrawingFunction.POSITION_TEX_COLOR_LIGHTMAP, lightColor, this.rCol, this.gCol, this.bCol, alpha);
+-			this.entitySnapshot.renderItems(poseStack, buffers, EpicFightRenderTypes.itemAfterimageWhite(), Mesh.DrawingFunction.POSITION_TEX_COLOR_LIGHTMAP, lightColor, alpha);
+-			buffers.endLastBatch();
+-			this.revert(poseStack);
+-		}
+ 	}
+ 
+ 	public static class AdrenalineParticleProvider implements ParticleProvider<SimpleParticleType> {
+diff --git a/src/main/java/yesman/epicfight/client/particle/EpicFightParticleRenderTypes.java b/src/main/java/yesman/epicfight/client/particle/EpicFightParticleRenderTypes.java
+index 4981e99..8640356 100644
+--- a/src/main/java/yesman/epicfight/client/particle/EpicFightParticleRenderTypes.java
++++ b/src/main/java/yesman/epicfight/client/particle/EpicFightParticleRenderTypes.java
+@@ -1,115 +1,37 @@
+ package yesman.epicfight.client.particle;
+ 
+-import com.mojang.blaze3d.platform.GlStateManager;
+-import com.mojang.blaze3d.systems.RenderSystem;
+-import com.mojang.blaze3d.vertex.BufferBuilder;
+-import com.mojang.blaze3d.vertex.DefaultVertexFormat;
+-import com.mojang.blaze3d.vertex.Tesselator;
+-import com.mojang.blaze3d.vertex.VertexFormat;
+-import net.minecraft.Util;
+-import net.minecraft.client.Minecraft;
++import java.util.LinkedHashMap;
++import java.util.List;
++import java.util.Map;
++import net.minecraft.client.particle.ParticleEngine;
++import net.minecraft.client.particle.ParticleGroup;
+ import net.minecraft.client.particle.ParticleRenderType;
+-import net.minecraft.client.renderer.GameRenderer;
+-import net.minecraft.client.renderer.texture.AbstractTexture;
+-import net.minecraft.client.renderer.texture.TextureManager;
+-import net.minecraft.resources.ResourceLocation;
+-import org.lwjgl.opengl.GL11;
+-import org.lwjgl.opengl.GL12;
++import yesman.epicfight.api.client.particle.ParticleRenderTypeExtension;
+ 
+-import java.util.function.Function;
++public final class EpicFightParticleRenderTypes {
++    public static final ParticleRenderType MODEL = new ParticleRenderType("epicfight:model");
++    public static final ParticleRenderType AFTERIMAGE = new ParticleRenderType("epicfight:afterimage");
++    private static final Map<ParticleRenderType, ParticleRenderTypeExtension> GROUPS = new LinkedHashMap<>();
+ 
+-public class EpicFightParticleRenderTypes {
+-    public static final ParticleRenderType PARTICLE_MODEL_NO_NORMAL = new ParticleRenderType() {
+-        @Override
+-        public BufferBuilder begin(Tesselator tesselator, TextureManager textureManager) {
+-            RenderSystem.disableCull();
+-            RenderSystem.enableBlend();
+-            RenderSystem.defaultBlendFunc();
+-            RenderSystem.depthMask(true);
+-            RenderSystem.setShader(GameRenderer::getParticleShader);
++    static {
++        register(MODEL, ModelParticleGroup::new);
++        register(TrailParticleGroup.ID, TrailParticleGroup::new);
++        register(AFTERIMAGE, ModelParticleGroup::new);
++    }
+ 
+-            return tesselator.begin(VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.PARTICLE);
+-        }
++    private EpicFightParticleRenderTypes() {}
+ 
+-        public String toString() {
+-            return "epicfight:PARTICLE_MODEL_NO_NORMAL";
+-        }
+-    };
++    public static synchronized void register(ParticleRenderType id, ParticleRenderTypeExtension factory) {
++        if (GROUPS.putIfAbsent(id, factory) != null) throw new IllegalArgumentException("Duplicate particle group: " + id);
++    }
+ 
+-    public static final ParticleRenderType LIGHTNING = new ParticleRenderType() {
+-        @Override
+-        public BufferBuilder begin(Tesselator tesselator, TextureManager textureManager) {
+-            RenderSystem.enableBlend();
+-            RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
+-            RenderSystem.depthMask(false);
+-            RenderSystem.setShader(GameRenderer::getRendertypeLightningShader);
++    public static synchronized ParticleGroup<?> createGroup(ParticleRenderType id, ParticleEngine engine) {
++        var factory = GROUPS.get(id);
++        return factory == null ? null : factory.createGroup(engine);
++    }
+ 
+-            return tesselator.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
+-        }
++    public static synchronized List<ParticleRenderType> customGroups() {
++        return List.copyOf(GROUPS.keySet());
++    }
+ 
+-        @Override
+-        public String toString() {
+-            return "epicfight:LIGHTING";
+-        }
+-    };
+-
+-    public static final Function<ResourceLocation, ParticleRenderType> TRAIL_EFFECT = Util.memoize(textureLocation -> {
+-        TextureManager texturemanager = Minecraft.getInstance().getTextureManager();
+-        AbstractTexture abstracttexture = texturemanager.getTexture(textureLocation);
+-
+-        // Set texture parameter
+-        RenderSystem.bindTexture(abstracttexture.getId());
+-        RenderSystem.texParameter(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_S, GL12.GL_CLAMP_TO_EDGE);
+-        RenderSystem.texParameter(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_T, GL12.GL_CLAMP_TO_EDGE);
+-
+-        return new ParticleRenderType() {
+-            @Override
+-            public BufferBuilder begin(Tesselator tesselator, TextureManager textureManager) {
+-                RenderSystem.disableCull();
+-                RenderSystem.enableBlend();
+-                RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
+-                RenderSystem.depthMask(false);
+-                RenderSystem.setShader(GameRenderer::getParticleShader);
+-                RenderSystem.setShaderTexture(0, textureLocation);
+-
+-                return tesselator.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.PARTICLE);
+-            }
+-
+-            @Override
+-            public String toString() {
+-                return "epicfight:TRAIL_EFFECT";
+-            }
+-        };
+-    });
+-
+-    public static final ParticleRenderType TRANSLUCENT_GLOWING = new ParticleRenderType() {
+-        @Override
+-        public BufferBuilder begin(Tesselator tesselator, TextureManager textureManager) {
+-            RenderSystem.enableBlend();
+-            RenderSystem.defaultBlendFunc();
+-            RenderSystem.depthMask(true);
+-            RenderSystem.setShader(GameRenderer::getPositionColorShader);
+-
+-            return tesselator.begin(VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.POSITION_COLOR);
+-        }
+-
+-        @Override
+-        public String toString() {
+-            return "epicfight:TRANSLUCENT_GLOWING";
+-        }
+-    };
+-
+-    public static final ParticleRenderType ENTITY_PARTICLE = new ParticleRenderType() {
+-        @Override
+-        public BufferBuilder begin(Tesselator tesselator, TextureManager texManager) {
+-            RenderSystem.depthMask(true);
+-            RenderSystem.setShader(GameRenderer::getParticleShader);
+-            return tesselator.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.PARTICLE);
+-        }
+-
+-        @Override
+-        public String toString() {
+-            return "epicfight:ENTITY_PARTICLE";
+-        }
+-    };
+ }
+diff --git a/src/main/java/yesman/epicfight/client/particle/ExtractedParticle.java b/src/main/java/yesman/epicfight/client/particle/ExtractedParticle.java
+new file mode 100644
+index 0000000..bbeb336
+--- /dev/null
++++ b/src/main/java/yesman/epicfight/client/particle/ExtractedParticle.java
+@@ -0,0 +1,29 @@
++package yesman.epicfight.client.particle;
++
++import net.minecraft.client.Camera;
++import net.minecraft.client.multiplayer.ClientLevel;
++import net.minecraft.client.particle.Particle;
++import net.minecraft.client.particle.ParticleRenderType;
++import net.minecraft.client.renderer.SubmitNodeCollector;
++
++abstract class ExtractedParticle extends Particle {
++    ExtractedParticle(ClientLevel level, double x, double y, double z) {
++        super(level, x, y, z);
++    }
++
++    ExtractedParticle(ClientLevel level, double x, double y, double z, double xd, double yd, double zd) {
++        super(level, x, y, z, xd, yd, zd);
++    }
++
++    @Override
++    public ParticleRenderType getGroup() {
++        return EpicFightParticleRenderTypes.MODEL;
++    }
++
++    abstract Draw extract(Camera camera, float partialTick);
++
++    @FunctionalInterface
++    interface Draw {
++        void submit(SubmitNodeCollector collector);
++    }
++}
+diff --git a/src/main/java/yesman/epicfight/client/particle/ForceFieldEndParticle.java b/src/main/java/yesman/epicfight/client/particle/ForceFieldEndParticle.java
+index 702b423..06f9467 100644
+--- a/src/main/java/yesman/epicfight/client/particle/ForceFieldEndParticle.java
++++ b/src/main/java/yesman/epicfight/client/particle/ForceFieldEndParticle.java
+@@ -1,7 +1,6 @@
+ package yesman.epicfight.client.particle;
+ 
+ import com.mojang.blaze3d.vertex.PoseStack;
+-import com.mojang.blaze3d.vertex.VertexConsumer;
+ 
+ import net.minecraft.client.Camera;
+ import net.minecraft.util.RandomSource;
+@@ -9,14 +8,13 @@ import net.minecraft.client.Minecraft;
+ import net.minecraft.client.multiplayer.ClientLevel;
+ import net.minecraft.client.particle.Particle;
+ import net.minecraft.client.particle.ParticleProvider;
+-import net.minecraft.client.particle.ParticleRenderType;
+ import net.minecraft.core.particles.SimpleParticleType;
+ import net.minecraft.util.Mth;
+ import net.minecraft.world.phys.Vec3;
+ import yesman.epicfight.client.events.engine.RenderEngine;
+ import yesman.epicfight.client.renderer.LightningRenderHelper;
+ 
+-public class ForceFieldEndParticle extends Particle {
++public class ForceFieldEndParticle extends ExtractedParticle {
+ 	private boolean init;
+ 	
+ 	protected ForceFieldEndParticle(ClientLevel level, double x, double y, double z) {
+@@ -26,30 +24,25 @@ public class ForceFieldEndParticle extends Particle {
+ 		mc.particleEngine.add(new DustParticle.ExpansiveMetaParticle(level, x, y, z, 6.0D, 80));
+ 	}
+ 	
+-	public ParticleRenderType getRenderType() {
+-		return EpicFightParticleRenderTypes.LIGHTNING;
+-	}
+-	
+-	@Override
+-	public void render(VertexConsumer vertexBuilder, Camera camera, float parttialTick) {
+-		PoseStack poseStack = new PoseStack();
+-		Vec3 vec3 = camera.position();
+-		float f = (float) (Mth.lerp(parttialTick, this.xo, this.x) - vec3.x());
+-		float f1 = (float) (Mth.lerp(parttialTick, this.yo, this.y) - vec3.y());
+-		float f2 = (float) (Mth.lerp(parttialTick, this.zo, this.z) - vec3.z());
+-		poseStack.translate(f, f1, f2);
+-		
+-		if (this.age > 0) {
+-			float progression = ((float)this.age + parttialTick) / (float)this.lifetime;
+-			LightningRenderHelper.renderFlashingLight(vertexBuilder, poseStack, 255, 0, 255, 15, 1.0F, progression);
+-		}
+-		
+-		if (!this.init) {
+-			RenderEngine.getInstance().getOverlayManager().flickering("flickering", 0.05F, 1.2F);
+-			this.init = true;
+-		}
+-	}
+-	
++    @Override
++    Draw extract(Camera camera, float partialTick) {
++        PoseStack pose = new PoseStack();
++        Vec3 origin = camera.position();
++        pose.translate(Mth.lerp(partialTick, this.xo, this.x) - origin.x(),
++            Mth.lerp(partialTick, this.yo, this.y) - origin.y(),
++            Mth.lerp(partialTick, this.zo, this.z) - origin.z());
++        float progress = (this.age + partialTick) / this.lifetime;
++        boolean lit = this.age > 0;
++        if (!this.init) {
++            RenderEngine.getInstance().getOverlayManager().flickering("flickering", 0.05F, 1.2F);
++            this.init = true;
++        }
++        return collector -> {
++            if (lit) collector.submitCustomGeometry(pose, ParticleEffectPipelines.LIGHTNING_MODEL,
++                (transform, vertex) -> LightningRenderHelper.renderFlashingLight(vertex, pose, 255, 0, 255, 15, 1.0F, progress));
++        };
++    }
++
+ 	public static class Provider implements ParticleProvider<SimpleParticleType> {
+ 		@Override
+ 		public Particle createParticle(SimpleParticleType typeIn, ClientLevel level, double x, double y, double z, double xSpeed, double ySpeed, double zSpeed, RandomSource random) {
+diff --git a/src/main/java/yesman/epicfight/client/particle/ForceFieldParticle.java b/src/main/java/yesman/epicfight/client/particle/ForceFieldParticle.java
+index b833310..32a8c9e 100644
+--- a/src/main/java/yesman/epicfight/client/particle/ForceFieldParticle.java
++++ b/src/main/java/yesman/epicfight/client/particle/ForceFieldParticle.java
+@@ -4,7 +4,6 @@ import net.minecraft.client.multiplayer.ClientLevel;
+ import net.minecraft.util.RandomSource;
+ import net.minecraft.client.particle.Particle;
+ import net.minecraft.client.particle.ParticleProvider;
+-import net.minecraft.client.particle.ParticleRenderType;
+ import net.minecraft.client.renderer.entity.EnderDragonRenderer;
+ import net.minecraft.core.particles.SimpleParticleType;
+ import net.minecraft.resources.ResourceLocation;
+@@ -35,10 +34,6 @@ public class ForceFieldParticle extends TexturedCustomModelParticle {
+ 		}
+ 	}
+ 	
+-	@Override
+-	public ParticleRenderType getRenderType() {
+-		return EpicFightParticleRenderTypes.PARTICLE_MODEL_NO_NORMAL;
+-	}
+ 	
+ 	@Override
+ 	public void tick() {
+diff --git a/src/main/java/yesman/epicfight/client/particle/LaserParticle.java b/src/main/java/yesman/epicfight/client/particle/LaserParticle.java
+index c123644..1361667 100644
+--- a/src/main/java/yesman/epicfight/client/particle/LaserParticle.java
++++ b/src/main/java/yesman/epicfight/client/particle/LaserParticle.java
+@@ -7,7 +7,6 @@ import net.minecraft.util.RandomSource;
+ import net.minecraft.client.multiplayer.ClientLevel;
+ import net.minecraft.client.particle.Particle;
+ import net.minecraft.client.particle.ParticleProvider;
+-import net.minecraft.client.particle.ParticleRenderType;
+ import net.minecraft.core.particles.ParticleTypes;
+ import net.minecraft.core.particles.SimpleParticleType;
+ import net.minecraft.util.Mth;
+@@ -51,7 +50,6 @@ public class LaserParticle extends CustomModelParticle<ClassicMesh> {
+ 	
+ 	@Override
+ 	protected void setupPoseStack(PoseStack poseStack, Camera camera, float partialTick) {
+-		poseStack.pushPose();
+ 		Vec3 cameraPosition = camera.position();
+ 		float x = (float)(Mth.lerp(partialTick, this.xo, this.x) - cameraPosition.x());
+ 		float y = (float)(Mth.lerp(partialTick, this.yo, this.y) - cameraPosition.y());
+@@ -67,10 +65,6 @@ public class LaserParticle extends CustomModelParticle<ClassicMesh> {
+ 		poseStack.scale(scale, scale, zScale * this.length);
+ 	}
+ 	
+-	@Override
+-	public ParticleRenderType getRenderType() {
+-		return EpicFightParticleRenderTypes.TRANSLUCENT_GLOWING;
+-	}
+ 	
+ 	public static class Provider implements ParticleProvider<SimpleParticleType> {
+ 		@Override
+diff --git a/src/main/java/yesman/epicfight/client/particle/ModelParticleGroup.java b/src/main/java/yesman/epicfight/client/particle/ModelParticleGroup.java
+new file mode 100644
+index 0000000..bc9101c
+--- /dev/null
++++ b/src/main/java/yesman/epicfight/client/particle/ModelParticleGroup.java
+@@ -0,0 +1,37 @@
++package yesman.epicfight.client.particle;
++
++import java.util.ArrayList;
++import java.util.List;
++import net.minecraft.client.Camera;
++import net.minecraft.client.particle.ParticleEngine;
++import net.minecraft.client.particle.ParticleGroup;
++import net.minecraft.client.renderer.SubmitNodeCollector;
++import net.minecraft.client.renderer.culling.Frustum;
++import net.minecraft.client.renderer.state.CameraRenderState;
++import net.minecraft.client.renderer.state.ParticleGroupRenderState;
++
++final class ModelParticleGroup extends ParticleGroup<ExtractedParticle> {
++    ModelParticleGroup(ParticleEngine engine) {
++        super(engine);
++    }
++
++    @Override
++    public ParticleGroupRenderState extractRenderState(Frustum frustum, Camera camera, float partialTick) {
++        List<ExtractedParticle.Draw> particles = new ArrayList<>(this.particles.size());
++        // Custom geometry can extend well beyond the particle's origin.
++        for (var particle : this.particles) particles.add(particle.extract(camera, partialTick));
++        return new Frame(particles);
++    }
++
++    private record Frame(List<ExtractedParticle.Draw> particles) implements ParticleGroupRenderState {
++        @Override
++        public void submit(SubmitNodeCollector collector, CameraRenderState camera) {
++            for (var particle : particles) particle.submit(collector);
++        }
++
++        @Override
++        public void clear() {
++            particles.clear();
++        }
++    }
++}
+diff --git a/src/main/java/yesman/epicfight/client/particle/ParticleAfterimages.java b/src/main/java/yesman/epicfight/client/particle/ParticleAfterimages.java
+new file mode 100644
+index 0000000..2eaaf7e
+--- /dev/null
++++ b/src/main/java/yesman/epicfight/client/particle/ParticleAfterimages.java
+@@ -0,0 +1,12 @@
++package yesman.epicfight.client.particle;
++
++import java.util.List;
++import net.minecraft.client.renderer.SubmitNodeCollector;
++
++public interface ParticleAfterimages {
++    List<Runnable> epicfight$afterimages();
++
++    static void submit(SubmitNodeCollector collector, Runnable afterimage) {
++        ((ParticleAfterimages)collector.order(0)).epicfight$afterimages().add(afterimage);
++    }
++}
+diff --git a/src/main/java/yesman/epicfight/client/particle/ParticleEffectPipelines.java b/src/main/java/yesman/epicfight/client/particle/ParticleEffectPipelines.java
+new file mode 100644
+index 0000000..b0fe3a0
+--- /dev/null
++++ b/src/main/java/yesman/epicfight/client/particle/ParticleEffectPipelines.java
+@@ -0,0 +1,42 @@
++package yesman.epicfight.client.particle;
++
++import com.mojang.blaze3d.pipeline.BlendFunction;
++import com.mojang.blaze3d.pipeline.RenderPipeline;
++import com.mojang.blaze3d.vertex.DefaultVertexFormat;
++import com.mojang.blaze3d.vertex.VertexFormat;
++import java.util.function.Function;
++import net.minecraft.client.renderer.RenderPipelines;
++import net.minecraft.client.renderer.rendertype.RenderSetup;
++import net.minecraft.client.renderer.rendertype.RenderType;
++import net.minecraft.resources.Identifier;
++import net.minecraft.util.Util;
++
++final class ParticleEffectPipelines {
++    private static final RenderPipeline TEXTURED_MODEL = RenderPipeline.builder(RenderPipelines.PARTICLE_SNIPPET)
++        .withLocation(id("pipeline/model_particle")).withBlend(BlendFunction.TRANSLUCENT)
++        .withCull(false).withDepthWrite(true)
++        .withVertexFormat(DefaultVertexFormat.PARTICLE, VertexFormat.Mode.TRIANGLES).build();
++    private static final Function<Identifier, RenderType> MODEL_TEXTURES = Util.memoize(texture ->
++        RenderType.create("epicfight:model_particle", RenderSetup.builder(TEXTURED_MODEL)
++            .withTexture("Sampler0", texture).useLightmap().createRenderSetup()));
++    private static final RenderPipeline GLOWING = RenderPipeline.builder(RenderPipelines.DEBUG_FILLED_SNIPPET)
++        .withLocation(id("pipeline/glowing_particle")).withBlend(BlendFunction.TRANSLUCENT)
++        .withCull(false).withDepthWrite(true)
++        .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, VertexFormat.Mode.TRIANGLES).build();
++    static final RenderType GLOWING_MODEL = RenderType.create("epicfight:glowing_particle", RenderSetup.builder(GLOWING).createRenderSetup());
++    private static final RenderPipeline ADDITIVE = RenderPipeline.builder(RenderPipelines.MATRICES_FOG_SNIPPET)
++        .withLocation(id("pipeline/particle_lightning")).withVertexShader("core/rendertype_lightning")
++        .withFragmentShader("core/rendertype_lightning").withBlend(BlendFunction.LIGHTNING).withDepthWrite(false)
++        .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, VertexFormat.Mode.TRIANGLES).build();
++    static final RenderType LIGHTNING_MODEL = RenderType.create("epicfight:lightning_particle", RenderSetup.builder(ADDITIVE).createRenderSetup());
++
++    private ParticleEffectPipelines() {}
++
++    static RenderType texturedModel(Identifier texture) {
++        return MODEL_TEXTURES.apply(texture);
++    }
++
++    private static Identifier id(String location) {
++        return Identifier.fromNamespaceAndPath("epicfight", location);
++    }
++}
+diff --git a/src/main/java/yesman/epicfight/client/particle/TexturedCustomModelParticle.java b/src/main/java/yesman/epicfight/client/particle/TexturedCustomModelParticle.java
+index 9f3c317..d7be701 100644
+--- a/src/main/java/yesman/epicfight/client/particle/TexturedCustomModelParticle.java
++++ b/src/main/java/yesman/epicfight/client/particle/TexturedCustomModelParticle.java
+@@ -1,7 +1,7 @@
+-package yesman.epicfight.client.particle;
++package yesman.epicfight.client.particle;
+ 
+-import com.mojang.blaze3d.systems.RenderSystem;
+-import com.mojang.blaze3d.vertex.PoseStack;
++import net.minecraft.client.renderer.rendertype.RenderType;
++import yesman.epicfight.api.client.model.Mesh;
+ 
+ import net.minecraft.client.multiplayer.ClientLevel;
+ import net.minecraft.resources.ResourceLocation;
+@@ -16,8 +16,13 @@ public abstract class TexturedCustomModelParticle extends CustomModelParticle<Cl
+ 		this.texture = texture;
+ 	}
+ 	
+-	@Override
+-	public void prepareDraw(PoseStack poseStack, float partialTicks) {
+-		RenderSystem.setShaderTexture(0, this.texture);
+-	}
+-}
+\ No newline at end of file
++    @Override
++    protected RenderType renderType() {
++        return ParticleEffectPipelines.texturedModel(this.texture);
++    }
++
++    @Override
++    protected Mesh.DrawingFunction drawingFunction() {
++        return Mesh.DrawingFunction.POSITION_TEX_COLOR_LIGHTMAP;
++    }
++}
+diff --git a/src/main/java/yesman/epicfight/client/renderer/EpicFightRenderTypes.java b/src/main/java/yesman/epicfight/client/renderer/EpicFightRenderTypes.java
+index bca24d9..a43ced0 100644
+--- a/src/main/java/yesman/epicfight/client/renderer/EpicFightRenderTypes.java
++++ b/src/main/java/yesman/epicfight/client/renderer/EpicFightRenderTypes.java
+@@ -32,8 +32,8 @@ import static com.mojang.blaze3d.vertex.VertexFormat.Mode.QUADS;
+ import static com.mojang.blaze3d.vertex.VertexFormat.Mode.TRIANGLES;
+ 
+ public final class EpicFightRenderTypes {
+-    private static final Identifier WHITE = id("textures/common/white.png");
+-    private static final Identifier GLINT_WHITE = id("textures/entity/overlay/glint_white.png");
++    private static final Identifier WHITE = Identifier.fromNamespaceAndPath("fala_epicfight", "textures/utility/effect-white.png");
++    private static final Identifier GLINT_WHITE = Identifier.fromNamespaceAndPath("fala_epicfight", "textures/utility/angle-glint.png");
+ 
+     private static final Function<RenderPipeline, RenderPipeline> TRIANGLE_PIPELINE = Util.memoize(source ->
+         copyPipeline(source, "triangles/" + source.getLocation().getNamespace() + "/" + source.getLocation().getPath(), TRIANGLES).build());
+diff --git a/src/main/java/yesman/epicfight/mixin/client/MixinParticleEngine.java b/src/main/java/yesman/epicfight/mixin/client/MixinParticleEngine.java
+index 8664ed8..bfd932e 100644
+--- a/src/main/java/yesman/epicfight/mixin/client/MixinParticleEngine.java
++++ b/src/main/java/yesman/epicfight/mixin/client/MixinParticleEngine.java
+@@ -1,121 +1,40 @@
+-package yesman.epicfight.mixin.client;
+-
+-import java.util.List;
+-import java.util.Map;
+-import java.util.Queue;
+-
+-import org.spongepowered.asm.mixin.Final;
+-import org.spongepowered.asm.mixin.Mixin;
+-import org.spongepowered.asm.mixin.Mutable;
+-import org.spongepowered.asm.mixin.Shadow;
+-import org.spongepowered.asm.mixin.injection.At;
+-import org.spongepowered.asm.mixin.injection.Inject;
+-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+-
+-import com.google.common.collect.Maps;
+-import com.mojang.blaze3d.systems.RenderSystem;
+-import com.mojang.blaze3d.vertex.BufferBuilder;
+-import com.mojang.blaze3d.vertex.BufferUploader;
+-import com.mojang.blaze3d.vertex.MeshData;
+-import com.mojang.blaze3d.vertex.Tesselator;
+-
+-import net.minecraft.CrashReport;
+-import net.minecraft.CrashReportCategory;
+-import net.minecraft.ReportedException;
+-import net.minecraft.client.Camera;
+-import net.minecraft.client.multiplayer.ClientLevel;
+-import net.minecraft.client.particle.Particle;
+-import net.minecraft.client.particle.ParticleEngine;
+-import net.minecraft.client.particle.ParticleRenderType;
+-import net.minecraft.client.renderer.LightTexture;
+-import net.minecraft.client.renderer.texture.TextureManager;
+-import yesman.epicfight.api.client.particle.ParticleRenderTypeExtension;
+-import yesman.epicfight.client.ClientEngine;
+-
+-@Mixin(value = ParticleEngine.class)
+-public class MixinParticleEngine {
+-	@Shadow
+-	@Final
+-	private static List<ParticleRenderType> RENDER_ORDER;
+-
+-	@Shadow
+-	@Mutable
+-	private Map<ParticleRenderType, Queue<Particle>> particles;
+-
+-	@Shadow
+-	@Final
+-	private TextureManager textureManager;
+-
+-	@Inject(at = @At(value = "TAIL"), method = "<init>")
+-	private void epicfight$constructor(ClientLevel pLevel, TextureManager pTextureManager, CallbackInfo callbackInfo) {
+-		this.particles = Maps.newTreeMap(ClientEngine.makeCustomLowestParticleRenderTypeComparator(RENDER_ORDER));
+-	}
+-
+-	/// Vanilla's render() only iterates the fixed RENDER_ORDER list, so custom
+-	/// ParticleRenderTypes (trail arcs, slash effects, glowing particles) are
+-	/// queued but never drawn. NeoForge patches the same loop upstream; on Fabric
+-	/// we draw every non-vanilla type after the vanilla pass, in the TreeMap's
+-	/// comparator order (custom types already sort last). Layers implementing
+-	/// {@link ParticleRenderTypeExtension} get end() exactly once per rendered
+-	/// layer in finally, so a post-pass type can restore framebuffer state even
+-	/// when rendering or the mesh upload throws.
+-	@Inject(at = @At(value = "TAIL"), method = "render(Lnet/minecraft/client/renderer/LightTexture;Lnet/minecraft/client/Camera;F)V")
+-	private void epicfight$renderCustomParticleTypes(LightTexture lightTexture, Camera camera, float partialTick, CallbackInfo ci) {
+-		boolean drew = false;
+-
+-		try {
+-			for (Map.Entry<ParticleRenderType, Queue<Particle>> entry : this.particles.entrySet()) {
+-				ParticleRenderType type = entry.getKey();
+-				Queue<Particle> queue = entry.getValue();
+-
+-				if (RENDER_ORDER.contains(type) || queue == null || queue.isEmpty()) {
+-					continue;
+-				}
+-
+-				if (!drew) {
+-					lightTexture.turnOnLightLayer();
+-					RenderSystem.enableDepthTest();
+-					drew = true;
+-				}
+-
+-				try {
+-					Tesselator tesselator = Tesselator.getInstance();
+-					BufferBuilder builder = type.begin(tesselator, this.textureManager);
+-
+-					if (builder != null) {
+-						for (Particle particle : queue) {
+-							try {
+-								particle.render(builder, camera, partialTick);
+-							} catch (Throwable throwable) {
+-								CrashReport crashReport = CrashReport.forThrowable(throwable, "Ticking Particle");
+-								CrashReportCategory crashReportCategory = crashReport.addCategory("Particle being rendered");
+-								crashReportCategory.setDetail("Particle", particle::toString);
+-								crashReportCategory.setDetail("Particle Type", type::toString);
+-								throw new ReportedException(crashReport);
+-							}
+-						}
+-
+-						MeshData meshData = builder.build();
+-
+-						if (meshData != null) {
+-							BufferUploader.drawWithShader(meshData);
+-						}
+-					}
+-				} finally {
+-					if (type instanceof ParticleRenderTypeExtension extension) {
+-						extension.end();
+-					}
+-				}
+-			}
+-		} finally {
+-			if (drew) {
+-				RenderSystem.depthMask(true);
+-				RenderSystem.disableBlend();
+-				RenderSystem.defaultBlendFunc();
+-				RenderSystem.enableCull();
+-				RenderSystem.disablePolygonOffset();
+-				lightTexture.turnOffLightLayer();
+-			}
+-		}
+-	}
+-}
++package yesman.epicfight.mixin.client;
++
++import java.util.List;
++import java.util.Map;
++import net.minecraft.client.Camera;
++import net.minecraft.client.particle.ParticleEngine;
++import net.minecraft.client.particle.ParticleGroup;
++import net.minecraft.client.particle.ParticleRenderType;
++import net.minecraft.client.renderer.culling.Frustum;
++import net.minecraft.client.renderer.state.ParticlesRenderState;
++import org.spongepowered.asm.mixin.Final;
++import org.spongepowered.asm.mixin.Mixin;
++import org.spongepowered.asm.mixin.Shadow;
++import org.spongepowered.asm.mixin.injection.At;
++import org.spongepowered.asm.mixin.injection.Inject;
++import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
++import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
++import yesman.epicfight.client.particle.EpicFightParticleRenderTypes;
++
++@Mixin(ParticleEngine.class)
++abstract class MixinParticleEngine {
++    @Shadow @Final private Map<ParticleRenderType, ParticleGroup<?>> particles;
++    @Shadow @Final private static List<ParticleRenderType> RENDER_ORDER;
++
++    @Inject(method = "createParticleGroup", at = @At("HEAD"), cancellable = true)
++    private void epicfight$createGroup(ParticleRenderType type, CallbackInfoReturnable<ParticleGroup<?>> result) {
++        ParticleGroup<?> custom = EpicFightParticleRenderTypes.createGroup(type, (ParticleEngine)(Object)this);
++        if (custom != null) result.setReturnValue(custom);
++    }
++
++    @Inject(method = "extract", at = @At("TAIL"))
++    private void epicfight$extractCustomGroups(ParticlesRenderState frame, Frustum frustum, Camera camera,
++                                               float partialTick, CallbackInfo ci) {
++        for (ParticleRenderType type : EpicFightParticleRenderTypes.customGroups()) {
++            if (RENDER_ORDER.contains(type)) continue;
++            ParticleGroup<?> group = particles.get(type);
++            if (group != null && !group.isEmpty()) frame.add(group.extractRenderState(frustum, camera, partialTick));
++        }
++    }
++}
+diff --git a/src/main/java/yesman/epicfight/mixin/client/MixinParticleFeatureRenderer.java b/src/main/java/yesman/epicfight/mixin/client/MixinParticleFeatureRenderer.java
+new file mode 100644
+index 0000000..2da156d
+--- /dev/null
++++ b/src/main/java/yesman/epicfight/mixin/client/MixinParticleFeatureRenderer.java
+@@ -0,0 +1,17 @@
++package yesman.epicfight.mixin.client;
++
++import net.minecraft.client.renderer.SubmitNodeCollection;
++import net.minecraft.client.renderer.feature.ParticleFeatureRenderer;
++import org.spongepowered.asm.mixin.Mixin;
++import org.spongepowered.asm.mixin.injection.At;
++import org.spongepowered.asm.mixin.injection.Inject;
++import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
++import yesman.epicfight.client.particle.ParticleAfterimages;
++
++@Mixin(ParticleFeatureRenderer.class)
++abstract class MixinParticleFeatureRenderer {
++    @Inject(method = "render", at = @At("RETURN"))
++    private void epicfight$renderAfterimages(SubmitNodeCollection submits, CallbackInfo ci) {
++        for (Runnable draw : ((ParticleAfterimages)submits).epicfight$afterimages()) draw.run();
++    }
++}
+diff --git a/src/main/java/yesman/epicfight/mixin/client/MixinSubmitNodeCollection.java b/src/main/java/yesman/epicfight/mixin/client/MixinSubmitNodeCollection.java
+new file mode 100644
+index 0000000..66edb19
+--- /dev/null
++++ b/src/main/java/yesman/epicfight/mixin/client/MixinSubmitNodeCollection.java
+@@ -0,0 +1,26 @@
++package yesman.epicfight.mixin.client;
++
++import java.util.ArrayList;
++import java.util.List;
++import net.minecraft.client.renderer.SubmitNodeCollection;
++import org.spongepowered.asm.mixin.Mixin;
++import org.spongepowered.asm.mixin.Unique;
++import org.spongepowered.asm.mixin.injection.At;
++import org.spongepowered.asm.mixin.injection.Inject;
++import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
++import yesman.epicfight.client.particle.ParticleAfterimages;
++
++@Mixin(SubmitNodeCollection.class)
++abstract class MixinSubmitNodeCollection implements ParticleAfterimages {
++    @Unique private final List<Runnable> epicfight$afterimages = new ArrayList<>();
++
++    @Override
++    public List<Runnable> epicfight$afterimages() {
++        return this.epicfight$afterimages;
++    }
++
++    @Inject(method = "clear", at = @At("TAIL"))
++    private void epicfight$clearAfterimages(CallbackInfo ci) {
++        this.epicfight$afterimages.clear();
++    }
++}
+diff --git a/src/main/java/yesman/epicfight/mixin/client/MixinTrailParticleEngine.java b/src/main/java/yesman/epicfight/mixin/client/MixinTrailParticleEngine.java
+deleted file mode 100644
+index 3c87d82..0000000
+--- a/src/main/java/yesman/epicfight/mixin/client/MixinTrailParticleEngine.java
++++ /dev/null
+@@ -1,34 +0,0 @@
+-package yesman.epicfight.mixin.client;
+-
+-import net.minecraft.client.Camera;
+-import net.minecraft.client.particle.ParticleEngine;
+-import net.minecraft.client.particle.ParticleGroup;
+-import net.minecraft.client.particle.ParticleRenderType;
+-import net.minecraft.client.renderer.culling.Frustum;
+-import net.minecraft.client.renderer.state.ParticlesRenderState;
+-import org.spongepowered.asm.mixin.Final;
+-import org.spongepowered.asm.mixin.Mixin;
+-import org.spongepowered.asm.mixin.Shadow;
+-import org.spongepowered.asm.mixin.injection.At;
+-import org.spongepowered.asm.mixin.injection.Inject;
+-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+-import yesman.epicfight.client.particle.TrailParticleGroup;
+-import java.util.Map;
+-
+-@Mixin(ParticleEngine.class)
+-abstract class MixinTrailParticleEngine {
+-    @Shadow @Final private Map<ParticleRenderType, ParticleGroup<?>> particles;
+-
+-    @Inject(method = "createParticleGroup", at = @At("HEAD"), cancellable = true)
+-    private void epicfight$createTrailGroup(ParticleRenderType type, CallbackInfoReturnable<ParticleGroup<?>> callback) {
+-        if (type.equals(TrailParticleGroup.ID)) callback.setReturnValue(new TrailParticleGroup((ParticleEngine)(Object)this));
+-    }
+-
+-    @Inject(method = "extract", at = @At("TAIL"))
+-    private void epicfight$extractTrails(ParticlesRenderState frame, Frustum frustum, Camera camera,
+-                                         float partialTick, CallbackInfo callback) {
+-        ParticleGroup<?> group = particles.get(TrailParticleGroup.ID);
+-        if (group != null && !group.isEmpty()) frame.add(group.extractRenderState(frustum, camera, partialTick));
+-    }
+-}
+diff --git a/src/main/resources/epicfight.mixins.json b/src/main/resources/epicfight.mixins.json
+index 1a4bc8b..32a6589 100644
+--- a/src/main/resources/epicfight.mixins.json
++++ b/src/main/resources/epicfight.mixins.json
+@@ -31,7 +31,8 @@
+         "client.MixinMouseHandler",
+         "client.MixinOptions",
+         "client.MixinParticleEngine",
+-        "client.MixinTrailParticleEngine",
++        "client.MixinParticleFeatureRenderer",
++        "client.MixinSubmitNodeCollection",
+         "client.MixinClientResourceReload",
+         "client.MixinThrownTridentRenderer",
+         "client.MixinBossHealthOverlay",

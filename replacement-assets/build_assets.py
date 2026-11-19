@@ -234,6 +234,40 @@ def book_texture(color, emblem):
     return png_rgba(24, 24, pixel)
 
 
+def effect_mesh(rings, segments):
+    positions, normals, uvs, indices = [], [], [], []
+    for ring, (z, radius) in enumerate(rings):
+        for spoke in range(segments + 1):
+            angle = spoke * 2 * pi / segments
+            positions.extend(file_coords((radius * cos(angle), radius * sin(angle), z)))
+            normals.extend(file_coords((cos(angle), sin(angle), 0)))
+            uvs.extend((round(spoke / segments, 6), round(ring / (len(rings) - 1), 6)))
+    for ring in range(len(rings) - 1):
+        for spoke in range(segments):
+            start = ring * (segments + 1) + spoke
+            end = start + segments + 1
+            for index in (start, start + 1, end, start + 1, end + 1, end):
+                indices.extend((index, index, index))
+    return {'vertices': {key: {'array': values} for key, values in
+                         [('positions', positions), ('normals', normals), ('uvs', uvs), ('indices', indices)]}}
+
+
+def ripple_texture():
+    def pixel(x, y):
+        wave = sin(pi * y / 31) ** 1.7
+        spark = .53 + .47 * cos((x / 64 * 9 + y / 31) * 2 * pi) ** 2
+        return 177, 230, 246, round(208 * wave * spark)
+    return png_rgba(64, 32, pixel)
+
+
+def glint_texture():
+    def pixel(x, y):
+        lane = (x + 2 * y) % 16
+        light = round(224 * max(0, 1 - abs(lane - 7) / 4) ** 1.4)
+        return light, light, light, 255
+    return png_rgba(32, 32, pixel)
+
+
 def build(resources):
     inventory={}
     def write(name,data):
@@ -264,6 +298,14 @@ def build(resources):
                                ('models/item/' + icon, {'parent': 'minecraft:item/generated', 'textures': {'layer0': 'epicfight:item/' + icon}})]:
             write(f'assets/epicfight/{name}.json', (json.dumps(document, separators=(',', ':')) + '\n').encode())
         write(f'assets/epicfight/textures/item/{icon}.png', book_texture(color, emblem))
+    for name, rings, sides in [
+            ('air_burst', [(0, .62), (.07, .91), (.23, 1.34)], 24),
+            ('force_field', [(-.79, .18), (-.61, .66), (-.27, .95), (.22, .97), (.69, .66), (.85, .14)], 32),
+            ('laser', [(0, .04), (.055, .14), (.91, .14), (1, .015)], 8)]:
+        asset('particle/' + name, effect_mesh(rings, sides))
+    write('assets/epicfight/textures/particle/air_burst.png', ripple_texture())
+    write('assets/fala_epicfight/textures/utility/effect-white.png', png_rgba(1, 1, lambda x, y: (255, 255, 255, 255)))
+    write('assets/fala_epicfight/textures/utility/angle-glint.png', glint_texture())
     write('assets/fala_epicfight/shaders/compute/skin.comp',(HERE/'skin.comp').read_bytes())
     notice=resources/'META-INF/fala-replacement-assets'
     notice.mkdir(parents=True,exist_ok=True)

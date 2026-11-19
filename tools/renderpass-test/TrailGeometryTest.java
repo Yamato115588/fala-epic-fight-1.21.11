@@ -1,5 +1,6 @@
 package yesman.epicfight.client.particle;
 
+import com.mojang.blaze3d.pipeline.BlendFunction;
 import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.ByteBufferBuilder;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
@@ -14,6 +15,7 @@ import java.util.Map;
 import net.minecraft.client.renderer.SubmitNodeStorage;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.resources.Identifier;
+import yesman.epicfight.client.renderer.LightningRenderHelper;
 
 public final class TrailGeometryTest {
     public static void run() throws ReflectiveOperationException {
@@ -57,6 +59,22 @@ public final class TrailGeometryTest {
             }
         }
         System.out.println("PASS: weapon trail extracted into Minecraft SubmitNodeStorage, four particle vertices and six indices");
+        var textured = ParticleEffectPipelines.texturedModel(Identifier.parse("epicfight:textures/particle/air_burst.png"));
+        check(textured.format() == DefaultVertexFormat.PARTICLE && textured.mode() == VertexFormat.Mode.TRIANGLES, "textured model layout");
+        check(textured.pipeline().getBlendFunction().orElseThrow().equals(BlendFunction.TRANSLUCENT), "model particle alpha blending");
+        var laser = ParticleEffectPipelines.GLOWING_MODEL;
+        check(laser.format() == DefaultVertexFormat.POSITION_COLOR && laser.mode() == VertexFormat.Mode.TRIANGLES, "glowing model layout");
+        var additive = ParticleEffectPipelines.LIGHTNING_MODEL;
+        check(additive.pipeline().getBlendFunction().orElseThrow().equals(BlendFunction.LIGHTNING)
+              && !additive.pipeline().isWriteDepth(), "additive burst and particle depth");
+        try (var arena = new ByteBufferBuilder(4096)) {
+            var builder = new BufferBuilder(arena, additive.mode(), additive.format());
+            LightningRenderHelper.renderFlashingLight(builder, new PoseStack(), 255, 0, 255, 15, 1, .4F);
+            try (var mesh = builder.buildOrThrow()) {
+                check(mesh.drawState().vertexCount() == 135 && mesh.drawState().indexCount() == 135, "light triangle count");
+            }
+        }
+        System.out.println("PASS: textured and glowing particle layouts, additive blending and 45 production lightning triangles");
     }
 
     private static void check(boolean condition, String message) {

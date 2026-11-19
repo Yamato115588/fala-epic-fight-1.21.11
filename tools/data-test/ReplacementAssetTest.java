@@ -10,6 +10,7 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.HexFormat;
 import java.util.Map;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import net.minecraft.network.chat.Component;
@@ -29,7 +30,7 @@ final class ReplacementAssetTest {
         var manifest = object(ReplacementAssetTest.class.getResourceAsStream("/META-INF/fala-replacement-assets/manifest.json").readAllBytes());
         check(manifest.get("license").getAsString().equals("CC0-1.0"), "asset license");
         var hashes = manifest.getAsJsonObject("sha256");
-        check(hashes.size() == 35, "expected independent asset inventory");
+        check(hashes.size() == 41, "expected independent asset inventory");
         var packInfo = new PackLocationInfo("fala-assets", Component.literal("Fala"), PackSource.DEFAULT, Optional.empty());
         try (var pack = new PathPackResources(packInfo, directory)) {
             for (var item : hashes.entrySet()) {
@@ -116,7 +117,16 @@ final class ReplacementAssetTest {
             check((mask.getRGB(40, 0) >>> 24) == 0 && (mask.getRGB(0, 16) >>> 24) == 0
                    && (mask.getRGB(63, 16) >>> 24) > 240, "ribbon edge and sweep direction");
         }
-        System.out.println("PASS: 35 CC0 resources, pack override and bundled lookup, player rigs, 13 motions and ribbon texture");
+        for (String effect : List.of("air_burst", "force_field", "laser")) {
+            var mesh = read("particle/" + effect).getAsJsonObject("vertices");
+            int size = array(mesh, "positions").size() / 3;
+            var indices = array(mesh, "indices");
+            check(size >= 24 && size == array(mesh, "normals").size() / 3 && size == array(mesh, "uvs").size() / 2,
+                   "surface and basis " + effect);
+            check(indices.size() > 0 && indices.size() % 9 == 0, "triangulated particle " + effect);
+            for (var index : indices) check(index.getAsInt() >= 0 && index.getAsInt() < size, "particle index " + effect);
+        }
+        System.out.println("PASS: 41 CC0 resources, pack override and bundled lookup, player rigs, 13 motions and ribbon texture");
     }
     private static JsonArray array(JsonObject object,String name) {
         return object.getAsJsonObject(name).getAsJsonArray("array");
