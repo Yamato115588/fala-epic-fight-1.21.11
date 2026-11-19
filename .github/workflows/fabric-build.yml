@@ -29,6 +29,10 @@ jobs:
           set -o pipefail
           ./gradlew --no-daemon --no-problems-report --console=plain --max-workers=2 --continue \
             -I "$GITHUB_WORKSPACE/tools/compiler-diagnostics.gradle" clean build 2>&1 | tee "$RUNNER_TEMP/epicfight-build.log"
+      - name: Test replacement asset loading, animation data and skinned model geometry
+        if: ${{ !cancelled() && steps.full-build.outcome != 'skipped' }}
+        working-directory: ${{ runner.temp }}/epicfight-fabric-work
+        run: ./gradlew --no-daemon --console=plain --max-workers=2 -I "$GITHUB_WORKSPACE/tools/data-test/data.gradle" testPortData
       - name: Test compute output in Minecraft RenderPass
         if: ${{ !cancelled() && steps.full-build.outcome != 'skipped' }}
         working-directory: ${{ runner.temp }}/epicfight-fabric-work
@@ -47,9 +51,9 @@ jobs:
         run: |
           jar=$(python3 tools/check_fabric_jar.py "$RUNNER_TEMP/epicfight-fabric-work/build/libs")
           printf 'path=%s\n' "$jar" >> "$GITHUB_OUTPUT"
-      - name: Upload successful code build
+      - name: Upload validated Fabric build
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: epicfight-fabric-1.21.11-code-only
+          name: epicfight-fabric-1.21.11
           path: ${{ steps.fabric-jar.outputs.path }}
           if-no-files-found: error

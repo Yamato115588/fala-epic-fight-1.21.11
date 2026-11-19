@@ -1,0 +1,140 @@
+diff --git a/src/main/java/yesman/epicfight/api/asset/AssetResourceSource.java b/src/main/java/yesman/epicfight/api/asset/AssetResourceSource.java
+new file mode 100644
+index 0000000..6d3a7f5
+--- /dev/null
++++ b/src/main/java/yesman/epicfight/api/asset/AssetResourceSource.java
+@@ -0,0 +1,29 @@
++package yesman.epicfight.api.asset;
++
++import net.minecraft.resources.Identifier;
++import net.minecraft.server.packs.resources.Resource;
++import net.minecraft.server.packs.resources.ResourceProvider;
++import javax.annotation.Nullable;
++import java.io.FileNotFoundException;
++import java.io.IOException;
++import java.io.InputStream;
++import java.util.Optional;
++
++/** Pack resources take priority. Dedicated servers can read the same bundled animations. */
++public final class AssetResourceSource {
++    private AssetResourceSource() {}
++
++    public static InputStream open(@Nullable ResourceProvider packs, Identifier id) throws IOException {
++        for (String part : id.getPath().split("/", -1)) {
++            if (part.isEmpty() || part.equals(".") || part.equals("..")) throw new IOException("Invalid asset path " + id);
++        }
++        if (packs != null) {
++            Optional<Resource> override = packs.getResource(id);
++            if (override.isPresent()) return override.get().open();
++        }
++        String path = "/assets/" + id.getNamespace() + "/" + id.getPath();
++        InputStream bundled = AssetResourceSource.class.getResourceAsStream(path);
++        if (bundled == null) throw new FileNotFoundException(id.toString());
++        return bundled;
++    }
++}
+diff --git a/src/main/java/yesman/epicfight/api/asset/JsonAssetLoader.java b/src/main/java/yesman/epicfight/api/asset/JsonAssetLoader.java
+index d2fe51b..41a67ff 100644
+--- a/src/main/java/yesman/epicfight/api/asset/JsonAssetLoader.java
++++ b/src/main/java/yesman/epicfight/api/asset/JsonAssetLoader.java
+@@ -12,7 +12,6 @@ import com.google.gson.internal.Streams;
+ import com.google.gson.stream.JsonReader;
+ import io.netty.util.internal.StringUtil;
+ import net.minecraft.resources.ResourceLocation;
+-import net.minecraft.server.packs.resources.Resource;
+ import net.minecraft.server.packs.resources.ResourceManager;
+ import net.minecraft.util.GsonHelper;
+ import net.minecraft.world.phys.Vec3;
+@@ -43,7 +42,6 @@ import yesman.epicfight.main.EpicFightMod;
+ import yesman.epicfight.main.EpicFightSharedConstants;
+ 
+ import javax.annotation.Nullable;
+-import java.io.BufferedInputStream;
+ import java.io.IOException;
+ import java.io.InputStream;
+ import java.io.InputStreamReader;
+@@ -66,78 +64,15 @@ public class JsonAssetLoader {
+     private String filehash;
+ 
+     public JsonAssetLoader(ResourceManager resourceManager, ResourceLocation resourceLocation) throws AssetLoadingException {
+-        JsonReader jsonReader = null;
+         this.resourceLocation = resourceLocation;
+-
+-        try {
+-            try {
+-                if (resourceManager == null) {
+-                    throw new NoSuchElementException();
+-                }
+-
+-                Resource resource = resourceManager.getResource(resourceLocation).orElseThrow();
+-                InputStream inputStream = resource.open();
+-                InputStreamReader isr = new InputStreamReader(inputStream, StandardCharsets.UTF_8);
+-
+-                jsonReader = new JsonReader(isr);
+-                jsonReader.setLenient(true);
+-                this.rootJson = Streams.parse(jsonReader).getAsJsonObject();
+-            } catch (NoSuchElementException e) {
+-                // In this case, reads the animation data from mod.jar (Especially in a server)
+-                // On Fabric, servers don't load assets/ via ResourceManager, so we read directly from the mod JAR
+-                // via the mod's own classloader. Each mod namespace maps to a mod container whose classes share
+-                // the same classpath as that mod's assets/ directory.
+-                InputStream inputstream = null;
+-
+-                // Try the mod's classloader first. We pick a class from the namespace's mod by checking
+-                // the FabricLoader mod container, then use that container's classloader to find the asset.
+-                // As a robust fallback, also try the EpicFight mod class itself (covers the common case where
+-                // the asset is in the epicfight namespace).
+-                String assetPath = "/assets/" + resourceLocation.getNamespace() + "/" + resourceLocation.getPath();
+-
+-                // Try via FabricLoader: find a class owned by the namespace's mod and use its classloader.
+-                try {
+-                    net.fabricmc.loader.api.ModContainer modContainer =
+-                        FabricLoader.getInstance().getModContainer(resourceLocation.getNamespace()).orElse(null);
+-
+-                    if (modContainer != null) {
+-                        // Use the classloader that loaded JsonAssetLoader (same mod) — works for epicfight namespace.
+-                        // For other namespaces, the mod's own classes would be needed, but in practice all
+-                        // Epic Fight asset namespaces are served by the epicfight mod's classpath.
+-                        ClassLoader cl = JsonAssetLoader.class.getClassLoader();
+-                        inputstream = cl.getResourceAsStream(assetPath);
+-                    }
+-                } catch (Throwable ignored) {}
+-
+-                // Final fallback: try EpicFight's own classloader.
+-                if (inputstream == null) {
+-                    inputstream = yesman.epicfight.EpicFight.class.getResourceAsStream(assetPath);
+-                }
+-
+-                if (inputstream == null) {
+-                    throw new NoSuchElementException("No file named " + resourceLocation.toString());
+-                }
+-
+-                BufferedInputStream bufferedInputStream = new BufferedInputStream(inputstream);
+-                InputStreamReader reader = new InputStreamReader(bufferedInputStream, StandardCharsets.UTF_8);
+-
+-                jsonReader = new JsonReader(reader);
+-                jsonReader.setLenient(true);
+-                this.rootJson = Streams.parse(jsonReader).getAsJsonObject();
+-            }
++        try (InputStream stream = AssetResourceSource.open(resourceManager, resourceLocation);
++             JsonReader reader = new JsonReader(new InputStreamReader(stream, StandardCharsets.UTF_8))) {
++            reader.setLenient(true);
++            this.rootJson = Streams.parse(reader).getAsJsonObject();
+         } catch (Exception e) {
+-            throw new AssetLoadingException("Can't read " + resourceLocation.toString() + " because of " + e);
+-        } finally {
+-            if (jsonReader != null) {
+-                try {
+-                    jsonReader.close();
+-                } catch (IOException e) {
+-                    e.printStackTrace();
+-                }
+-            }
++            throw new AssetLoadingException("Can't read " + resourceLocation + " because of " + e);
+         }
+-
+-        this.filehash = ParseUtil.getBytesSHA256Hash(this.rootJson.toString().getBytes());
++        this.filehash = ParseUtil.getBytesSHA256Hash(this.rootJson.toString().getBytes(StandardCharsets.UTF_8));
+     }
+ 
+     public JsonAssetLoader(InputStream inputstream, ResourceLocation resourceLocation) throws AssetLoadingException {

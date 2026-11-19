@@ -1,0 +1,23 @@
+def probeDir = gradle.startParameter.initScripts.find { it.name == 'data.gradle' }.parentFile
+rootProject { project ->
+    project.plugins.withId('java') {
+        def dest = project.layout.buildDirectory.dir('port-data-test/classes')
+        def compileProbe = project.tasks.register('compilePortDataTest', JavaCompile) {
+            source new File(probeDir, 'PortDataTest.java'), new File(probeDir, 'ReplacementAssetTest.java'),
+                   project.file('src/main/java/yesman/epicfight/api/asset/AssetResourceSource.java'),
+                   project.file('src/main/java/yesman/epicfight/util/TagUtils.java'),
+                   project.file('src/main/java/yesman/epicfight/api/client/model/transformer/MeshVertex.java')
+            classpath = project.configurations.compileClasspath
+            destinationDirectory.set(dest)
+            options.compilerArgs.add('-proc:none')
+            options.release = 21
+        }
+        project.tasks.register('testPortData', JavaExec) {
+            group = 'verification'
+            dependsOn compileProbe, project.tasks.named('processResources')
+            classpath = project.files(dest, project.layout.buildDirectory.dir('resources/main'), project.configurations.runtimeClasspath)
+            mainClass.set('PortDataTest')
+            args project.layout.buildDirectory.dir('resources/main').get().asFile
+        }
+    }
+}

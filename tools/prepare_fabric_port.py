@@ -7,6 +7,7 @@ import os
 from pathlib import Path, PurePosixPath
 import shutil
 import subprocess
+import sys
 import tarfile
 import tempfile
 from urllib.request import urlopen
@@ -86,6 +87,8 @@ def main():
             )
         shutil.copytree(PROJECT / 'bridge-api/src/main/java', stage / 'src/main/java',
                         dirs_exist_ok=True)
+        subprocess.run([sys.executable, str(PROJECT / 'replacement-assets/build_assets.py'),
+                        str(stage / 'src/main/resources')], check=True)
         migrated = migrate(stage)
         stage.rename(output)
         print(f'Prepared {output}; updated Minecraft class references in {migrated} Java files.')

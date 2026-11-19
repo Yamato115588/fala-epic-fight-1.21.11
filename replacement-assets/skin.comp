@@ -1,0 +1,101 @@
+#version 430 core
+// SPDX-License-Identifier: CC0-1.0
+// Fala SiayaCraft. Independent implementation of the Java mesh-buffer contract.
+layout(local_size_x = 128) in;
+layout(std430, binding = 0) readonly buffer PoseBuffer { mat4 pose[]; };
+layout(std430, binding = 1) readonly buffer DrawOrder { uvec2 element[]; };
+layout(std430, binding = 2) readonly buffer Geometry { uint attributes[]; };
+layout(std430, binding = 3) readonly buffer Influences { uvec2 influence[]; };
+layout(std430, binding = 4) readonly buffer Visibility { uint hidden[]; };
+layout(std430, binding = 5) writeonly buffer Result { uint result[]; };
+
+uniform uint falaIris;
+uniform mat4 model_view_matrix;
+uniform mat3 normal_matrix;
+uniform uint part_offset;
+uniform vec4 colorIn;
+uniform uint uv1In;
+uniform uint uv2In;
+uniform uint entity_id_0;
+uniform uint entity_id_1;
+
+struct Vertex {
+    vec3 position;
+    vec3 normal;
+    vec2 uv;
+};
+
+vec3 unitOrZero(vec3 value) {
+    float size = dot(value, value);
+    return size > 0.000000000001 ? value * inversesqrt(size) : vec3(0);
+}
+
+Vertex animate(uint index) {
+    uvec2 entry = element[index];
+    uint base = entry.x * 10u;
+    vec3 point = uintBitsToFloat(uvec3(attributes[base], attributes[base+1u], attributes[base+2u]));
+    vec3 normal = uintBitsToFloat(uvec3(attributes[base+3u], attributes[base+4u], attributes[base+5u]));
+    vec2 uv = uintBitsToFloat(uvec2(attributes[base+6u], attributes[base+7u]));
+    if ((hidden[entry.y / 32u] & (1u << (entry.y % 32u))) != 0u) {
+        // All three corners of a hidden part coincide and produce no fragments.
+        return Vertex(vec3(0), vec3(0), uv);
+    }
+    mat4 part = pose[part_offset + entry.y];
+    vec4 localPoint = part * vec4(point, 1);
+    vec3 localNormal = mat3(part) * normal;
+    vec3 positionSum = vec3(0), normalSum = vec3(0);
+    for (uint i = attributes[base+8u]; i < attributes[base+9u]; ++i) {
+        uvec2 joint = influence[i];
+        float weight = uintBitsToFloat(joint.y);
+        positionSum += (pose[joint.x] * localPoint).xyz * weight;
+        normalSum += (mat3(pose[joint.x]) * localNormal) * weight;
+    }
+    return Vertex((model_view_matrix * vec4(positionSum, 1)).xyz, unitOrZero(normal_matrix * normalSum), uv);
+}
+
+void storeVertex(uint index, Vertex v, uint stride) {
+    uint base = index * stride;
+    for (uint i = 0u; i < 3u; ++i) result[base+i] = floatBitsToUint(v.position[i]);
+    for (uint i = 0u; i < 4u; ++i) result[base+3u+i] = floatBitsToUint(colorIn[i]);
+    result[base+7u] = floatBitsToUint(v.uv.x);
+    result[base+8u] = floatBitsToUint(v.uv.y);
+    result[base+9u] = packSnorm4x8(vec4(v.normal, 0));
+    result[base+10u] = uv1In;
+    result[base+11u] = uv2In;
+}
+
+void main() {
+    uint id = gl_GlobalInvocationID.x;
+    uint count = uint(element.length());
+    if (falaIris == 0u) {
+        if (id < count) storeVertex(id, animate(id), 12u);
+        return;
+    }
+    uint start = id * 3u;
+    if (start + 2u >= count) return;
+    Vertex face[3];
+    for (uint i = 0u; i < 3u; ++i) face[i] = animate(start+i);
+    vec3 edge1 = face[1].position - face[0].position;
+    vec3 edge2 = face[2].position - face[0].position;
+    vec2 uv1 = face[1].uv - face[0].uv, uv2 = face[2].uv - face[0].uv;
+    float determinant = uv1.x * uv2.y - uv1.y * uv2.x;
+    for (uint i = 0u; i < 3u; ++i) {
+        uint vertex = start+i;
+        storeVertex(vertex, face[i], 15u);
+        vec3 n = face[i].normal;
+        vec3 t, b;
+        if (abs(determinant) > 0.0000001) {
+            t = (edge1 * uv2.y - edge2 * uv1.y) / determinant;
+            b = (edge2 * uv1.x - edge1 * uv2.x) / determinant;
+        } else {
+            t = cross(abs(n.z) < 0.9 ? vec3(0,0,1) : vec3(0,1,0), n);
+            b = cross(n, t);
+        }
+        t = unitOrZero(t - n * dot(t,n));
+        float signB = dot(cross(n,t),b) < 0.0 ? -1.0 : 1.0;
+        uint outBase = vertex * 15u;
+        result[outBase+12u] = (entity_id_0 >> 16u) | ((entity_id_0 & 65535u) << 16u);
+        result[outBase+13u] = entity_id_1 >> 16u;
+        result[outBase+14u] = packSnorm4x8(vec4(t,signB));
+    }
+}

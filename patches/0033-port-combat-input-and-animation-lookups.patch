@@ -1,0 +1,379 @@
+diff --git a/src/main/java/yesman/epicfight/api/animation/property/AnimationEvent.java b/src/main/java/yesman/epicfight/api/animation/property/AnimationEvent.java
+index d381ef4..68f652c 100644
+--- a/src/main/java/yesman/epicfight/api/animation/property/AnimationEvent.java
++++ b/src/main/java/yesman/epicfight/api/animation/property/AnimationEvent.java
+@@ -105,8 +105,8 @@ public abstract class AnimationEvent<EVENT extends AnimationEvent.Event<?, ?, ?,
+ 	}
+ 	
+ 	public enum Side {
+-		CLIENT((entity) -> entity.level().isClientSide),
+-		SERVER((entity) -> !entity.level().isClientSide), BOTH((entity) -> true),
++		CLIENT((entity) -> entity.level().isClientSide()),
++		SERVER((entity) -> !entity.level().isClientSide()), BOTH((entity) -> true),
+ 		LOCAL_CLIENT((entity) -> {
+ 			if (entity instanceof Player player) {
+ 				return player.isLocalPlayer();
+diff --git a/src/main/java/yesman/epicfight/api/animation/property/MoveCoordFunctions.java b/src/main/java/yesman/epicfight/api/animation/property/MoveCoordFunctions.java
+index 51866c9..2703927 100644
+--- a/src/main/java/yesman/epicfight/api/animation/property/MoveCoordFunctions.java
++++ b/src/main/java/yesman/epicfight/api/animation/property/MoveCoordFunctions.java
+@@ -82,7 +82,7 @@ public class MoveCoordFunctions {
+ 		BlockState blockState = livingentity.level().getBlockState(blockpos);
+ 		AttributeInstance movementSpeed = livingentity.getAttribute(Attributes.MOVEMENT_SPEED);
+ 		
+-		boolean soulboost = blockState.is(BlockTags.SOUL_SPEED_BLOCKS) && EnchantmentHelper.getEnchantmentLevel(livingentity.level().registryAccess().registryOrThrow(net.minecraft.core.registries.Registries.ENCHANTMENT).getHolder(Enchantments.SOUL_SPEED).orElseThrow(), livingentity) > 0;
++		boolean soulboost = blockState.is(BlockTags.SOUL_SPEED_BLOCKS) && EnchantmentHelper.getEnchantmentLevel(livingentity.level().registryAccess().lookupOrThrow(net.minecraft.core.registries.Registries.ENCHANTMENT).getOrThrow(Enchantments.SOUL_SPEED), livingentity) > 0;
+ 		float speedFactor = (float)(soulboost ? 1.0D : livingentity.level().getBlockState(blockpos).getBlock().getSpeedFactor());
+ 		float moveMultiplier = (float)(animation.getProperty(ActionAnimationProperty.AFFECT_SPEED).orElse(false) ? (movementSpeed.getValue() / movementSpeed.getBaseValue()) : 1.0F);
+ 		
+diff --git a/src/main/java/yesman/epicfight/api/client/input/InputManager.java b/src/main/java/yesman/epicfight/api/client/input/InputManager.java
+index 90d4467..c616576 100644
+--- a/src/main/java/yesman/epicfight/api/client/input/InputManager.java
++++ b/src/main/java/yesman/epicfight/api/client/input/InputManager.java
+@@ -271,7 +271,7 @@ public final class InputManager {
+ 
+         final InputConstants.Key key = InputUtils.getKey(keyMapping);
+         final int keyValue = key.getValue();
+-        final long windowPointer = Minecraft.getInstance().getWindow().getWindow();
++        final long windowPointer = Minecraft.getInstance().getWindow().handle();
+ 
+         if (key.getType() == InputConstants.Type.KEYSYM) {
+             return keyValue != GLFW.GLFW_KEY_UNKNOWN && GLFW.glfwGetKey(windowPointer, keyValue) > 0;
+diff --git a/src/main/java/yesman/epicfight/api/utils/LevelUtil.java b/src/main/java/yesman/epicfight/api/utils/LevelUtil.java
+index 0e1bec1..9daa98a 100644
+--- a/src/main/java/yesman/epicfight/api/utils/LevelUtil.java
++++ b/src/main/java/yesman/epicfight/api/utils/LevelUtil.java
+@@ -68,7 +68,7 @@ public class LevelUtil {
+ 		int zFrom = (int)Math.min(Math.floor(center.z), edgeZ);
+ 		int zTo = (int)Math.max(Math.floor(center.z), edgeZ);
+ 		List<Vec2i> affectedBlocks = Lists.newArrayList();
+-		List<Entity> entitiesInArea = level.isClientSide ? null : level.getEntities(null, new AABB(xFrom, center.y - length, zFrom, xTo, center.y + length, zTo));
++		List<Entity> entitiesInArea = level.isClientSide() ? null : level.getEntities(null, new AABB(xFrom, center.y - length, zFrom, xTo, center.y + length, zTo));
+ 		
+ 		double bounceExponentCoef = Math.min(1.0D / (length * length), 0.1D);
+ 		
+@@ -141,7 +141,7 @@ public class LevelUtil {
+ 				continue;
+ 			}
+ 			
+-			if (level.isClientSide) {
++			if (level.isClientSide()) {
+                 if (!ClientConfig.groundSlams) {
+                     continue;
+                 }
+@@ -224,7 +224,7 @@ public class LevelUtil {
+ 		
+ 		radius = Math.max(0.5F, radius);
+ 		
+-		if (!level.isClientSide) {
++		if (!level.isClientSide()) {
+ 			EpicFightNetworkManager.sendToAllPlayerTrackingThisChunkWithSelf(new SPCreateTerrainFracture(center, radius, noSound, noParticle), (ServerLevel)level, new ChunkPos(blockPos));
+ 		}
+ 		
+@@ -241,7 +241,7 @@ public class LevelUtil {
+ 			}
+ 		}
+ 		
+-		if (!level.isClientSide && hurtEntities) {
++		if (!level.isClientSide() && hurtEntities) {
+ 			for (Entity entity : entityBeingHit) {
+ 				if (!entity.is(caster)) {
+ 					double damageInflict = 1.0D - ((entity.position().distanceTo(center) - radius * 0.5D) / radius);
+diff --git a/src/main/java/yesman/epicfight/client/events/engine/ControlEngine.java b/src/main/java/yesman/epicfight/client/events/engine/ControlEngine.java
+index abd60f9..1c19499 100644
+--- a/src/main/java/yesman/epicfight/client/events/engine/ControlEngine.java
++++ b/src/main/java/yesman/epicfight/client/events/engine/ControlEngine.java
+@@ -340,23 +340,23 @@ public class ControlEngine implements IEventBasedEngine {
+             return;
+         }
+ 
+-        if (!InputConstants.isKeyDown(Minecraft.getInstance().getWindow().getWindow(), InputConstants.KEY_LCONTROL)) {
++        if (!InputConstants.isKeyDown(this.minecraft.getWindow(), InputConstants.KEY_LCONTROL)) {
+             return;
+         }
+ 
+-        if (InputConstants.isKeyDown(Minecraft.getInstance().getWindow().getWindow(), InputConstants.KEY_LEFT)) {
++        if (InputConstants.isKeyDown(this.minecraft.getWindow(), InputConstants.KEY_LEFT)) {
+             ClientConfig.cameraHorizontalLocation = Math.min(10, ClientConfig.cameraHorizontalLocation + 1);
+         }
+ 
+-        if (InputConstants.isKeyDown(Minecraft.getInstance().getWindow().getWindow(), InputConstants.KEY_RIGHT)) {
++        if (InputConstants.isKeyDown(this.minecraft.getWindow(), InputConstants.KEY_RIGHT)) {
+             ClientConfig.cameraHorizontalLocation = Math.max(-10, ClientConfig.cameraHorizontalLocation - 1);
+         }
+ 
+-        if (InputConstants.isKeyDown(Minecraft.getInstance().getWindow().getWindow(), InputConstants.KEY_UP)) {
++        if (InputConstants.isKeyDown(this.minecraft.getWindow(), InputConstants.KEY_UP)) {
+             ClientConfig.cameraVerticalLocation = Math.min(5, ClientConfig.cameraVerticalLocation + 1);
+         }
+ 
+-        if (InputConstants.isKeyDown(Minecraft.getInstance().getWindow().getWindow(), InputConstants.KEY_DOWN)) {
++        if (InputConstants.isKeyDown(this.minecraft.getWindow(), InputConstants.KEY_DOWN)) {
+             ClientConfig.cameraVerticalLocation = Math.max(-2, ClientConfig.cameraVerticalLocation - 1);
+         }
+ 	}
+@@ -666,9 +666,9 @@ public class ControlEngine implements IEventBasedEngine {
+         }
+ 		InputConstants.Key inputKey = InputUtils.getKey(key);
+ 		if (inputKey.getType() == InputConstants.Type.KEYSYM) {
+-			return key.isDown() || (inputKey.getValue() != GLFW.GLFW_KEY_UNKNOWN && GLFW.glfwGetKey(Minecraft.getInstance().getWindow().getWindow(), inputKey.getValue()) > 0);
++			return key.isDown() || (inputKey.getValue() != GLFW.GLFW_KEY_UNKNOWN && GLFW.glfwGetKey(Minecraft.getInstance().getWindow().handle(), inputKey.getValue()) > 0);
+ 		} else if(inputKey.getType() == InputConstants.Type.MOUSE) {
+-			return key.isDown() || GLFW.glfwGetMouseButton(Minecraft.getInstance().getWindow().getWindow(), inputKey.getValue()) > 0;
++			return key.isDown() || GLFW.glfwGetMouseButton(Minecraft.getInstance().getWindow().handle(), inputKey.getValue()) > 0;
+ 		} else {
+ 			return false;
+ 		}
+@@ -881,11 +881,11 @@ public class ControlEngine implements IEventBasedEngine {
+                     BlockState blockstate = mc.level.getBlockState(blockpos);
+                     FakeLevel fakeLevel = FakeLevel.getFakeLevel(mc.level);
+                     FakeLevel.FakeClientPlayer fakePlayer = FakeLevel.getFakePlayer(mc.player.getGameProfile());
+-                    InteractionResult useItemResult = blockstate.useItemOn(mc.player.getItemInHand(InteractionHand.MAIN_HAND), fakeLevel, fakePlayer, InteractionHand.MAIN_HAND, blockHitResult).result();
+-                    if (useItemResult != InteractionResult.PASS) {
+-                        interactionResult = useItemResult;
+-                    } else {
++                    InteractionResult useItemResult = blockstate.useItemOn(mc.player.getItemInHand(InteractionHand.MAIN_HAND), fakeLevel, fakePlayer, InteractionHand.MAIN_HAND, blockHitResult);
++                    if (useItemResult instanceof InteractionResult.TryEmptyHandInteraction) {
+                         interactionResult = blockstate.useWithoutItem(fakeLevel, fakePlayer, blockHitResult);
++                    } else {
++                        interactionResult = useItemResult;
+                     }
+                 } else {
+                     return false;
+@@ -967,7 +967,7 @@ public class ControlEngine implements IEventBasedEngine {
+         BlockPos bp = blockHitResult.getBlockPos();
+         BlockState bs = mc.level.getBlockState(bp);
+ 
+-        return !combatItemForSwing.getItem().canAttackBlock(bs, playerpatch.getOriginal().level(), bp, playerpatch.getOriginal()) || combatItemForSwing.getDestroySpeed(bs) <= 1.0F;
++        return !combatItemForSwing.canDestroyBlock(bs, playerpatch.getOriginal().level(), bp, playerpatch.getOriginal()) || combatItemForSwing.getDestroySpeed(bs) <= 1.0F;
+     }
+ 
+ 
+diff --git a/src/main/java/yesman/epicfight/client/events/engine/RenderEngine.java b/src/main/java/yesman/epicfight/client/events/engine/RenderEngine.java
+index 45b145c..6131f1e 100644
+--- a/src/main/java/yesman/epicfight/client/events/engine/RenderEngine.java
++++ b/src/main/java/yesman/epicfight/client/events/engine/RenderEngine.java
+@@ -487,7 +487,7 @@ public class RenderEngine implements IEventBasedEngine {
+     }
+ 
+     private void epicfight$itemTooltip(ItemStack itemStack, Item.TooltipContext tooltipContext, TooltipFlag tooltipFlag, List<Component> tooltipLines) {
+-        if (ClientConfig.showEpicFightAttributesInTooltip && this.minecraft.level != null && this.minecraft.level.isClientSide) {
++        if (ClientConfig.showEpicFightAttributesInTooltip && this.minecraft.level != null && this.minecraft.level.isClientSide()) {
+             EpicFightCapabilities.getUnparameterizedEntityPatch(this.minecraft.player, LocalPlayerPatch.class).ifPresent(playerpatch -> {
+                 EpicFightCapabilities.getItemCapability(itemStack).ifPresent(itemCapability -> {
+                     if (InputManager.isActionPhysicallyActive(EpicFightInputAction.WEAPON_INNATE_SKILL_TOOLTIP) && noSimplyTooltipsSupport(itemStack)) {
+diff --git a/src/main/java/yesman/epicfight/mixin/client/MixinGameRenderer.java b/src/main/java/yesman/epicfight/mixin/client/MixinGameRenderer.java
+index 6458daf..74d9178 100644
+--- a/src/main/java/yesman/epicfight/mixin/client/MixinGameRenderer.java
++++ b/src/main/java/yesman/epicfight/mixin/client/MixinGameRenderer.java
+@@ -24,8 +24,6 @@ public abstract class MixinGameRenderer {
+     private Camera mainCamera;
+     @Shadow @Final
+     Minecraft minecraft;
+-    @Shadow
+-    public abstract void pick(float partialTick);
+ 
+     @WrapOperation(
+         at = @At(
+@@ -38,7 +36,7 @@ public abstract class MixinGameRenderer {
+         if (EpicFightCameraAPI.getInstance().isTPSMode()) {
+             this.pickInTPSPerspective();
+         } else {
+-            this.pick(partialTicks);
++            original.call(instance, partialTicks);
+         }
+     }
+ 
+@@ -59,9 +57,9 @@ public abstract class MixinGameRenderer {
+                     double distanceLimit = Math.max(d0, entityReach) + ClientConfig.cameraZoom * 0.5D;
+                     Vec3 hitPos = this.minecraft.hitResult.getLocation();
+ 
+-                    if (hitPos.distanceToSqr(this.mainCamera.getPosition()) > distanceLimit * distanceLimit) {
+-                        Vec3 cameraPos = this.mainCamera.getPosition();
+-                        this.minecraft.hitResult = BlockHitResult.miss(hitPos, Direction.getNearest(cameraPos.x, cameraPos.y, cameraPos.z), BlockPos.containing(hitPos));
++                    if (hitPos.distanceToSqr(this.mainCamera.position()) > distanceLimit * distanceLimit) {
++                        Vec3 cameraPos = this.mainCamera.position();
++                        this.minecraft.hitResult = BlockHitResult.miss(hitPos, Direction.getApproximateNearest(hitPos.subtract(cameraPos)), BlockPos.containing(hitPos));
+                     }
+                 }
+             }
+diff --git a/src/main/java/yesman/epicfight/mixin/client/MixinKeyboardHandler.java b/src/main/java/yesman/epicfight/mixin/client/MixinKeyboardHandler.java
+index 0079681..b1a3002 100644
+--- a/src/main/java/yesman/epicfight/mixin/client/MixinKeyboardHandler.java
++++ b/src/main/java/yesman/epicfight/mixin/client/MixinKeyboardHandler.java
+@@ -3,6 +3,7 @@ package yesman.epicfight.mixin.client;
+ import com.mojang.blaze3d.platform.InputConstants;
+ import net.minecraft.Util;
+ import net.minecraft.client.KeyboardHandler;
++import net.minecraft.client.input.KeyEvent;
+ import org.spongepowered.asm.mixin.Mixin;
+ import org.spongepowered.asm.mixin.Shadow;
+ import org.spongepowered.asm.mixin.injection.At;
+@@ -15,18 +16,17 @@ public abstract class MixinKeyboardHandler {
+ 	@Shadow
+ 	private long debugCrashKeyTime = -1L;
+ 
+-	@Inject(at = @At(value = "HEAD"), method = "handleDebugKeys(I)Z", cancellable = true)
+-	private void epicfight$handleDebugKeys(int key, CallbackInfoReturnable<Boolean> info) {
++	@Inject(at = @At(value = "HEAD"), method = "handleDebugKeys(Lnet/minecraft/client/input/KeyEvent;)Z", cancellable = true)
++	private void epicfight$handleDebugKeys(KeyEvent event, CallbackInfoReturnable<Boolean> info) {
+ 		if (!(this.debugCrashKeyTime > 0L && this.debugCrashKeyTime < Util.getMillis() - 100L)) {
+-            if (key == InputConstants.KEY_Y) {
++            if (event.key() == InputConstants.KEY_Y) {
+                 boolean flag = ClientEngine.getInstance().switchVanillaModelDebuggingMode();
+                 this.debugFeedbackTranslated(flag ? "debug.vanilla_model_debugging.on" : "debug.vanilla_model_debugging.off");
+-                info.cancel();
+                 info.setReturnValue(true);
+             }
+ 		}
+ 	}
+ 	
+ 	@Shadow
+-    public void debugFeedbackTranslated(String p_90914_, Object... p_90915_) {}
++    public abstract void debugFeedbackTranslated(String key, Object... args);
+ }
+\ No newline at end of file
+diff --git a/src/main/java/yesman/epicfight/mixin/client/MixinMinecraft.java b/src/main/java/yesman/epicfight/mixin/client/MixinMinecraft.java
+index a8877a3..1e41b1d 100644
+--- a/src/main/java/yesman/epicfight/mixin/client/MixinMinecraft.java
++++ b/src/main/java/yesman/epicfight/mixin/client/MixinMinecraft.java
+@@ -108,7 +108,7 @@ public class MixinMinecraft {
+         if (EpicFightCameraAPI.getInstance().isTPSMode()) {
+             this.pickInTPSPerspectiveMode();
+         } else {
+-            this.gameRenderer.pick(partialTick);
++            originalOperation.call(gameRenderer, partialTick);
+         }
+     }
+ 
+@@ -143,9 +143,9 @@ public class MixinMinecraft {
+                     double distanceLimit = Math.max(d0, entityReach) + ClientConfig.cameraZoom * 0.5D;
+                     Vec3 hitPos = this.hitResult.getLocation();
+ 
+-                    if (hitPos.distanceToSqr(this.gameRenderer.getMainCamera().getPosition()) > distanceLimit * distanceLimit) {
+-                        Vec3 cameraPos = this.gameRenderer.getMainCamera().getPosition();
+-                        this.hitResult = BlockHitResult.miss(hitPos, Direction.getNearest(cameraPos.x, cameraPos.y, cameraPos.z), BlockPos.containing(hitPos));
++                    if (hitPos.distanceToSqr(this.gameRenderer.getMainCamera().position()) > distanceLimit * distanceLimit) {
++                        Vec3 cameraPos = this.gameRenderer.getMainCamera().position();
++                        this.hitResult = BlockHitResult.miss(hitPos, Direction.getApproximateNearest(hitPos.subtract(cameraPos)), BlockPos.containing(hitPos));
+                     }
+                 }
+             }
+diff --git a/src/main/java/yesman/epicfight/mixin/client/MixinMouseHandler.java b/src/main/java/yesman/epicfight/mixin/client/MixinMouseHandler.java
+index b8e8f8f..06a4ab4 100644
+--- a/src/main/java/yesman/epicfight/mixin/client/MixinMouseHandler.java
++++ b/src/main/java/yesman/epicfight/mixin/client/MixinMouseHandler.java
+@@ -18,6 +18,8 @@ public abstract class MixinMouseHandler {
+         method = "turnPlayer(D)V"
+     )
+     private void epicfight$turnPlayer(LocalPlayer player, double yRot, double xRot, Operation<Void> originalOperation) {
+-        if (!EpicFightCameraAPI.getInstance().turnCamera(yRot, xRot)) player.turn(yRot, xRot);
++        if (!EpicFightCameraAPI.getInstance().turnCamera(yRot, xRot)) {
++            originalOperation.call(player, yRot, xRot);
++        }
+     }
+ }
+diff --git a/src/main/java/yesman/epicfight/registry/entries/EpicFightMovesets.java b/src/main/java/yesman/epicfight/registry/entries/EpicFightMovesets.java
+index ad03cf9..75be381 100644
+--- a/src/main/java/yesman/epicfight/registry/entries/EpicFightMovesets.java
++++ b/src/main/java/yesman/epicfight/registry/entries/EpicFightMovesets.java
+@@ -259,11 +259,11 @@ public class EpicFightMovesets
+                     .addLivingMotionModifier(LivingMotions.AIM, Animations.BIPED_JAVELIN_AIM)
+                     .addLivingMotionModifier(LivingMotions.SHOT, Animations.BIPED_JAVELIN_THROW)
+                     .addInnateSkill((itemStack, playerPatch) -> {
+-                        if (EnchantmentHelper.getItemEnchantmentLevel(playerPatch.getLevel().registryAccess().registryOrThrow(net.minecraft.core.registries.Registries.ENCHANTMENT).getHolder(Enchantments.RIPTIDE).orElseThrow(), itemStack) > 0) {
++                        if (EnchantmentHelper.getItemEnchantmentLevel(playerPatch.getLevel().registryAccess().lookupOrThrow(net.minecraft.core.registries.Registries.ENCHANTMENT).getOrThrow(Enchantments.RIPTIDE), itemStack) > 0) {
+                             return EpicFightSkills.TSUNAMI.get();
+-                        } else if (EnchantmentHelper.getItemEnchantmentLevel(playerPatch.getLevel().registryAccess().registryOrThrow(net.minecraft.core.registries.Registries.ENCHANTMENT).getHolder(Enchantments.CHANNELING).orElseThrow(), itemStack) > 0) {
++                        } else if (EnchantmentHelper.getItemEnchantmentLevel(playerPatch.getLevel().registryAccess().lookupOrThrow(net.minecraft.core.registries.Registries.ENCHANTMENT).getOrThrow(Enchantments.CHANNELING), itemStack) > 0) {
+                             return EpicFightSkills.WRATHFUL_LIGHTING.get();
+-                        } else if (EnchantmentHelper.getItemEnchantmentLevel(playerPatch.getLevel().registryAccess().registryOrThrow(net.minecraft.core.registries.Registries.ENCHANTMENT).getHolder(Enchantments.LOYALTY).orElseThrow(), itemStack) > 0) {
++                        } else if (EnchantmentHelper.getItemEnchantmentLevel(playerPatch.getLevel().registryAccess().lookupOrThrow(net.minecraft.core.registries.Registries.ENCHANTMENT).getOrThrow(Enchantments.LOYALTY), itemStack) > 0) {
+                             return EpicFightSkills.EVERLASTING_ALLEGIANCE.get();
+                         } else {
+                             return EpicFightSkills.GRASPING_SPIRE.get();
+diff --git a/src/main/java/yesman/epicfight/world/capabilities/entitypatch/LivingEntityPatch.java b/src/main/java/yesman/epicfight/world/capabilities/entitypatch/LivingEntityPatch.java
+index a0063ad..d8c2048 100644
+--- a/src/main/java/yesman/epicfight/world/capabilities/entitypatch/LivingEntityPatch.java
++++ b/src/main/java/yesman/epicfight/world/capabilities/entitypatch/LivingEntityPatch.java
+@@ -963,11 +963,11 @@ public abstract class LivingEntityPatch<T extends LivingEntity> extends Hurtable
+ 
+         if (hand == InteractionHand.MAIN_HAND) {
+             impact = (float)this.original.getAttributeValue(EpicFightAttributes.IMPACT);
+-            i = EnchantmentHelper.getItemEnchantmentLevel(this.getLevel().registryAccess().registryOrThrow(net.minecraft.core.registries.Registries.ENCHANTMENT).getHolderOrThrow(Enchantments.KNOCKBACK), this.getOriginal().getMainHandItem());
++            i = EnchantmentHelper.getItemEnchantmentLevel(this.getLevel().registryAccess().lookupOrThrow(net.minecraft.core.registries.Registries.ENCHANTMENT).getOrThrow(Enchantments.KNOCKBACK), this.getOriginal().getMainHandItem());
+         } else {
+             if (this.isOffhandItemValid()) {
+                 impact = (float)this.original.getAttributeValue(EpicFightAttributes.OFFHAND_IMPACT);
+-                i = EnchantmentHelper.getItemEnchantmentLevel(this.getLevel().registryAccess().registryOrThrow(net.minecraft.core.registries.Registries.ENCHANTMENT).getHolderOrThrow(Enchantments.KNOCKBACK), this.getOriginal().getOffhandItem());
++                i = EnchantmentHelper.getItemEnchantmentLevel(this.getLevel().registryAccess().lookupOrThrow(net.minecraft.core.registries.Registries.ENCHANTMENT).getOrThrow(Enchantments.KNOCKBACK), this.getOriginal().getOffhandItem());
+             } else {
+                 impact = (float)this.original.getAttribute(EpicFightAttributes.IMPACT).getBaseValue();
+             }
+diff --git a/src/main/java/yesman/epicfight/world/capabilities/entitypatch/boss/enderdragon/EnderDragonPatch.java b/src/main/java/yesman/epicfight/world/capabilities/entitypatch/boss/enderdragon/EnderDragonPatch.java
+index e4c2888..377b6e7 100644
+--- a/src/main/java/yesman/epicfight/world/capabilities/entitypatch/boss/enderdragon/EnderDragonPatch.java
++++ b/src/main/java/yesman/epicfight/world/capabilities/entitypatch/boss/enderdragon/EnderDragonPatch.java
+@@ -486,7 +486,7 @@ public class EnderDragonPatch extends MobPatch<EnderDragon> implements InverseKi
+ 		/**
+ 		 * A copy from {@link EnderDragon#aiStep()}
+ 		**/
+-		if (this.original.getDragonFight() == null && !this.original.level().isClientSide) {
++		if (this.original.getDragonFight() == null && !this.original.level().isClientSide()) {
+ 			ServerLevel serverlevel = (ServerLevel)this.original.level();
+             EndDragonFight enddragonfight = serverlevel.getDragonFight();
+             
+diff --git a/src/main/java/yesman/epicfight/world/capabilities/item/CapabilityItem.java b/src/main/java/yesman/epicfight/world/capabilities/item/CapabilityItem.java
+index c8a8f4e..0c6a286 100644
+--- a/src/main/java/yesman/epicfight/world/capabilities/item/CapabilityItem.java
++++ b/src/main/java/yesman/epicfight/world/capabilities/item/CapabilityItem.java
+@@ -167,7 +167,7 @@ public class CapabilityItem {
+ 				double value = attribute.get(impact).amount() + entitypatch.getOriginal().getAttribute(impact).getBaseValue();
+ 
+ 				if (value > 0.0D) {
+-					int i = EnchantmentHelper.getItemEnchantmentLevel(entitypatch.getOriginal().level().registryAccess().registryOrThrow(net.minecraft.core.registries.Registries.ENCHANTMENT).getHolder(Enchantments.KNOCKBACK).orElseThrow(), itemStack);
++					int i = EnchantmentHelper.getItemEnchantmentLevel(entitypatch.getOriginal().level().registryAccess().lookupOrThrow(net.minecraft.core.registries.Registries.ENCHANTMENT).getOrThrow(Enchantments.KNOCKBACK), itemStack);
+ 					value *= (1.0F + i * 0.12F);
+ 					itemTooltip.add(index++, Component.literal(" ").append(Component.translatable(impact.value().getDescriptionId() + ".value", ItemAttributeModifiers.ATTRIBUTE_MODIFIER_FORMAT.format(value))));
+ 				}
+@@ -231,7 +231,7 @@ public class CapabilityItem {
+ 				double value = attribute.get(impact).amount() + entitypatch.getOriginal().getAttribute(impact).getBaseValue();
+ 
+ 				if (value > 0.0D) {
+-					int i = EnchantmentHelper.getItemEnchantmentLevel(entitypatch.getOriginal().level().registryAccess().registryOrThrow(net.minecraft.core.registries.Registries.ENCHANTMENT).getHolder(Enchantments.KNOCKBACK).orElseThrow(), itemstack);
++					int i = EnchantmentHelper.getItemEnchantmentLevel(entitypatch.getOriginal().level().registryAccess().lookupOrThrow(net.minecraft.core.registries.Registries.ENCHANTMENT).getOrThrow(Enchantments.KNOCKBACK), itemstack);
+ 					value *= (1.0F + i * 0.12F);
+ 					itemTooltip.add(index++, Component.literal(" ").append(Component.translatable(impact.value().getDescriptionId() + ".value", ItemAttributeModifiers.ATTRIBUTE_MODIFIER_FORMAT.format(value))));
+ 				}
+diff --git a/src/main/java/yesman/epicfight/world/capabilities/item/TridentCapability.java b/src/main/java/yesman/epicfight/world/capabilities/item/TridentCapability.java
+index ae55a22..735e455 100644
+--- a/src/main/java/yesman/epicfight/world/capabilities/item/TridentCapability.java
++++ b/src/main/java/yesman/epicfight/world/capabilities/item/TridentCapability.java
+@@ -67,11 +67,11 @@ public class TridentCapability extends RangedWeaponCapability {
+     @Nullable
+     @Override
+     public Skill getInnateSkill(PlayerPatch<?> playerpatch, ItemStack itemstack) {
+-        if (EnchantmentHelper.getItemEnchantmentLevel(playerpatch.getLevel().registryAccess().registryOrThrow(net.minecraft.core.registries.Registries.ENCHANTMENT).getHolder(Enchantments.RIPTIDE).orElseThrow(), itemstack) > 0) {
++        if (EnchantmentHelper.getItemEnchantmentLevel(playerpatch.getLevel().registryAccess().lookupOrThrow(net.minecraft.core.registries.Registries.ENCHANTMENT).getOrThrow(Enchantments.RIPTIDE), itemstack) > 0) {
+             return EpicFightSkills.TSUNAMI.get();
+-        } else if (EnchantmentHelper.getItemEnchantmentLevel(playerpatch.getLevel().registryAccess().registryOrThrow(net.minecraft.core.registries.Registries.ENCHANTMENT).getHolder(Enchantments.CHANNELING).orElseThrow(), itemstack) > 0) {
++        } else if (EnchantmentHelper.getItemEnchantmentLevel(playerpatch.getLevel().registryAccess().lookupOrThrow(net.minecraft.core.registries.Registries.ENCHANTMENT).getOrThrow(Enchantments.CHANNELING), itemstack) > 0) {
+             return EpicFightSkills.WRATHFUL_LIGHTING.get();
+-        } else if (EnchantmentHelper.getItemEnchantmentLevel(playerpatch.getLevel().registryAccess().registryOrThrow(net.minecraft.core.registries.Registries.ENCHANTMENT).getHolder(Enchantments.LOYALTY).orElseThrow(), itemstack) > 0) {
++        } else if (EnchantmentHelper.getItemEnchantmentLevel(playerpatch.getLevel().registryAccess().lookupOrThrow(net.minecraft.core.registries.Registries.ENCHANTMENT).getOrThrow(Enchantments.LOYALTY), itemstack) > 0) {
+             return EpicFightSkills.EVERLASTING_ALLEGIANCE.get();
+         } else {
+             return null;
+diff --git a/src/main/java/yesman/epicfight/world/level/block/FractureBlock.java b/src/main/java/yesman/epicfight/world/level/block/FractureBlock.java
+index 6951fc7..256b7c2 100644
+--- a/src/main/java/yesman/epicfight/world/level/block/FractureBlock.java
++++ b/src/main/java/yesman/epicfight/world/level/block/FractureBlock.java
+@@ -46,7 +46,7 @@ public class FractureBlock extends BaseEntityBlock {
+     @Nullable
+     @Override
+     public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState blockState, BlockEntityType<T> blockEntityType) {
+-        return level.isClientSide ? createTickerHelper(blockEntityType, EpicFightBlockEntities.FRACTURE.get(), FractureBlockEntity::lifeTimeTick) : null;
++        return level.isClientSide() ? createTickerHelper(blockEntityType, EpicFightBlockEntities.FRACTURE.get(), FractureBlockEntity::lifeTimeTick) : null;
+     }
+ 
+     @Override

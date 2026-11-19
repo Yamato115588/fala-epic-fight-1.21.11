@@ -5,7 +5,7 @@ rootProject { project ->
         def dest = project.layout.buildDirectory.dir('renderpass-test/classes')
         def src = project.file('src/main/java/yesman/epicfight/client/renderer/shader/compute')
         def compileProbe = project.tasks.register('compileComputeRenderPassTest', JavaCompile) {
-            source new File(probeDir, 'ComputeRenderPassTest.java'), new File(src, 'ComputeVertexBuffer.java')
+            source new File(probeDir, 'ComputeRenderPassTest.java'), new File(probeDir, 'SkinningInputs.java'), new File(src, 'ComputeVertexBuffer.java')
             source(['ComputeProgram', 'ComputeShader', 'Uniform'].collect { new File(src, "backend/program/${it}.java") })
             classpath = project.configurations.compileClasspath
             destinationDirectory.set(dest)
@@ -17,7 +17,8 @@ rootProject { project ->
             dependsOn compileProbe
             classpath = project.files(dest, project.configurations.runtimeClasspath)
             mainClass.set('yesman.epicfight.client.renderer.shader.compute.ComputeRenderPassTest')
-            args project.file('src/main/resources/assets/epicfight/shaders/compute/vertex_buffer_pack.comp')
+            args project.file('src/main/resources/assets/epicfight/shaders/compute/vertex_buffer_pack.comp'),
+                 project.file('src/main/resources/assets/fala_epicfight/shaders/compute/skin.comp')
             systemProperty 'epicfight.test.osmesa', project.providers.gradleProperty('osmesa').getOrElse('false')
             if (System.getProperty('org.lwjgl.librarypath') != null) {
                 systemProperty 'org.lwjgl.librarypath', System.getProperty('org.lwjgl.librarypath')

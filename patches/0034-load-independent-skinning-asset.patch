@@ -1,0 +1,64 @@
+diff --git a/src/main/java/yesman/epicfight/client/renderer/shader/compute/iris/IrisComputeShaderSetup.java b/src/main/java/yesman/epicfight/client/renderer/shader/compute/iris/IrisComputeShaderSetup.java
+index 3ad3433..710caf4 100644
+--- a/src/main/java/yesman/epicfight/client/renderer/shader/compute/iris/IrisComputeShaderSetup.java
++++ b/src/main/java/yesman/epicfight/client/renderer/shader/compute/iris/IrisComputeShaderSetup.java
+@@ -77,6 +77,7 @@ public class IrisComputeShaderSetup extends ComputeShaderSetup {
+ 		// shader setup
+ 		ComputeProgram shader = ComputeShaderProvider.meshComputeIris;
+ 		shader.useProgram();
++		shader.getUniform("falaIris").uploadUnsignedInt(1);
+ 		shader.getUniform("colorIn").uploadVec4(r, g, b, a);
+ 		shader.getUniform("uv1In").uploadUnsignedInt(overlay);
+ 		shader.getUniform("uv2In").uploadUnsignedInt(light);
+@@ -89,7 +90,7 @@ public class IrisComputeShaderSetup extends ComputeShaderSetup {
+ 			pose_buffer.bindRange(GL43C.GL_SHADER_STORAGE_BUFFER, 0,
+ 					poses_off, pose_size);
+ 			hf_buffer.bindRange(GL43C.GL_SHADER_STORAGE_BUFFER, 4,
+-					hidden_flag_off, HF.length * 4L);
++					hidden_flag_off, this.hiddenFlags.length * 4L);
+ 		}
+ 		else {
+ 			//ComputeShaderSetup.POSE_BO.bindBufferBase(0);
+diff --git a/src/main/java/yesman/epicfight/client/renderer/shader/compute/loader/ComputeShaderProvider.java b/src/main/java/yesman/epicfight/client/renderer/shader/compute/loader/ComputeShaderProvider.java
+index 9abaeaf..21f9c4c 100644
+--- a/src/main/java/yesman/epicfight/client/renderer/shader/compute/loader/ComputeShaderProvider.java
++++ b/src/main/java/yesman/epicfight/client/renderer/shader/compute/loader/ComputeShaderProvider.java
+@@ -17,6 +17,7 @@ import yesman.epicfight.client.renderer.shader.compute.backend.ssbo.IArrayBuffer
+ import yesman.epicfight.client.renderer.shader.compute.iris.IrisComputeShaderSetup;
+ 
+ import net.minecraft.server.packs.resources.ResourceProvider;
++import net.minecraft.resources.Identifier;
+ 
+ import java.nio.FloatBuffer;
+ import java.util.function.BiConsumer;
+@@ -76,6 +77,12 @@ public class ComputeShaderProvider {
+         EpicFight.LOGGER.warn("[Computer Shader Acceleration] Compute Shader: {}", (supportComputeShader ? "Supported" : "Unsupported"));
+     }
+     
++    private static Identifier skinShader(ResourceProvider resources, String name) {
++        Identifier override = EpicFight.identifier("shaders/compute/" + name + ".comp");
++        return resources.getResource(override).isPresent() ? override
++            : Identifier.fromNamespaceAndPath("fala_epicfight", "shaders/compute/skin.comp");
++    }
++
+     public static void reloadComputeShaders(ResourceProvider resources) {
+         if (!supportComputeShader) return;
+         
+@@ -86,7 +93,7 @@ public class ComputeShaderProvider {
+                     EpicFight.identifier("shaders/compute/vertex_buffer_pack.comp"),
+                     BarrierFlags.SHADER_STORAGE, BarrierFlags.VERTEX_ATTRIB_ARRAY);
+             meshComputeVanilla = ComputeShaderLoader.loadComputeShaderProgram(resources,
+-                    EpicFight.identifier("shaders/compute/vanilla_mesh_transformer.comp"),
++                    skinShader(resources, "vanilla_mesh_transformer"),
+                     BarrierFlags.SHADER_STORAGE, BarrierFlags.VERTEX_ATTRIB_ARRAY);
+             /*batchedMeshComputeVanilla =
+                     ComputeShaderLoader.loadComputeShaderProgram(resources,
+@@ -94,7 +101,7 @@ public class ComputeShaderProvider {
+                             BarrierFlags.SHADER_STORAGE, BarrierFlags.VERTEX_ATTRIB_ARRAY);*/
+             if (irisLoaded)
+             {
+-                meshComputeIris = ComputeShaderLoader.loadComputeShaderProgram(resources, EpicFight.identifier("shaders/compute/iris_mesh_transformer.comp"), BarrierFlags.SHADER_STORAGE, BarrierFlags.VERTEX_ATTRIB_ARRAY);
++                meshComputeIris = ComputeShaderLoader.loadComputeShaderProgram(resources, skinShader(resources, "iris_mesh_transformer"), BarrierFlags.SHADER_STORAGE, BarrierFlags.VERTEX_ATTRIB_ARRAY);
+             }
+ 
+             maxSSBOLen = ComputeShaderLoader.getGLMaxSSBOSize();

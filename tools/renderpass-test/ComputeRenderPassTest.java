@@ -44,22 +44,6 @@ public final class ComputeRenderPassTest {
         void main() { fragColor = tint; }
         """;
     // Known triangle in the 48-byte vanilla skinning output layout.
-    private static final String PRODUCER = """
-        #version 430 core
-        layout(local_size_x = 3) in;
-        layout(std430, binding=5) writeonly buffer Result { uint words[]; };
-        uniform vec4 testColor;
-        const vec2 xy[3] = vec2[](vec2(-0.8,-0.8),vec2(0.8,-0.8),vec2(0.0,0.8));
-        void main() {
-            uint v = gl_LocalInvocationID.x;
-            uint i = v * 12u;
-            words[i] = floatBitsToUint(xy[v].x);
-            words[i+1u] = floatBitsToUint(xy[v].y);
-            words[i+2u] = 0u;
-            for (uint c=0u; c<4u; ++c) words[i+3u+c] = floatBitsToUint(testColor[c]);
-        }
-        """;
-
     public static void main(String[] args) throws Exception {
         Configuration.OPENGL_EXPLICIT_INIT.set(true);
         if (Boolean.getBoolean("epicfight.test.osmesa")) GLFW.glfwInitHint(GLFW.GLFW_PLATFORM, GLFW.GLFW_PLATFORM_NULL);
@@ -78,21 +62,20 @@ public final class ComputeRenderPassTest {
                 RenderSystem.initRenderThread();
                 RenderSystem.initRenderer(window, 0, false,
                     (name, stage) -> stage == ShaderType.VERTEX ? VERTEX : PIXEL, false);
-                run(Path.of(args[0]));
+                run(Path.of(args[0]), Path.of(args[1]));
             } finally { GLFW.glfwDestroyWindow(window); }
         } finally { GLFW.glfwTerminate(); }
     }
 
-    private static void run(Path packerPath) throws Exception {
+    private static void run(Path packerPath, Path skinPath) throws Exception {
         TextureTarget target = new TextureTarget("pixel check", WIDTH, WIDTH, false);
         ComputeProgram packer = program(Files.readString(packerPath));
-        ComputeProgram producer = program(PRODUCER);
+        ComputeProgram producer = program(Files.readString(skinPath));
         int source = GL15C.glGenBuffers();
         int sentinel = GL15C.glGenBuffers();
         int alignment = GL11C.glGetInteger(GL43C.GL_SHADER_STORAGE_BUFFER_OFFSET_ALIGNMENT);
-        try (ComputeVertexBuffer vertices = new ComputeVertexBuffer()) {
+        try (ComputeVertexBuffer vertices = new ComputeVertexBuffer(); SkinningInputs inputs = new SkinningInputs()) {
             GL15C.glBindBuffer(SSBO, source);
-            GL15C.glBufferData(SSBO, 3 * 48L, GL15C.GL_DYNAMIC_DRAW);
             GL15C.glBindBuffer(SSBO, sentinel);
             GL15C.glBufferData(SSBO, alignment + 64L, GL15C.GL_STATIC_DRAW);
             GL30C.glBindBufferRange(SSBO, 5, sentinel, alignment, 64L);
@@ -103,34 +86,37 @@ public final class ComputeRenderPassTest {
                 .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST).withDepthWrite(false).withCull(false).build();
             var setup = RenderSetup.builder(pipeline).setOutputTarget(new OutputTarget("test", () -> target)).createRenderSetup();
             RenderType type = RenderType.create("test", setup);
-            for (int frame = 0; frame < 3; frame++) {
-                int channel = frame;
+            for (int frame = 0; frame < 6; frame++) {
+                int channel = frame % 3;
+                boolean iris = frame >= 3;
+                boolean hidden = frame == 4;
+                if (frame == 4 || frame == 5) inputs.setHidden(hidden);
+                int stride = iris ? 60 : 48;
+                GL15C.glBindBuffer(SSBO,source);
+                GL15C.glBufferData(SSBO,3L*stride,GL15C.GL_DYNAMIC_DRAW);
                 RenderSystem.getDevice().createCommandEncoder().clearColorTexture(target.getColorTexture(), 0);
-                vertices.draw(packer, type, source, 48, 0, 3, () -> {
-                    producer.useProgram();
-                    producer.getUniform("testColor").uploadVec4(channel == 0 ? 1 : 0, channel == 1 ? 1 : 0, channel == 2 ? 1 : 0, 1);
-                    GL30C.glBindBufferBase(SSBO, 5, source);
-                    producer.dispatch(1, 1, 1);
-                });
+                vertices.draw(packer, type, source, stride, iris ? inputs.midUv() : 0, 3,
+                    () -> inputs.dispatch(producer, source, iris, channel));
                 int bound = GL30C.glGetIntegeri(GL43C.GL_SHADER_STORAGE_BUFFER_BINDING, 5);
                 if (bound != sentinel || GL32C.glGetInteger64i(GL43C.GL_SHADER_STORAGE_BUFFER_START, 5) != alignment
                     || GL32C.glGetInteger64i(GL43C.GL_SHADER_STORAGE_BUFFER_SIZE, 5) != 64
                     || GL11C.glGetInteger(GL43C.GL_SHADER_STORAGE_BUFFER_BINDING) != source) {
                     throw new AssertionError("SSBO range or generic binding changed after frame " + frame);
                 }
+                inputs.verifyRecords(iris, hidden);
                 ByteBuffer bytes = ByteBuffer.allocateDirect(WIDTH * WIDTH * 4);
                 GL11C.glBindTexture(GL11C.GL_TEXTURE_2D, ((GlTexture) target.getColorTexture()).glId());
                 GL11C.glGetTexImage(GL11C.GL_TEXTURE_2D, 0, GL11C.GL_RGBA, GL11C.GL_UNSIGNED_BYTE, bytes);
                 int center = (WIDTH * (WIDTH / 2) + WIDTH / 2) * 4;
                 for (int c = 0; c < 4; c++) {
-                    int expected = c == frame || c == 3 ? 255 : 0;
+                    int expected = !hidden && (c == channel || c == 3) ? 255 : 0;
                     if (Byte.toUnsignedInt(bytes.get(center + c)) != expected || bytes.get(c) != 0) {
                         throw new AssertionError("Unexpected pixel on frame " + frame + ", channel " + c);
                     }
                 }
                 if (GL11C.glGetError() != GL11C.GL_NO_ERROR) throw new AssertionError("OpenGL error on frame " + frame);
             }
-            System.out.println("PASS: red, green, blue RenderPass readbacks; SSBO range preserved. " + GL11C.glGetString(GL11C.GL_RENDERER));
+            System.out.println("PASS: weighted skinning, Vanilla and Iris records, hidden triangles, six RenderPass readbacks and preserved SSBO range. " + GL11C.glGetString(GL11C.GL_RENDERER));
         } finally {
             GL15C.glDeleteBuffers(source);
             GL15C.glDeleteBuffers(sentinel);
