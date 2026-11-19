@@ -1,0 +1,589 @@
+diff --git a/src/main/java/yesman/epicfight/client/gui/datapack/screen/AttackAnimationPropertyScreen.java b/src/main/java/yesman/epicfight/client/gui/datapack/screen/AttackAnimationPropertyScreen.java
+index 0776a2f..cdf672b 100644
+--- a/src/main/java/yesman/epicfight/client/gui/datapack/screen/AttackAnimationPropertyScreen.java
++++ b/src/main/java/yesman/epicfight/client/gui/datapack/screen/AttackAnimationPropertyScreen.java
+@@ -314,14 +314,10 @@ public class AttackAnimationPropertyScreen extends Screen {
+ 		
+ 		ResourceLocation backgroundTexture = this.minecraft.level == null ? MENU_BACKGROUND : INWORLD_MENU_BACKGROUND;
+ 		
+-		guiGraphics.setColor(0.125F, 0.125F, 0.125F, 1.0F);
+-        guiGraphics.blit(RenderPipelines.GUI_TEXTURED, backgroundTexture, 0, yBegin, (float)this.width, (float)yEnd - yBegin, this.width, yEnd, 32, 32);
+-        guiGraphics.setColor(1.0F, 1.0F, 1.0F, 1.0F);
++        guiGraphics.blit(RenderPipelines.GUI_TEXTURED, backgroundTexture, 0, yBegin, (float)this.width, (float)yEnd - yBegin, this.width, yEnd, 32, 32, 0xff1f1f1f);
+ 		
+-		guiGraphics.setColor(0.25F, 0.25F, 0.25F, 1.0F);
+-		guiGraphics.blit(RenderPipelines.GUI_TEXTURED, backgroundTexture, 0, 0, 0.0F, 0.0F, this.width, yBegin, 32, 32);
+-        guiGraphics.blit(RenderPipelines.GUI_TEXTURED, backgroundTexture, 0, yEnd, 0.0F, (float)yEnd - yBegin, this.width, yEnd, 32, 32);
+-        guiGraphics.setColor(1.0F, 1.0F, 1.0F, 1.0F);
++		guiGraphics.blit(RenderPipelines.GUI_TEXTURED, backgroundTexture, 0, 0, 0.0F, 0.0F, this.width, yBegin, 32, 32, 0xff3f3f3f);
++        guiGraphics.blit(RenderPipelines.GUI_TEXTURED, backgroundTexture, 0, yEnd, 0.0F, (float)yEnd - yBegin, this.width, yEnd, 32, 32, 0xff3f3f3f);
+         
+         guiGraphics.fillGradient(0, yBegin, this.width, yBegin + 4, -16777216, 0);
+ 		guiGraphics.fillGradient(0, yEnd, this.width, yEnd + 1, 0, -16777216);
+diff --git a/src/main/java/yesman/epicfight/client/gui/datapack/screen/HumanoidCombatBehaviorScreen.java b/src/main/java/yesman/epicfight/client/gui/datapack/screen/HumanoidCombatBehaviorScreen.java
+index 08029a4..64aaed6 100644
+--- a/src/main/java/yesman/epicfight/client/gui/datapack/screen/HumanoidCombatBehaviorScreen.java
++++ b/src/main/java/yesman/epicfight/client/gui/datapack/screen/HumanoidCombatBehaviorScreen.java
+@@ -248,14 +248,10 @@ public class HumanoidCombatBehaviorScreen extends Screen {
+ 		
+ 		guiGraphics.drawString(this.font, this.title, 20, 16, 16777215);
+ 		
+-		guiGraphics.setColor(0.125F, 0.125F, 0.125F, 1.0F);
+-        guiGraphics.blit(RenderPipelines.GUI_TEXTURED, Screen.MENU_BACKGROUND, 0, yBegin, (float)this.width, (float)yEnd - yBegin, this.width, yEnd, 32, 32);
+-        guiGraphics.setColor(1.0F, 1.0F, 1.0F, 1.0F);
++        guiGraphics.blit(RenderPipelines.GUI_TEXTURED, Screen.MENU_BACKGROUND, 0, yBegin, (float)this.width, (float)yEnd - yBegin, this.width, yEnd, 32, 32, 0xff1f1f1f);
+ 		
+-		guiGraphics.setColor(0.25F, 0.25F, 0.25F, 1.0F);
+-		guiGraphics.blit(RenderPipelines.GUI_TEXTURED, Screen.MENU_BACKGROUND, 0, 0, 0.0F, 0.0F, this.width, yBegin, 32, 32);
+-        guiGraphics.blit(RenderPipelines.GUI_TEXTURED, Screen.MENU_BACKGROUND, 0, yEnd, 0.0F, (float)yEnd - yBegin, this.width, yEnd, 32, 32);
+-        guiGraphics.setColor(1.0F, 1.0F, 1.0F, 1.0F);
++		guiGraphics.blit(RenderPipelines.GUI_TEXTURED, Screen.MENU_BACKGROUND, 0, 0, 0.0F, 0.0F, this.width, yBegin, 32, 32, 0xff3f3f3f);
++        guiGraphics.blit(RenderPipelines.GUI_TEXTURED, Screen.MENU_BACKGROUND, 0, yEnd, 0.0F, (float)yEnd - yBegin, this.width, yEnd, 32, 32, 0xff3f3f3f);
+         
+         guiGraphics.fillGradient(0, yBegin, this.width, yBegin + 4, -16777216, 0);
+ 		guiGraphics.fillGradient(0, yEnd, this.width, yEnd + 1, 0, -16777216);
+diff --git a/src/main/java/yesman/epicfight/client/gui/datapack/screen/HumanoidWeaponMotionScreen.java b/src/main/java/yesman/epicfight/client/gui/datapack/screen/HumanoidWeaponMotionScreen.java
+index b20847e..782f9f1 100644
+--- a/src/main/java/yesman/epicfight/client/gui/datapack/screen/HumanoidWeaponMotionScreen.java
++++ b/src/main/java/yesman/epicfight/client/gui/datapack/screen/HumanoidWeaponMotionScreen.java
+@@ -287,14 +287,10 @@ public class HumanoidWeaponMotionScreen extends Screen {
+ 		
+ 		guiGraphics.drawString(this.font, this.title, 20, 16, 16777215);
+ 		
+-		guiGraphics.setColor(0.125F, 0.125F, 0.125F, 1.0F);
+-        guiGraphics.blit(RenderPipelines.GUI_TEXTURED, Screen.MENU_BACKGROUND, 0, yBegin, (float)this.width, (float)yEnd - yBegin, this.width, yEnd, 32, 32);
+-        guiGraphics.setColor(1.0F, 1.0F, 1.0F, 1.0F);
++        guiGraphics.blit(RenderPipelines.GUI_TEXTURED, Screen.MENU_BACKGROUND, 0, yBegin, (float)this.width, (float)yEnd - yBegin, this.width, yEnd, 32, 32, 0xff1f1f1f);
+ 		
+-		guiGraphics.setColor(0.25F, 0.25F, 0.25F, 1.0F);
+-		guiGraphics.blit(RenderPipelines.GUI_TEXTURED, Screen.MENU_BACKGROUND, 0, 0, 0.0F, 0.0F, this.width, yBegin, 32, 32);
+-        guiGraphics.blit(RenderPipelines.GUI_TEXTURED, Screen.MENU_BACKGROUND, 0, yEnd, 0.0F, (float)yEnd - yBegin, this.width, yEnd, 32, 32);
+-        guiGraphics.setColor(1.0F, 1.0F, 1.0F, 1.0F);
++		guiGraphics.blit(RenderPipelines.GUI_TEXTURED, Screen.MENU_BACKGROUND, 0, 0, 0.0F, 0.0F, this.width, yBegin, 32, 32, 0xff3f3f3f);
++        guiGraphics.blit(RenderPipelines.GUI_TEXTURED, Screen.MENU_BACKGROUND, 0, yEnd, 0.0F, (float)yEnd - yBegin, this.width, yEnd, 32, 32, 0xff3f3f3f);
+         
+         guiGraphics.fillGradient(0, yBegin, this.width, yBegin + 4, -16777216, 0);
+ 		guiGraphics.fillGradient(0, yEnd, this.width, yEnd + 1, 0, -16777216);
+diff --git a/src/main/java/yesman/epicfight/client/gui/datapack/screen/LivingAnimationsScreen.java b/src/main/java/yesman/epicfight/client/gui/datapack/screen/LivingAnimationsScreen.java
+index b1ee3a8..26cf25e 100644
+--- a/src/main/java/yesman/epicfight/client/gui/datapack/screen/LivingAnimationsScreen.java
++++ b/src/main/java/yesman/epicfight/client/gui/datapack/screen/LivingAnimationsScreen.java
+@@ -279,14 +279,10 @@ public class LivingAnimationsScreen extends Screen {
+ 		
+ 		guiGraphics.drawString(this.font, this.title, 20, 16, 16777215);
+ 		
+-		guiGraphics.setColor(0.125F, 0.125F, 0.125F, 1.0F);
+-        guiGraphics.blit(RenderPipelines.GUI_TEXTURED, Screen.MENU_BACKGROUND, 0, yBegin, (float)this.width, (float)yEnd - yBegin, this.width, yEnd, 32, 32);
+-        guiGraphics.setColor(1.0F, 1.0F, 1.0F, 1.0F);
++        guiGraphics.blit(RenderPipelines.GUI_TEXTURED, Screen.MENU_BACKGROUND, 0, yBegin, (float)this.width, (float)yEnd - yBegin, this.width, yEnd, 32, 32, 0xff1f1f1f);
+ 		
+-		guiGraphics.setColor(0.25F, 0.25F, 0.25F, 1.0F);
+-		guiGraphics.blit(RenderPipelines.GUI_TEXTURED, Screen.MENU_BACKGROUND, 0, 0, 0.0F, 0.0F, this.width, yBegin, 32, 32);
+-        guiGraphics.blit(RenderPipelines.GUI_TEXTURED, Screen.MENU_BACKGROUND, 0, yEnd, 0.0F, (float)yEnd - yBegin, this.width, yEnd, 32, 32);
+-        guiGraphics.setColor(1.0F, 1.0F, 1.0F, 1.0F);
++		guiGraphics.blit(RenderPipelines.GUI_TEXTURED, Screen.MENU_BACKGROUND, 0, 0, 0.0F, 0.0F, this.width, yBegin, 32, 32, 0xff3f3f3f);
++        guiGraphics.blit(RenderPipelines.GUI_TEXTURED, Screen.MENU_BACKGROUND, 0, yEnd, 0.0F, (float)yEnd - yBegin, this.width, yEnd, 32, 32, 0xff3f3f3f);
+         
+         guiGraphics.fillGradient(0, yBegin, this.width, yBegin + 4, -16777216, 0);
+ 		guiGraphics.fillGradient(0, yEnd, this.width, yEnd + 1, 0, -16777216);
+diff --git a/src/main/java/yesman/epicfight/client/gui/datapack/screen/OffhandValidatorScreen.java b/src/main/java/yesman/epicfight/client/gui/datapack/screen/OffhandValidatorScreen.java
+index 73d70e0..ec2d329 100644
+--- a/src/main/java/yesman/epicfight/client/gui/datapack/screen/OffhandValidatorScreen.java
++++ b/src/main/java/yesman/epicfight/client/gui/datapack/screen/OffhandValidatorScreen.java
+@@ -214,14 +214,10 @@ public class OffhandValidatorScreen extends Screen {
+ 		
+ 		guiGraphics.drawString(this.font, this.title, 20, 16, 16777215);
+ 		
+-		guiGraphics.setColor(0.125F, 0.125F, 0.125F, 1.0F);
+-        guiGraphics.blit(RenderPipelines.GUI_TEXTURED, Screen.MENU_BACKGROUND, 0, yBegin, (float)this.width, (float)yEnd - yBegin, this.width, yEnd, 32, 32);
+-        guiGraphics.setColor(1.0F, 1.0F, 1.0F, 1.0F);
++        guiGraphics.blit(RenderPipelines.GUI_TEXTURED, Screen.MENU_BACKGROUND, 0, yBegin, (float)this.width, (float)yEnd - yBegin, this.width, yEnd, 32, 32, 0xff1f1f1f);
+ 		
+-		guiGraphics.setColor(0.25F, 0.25F, 0.25F, 1.0F);
+-		guiGraphics.blit(RenderPipelines.GUI_TEXTURED, Screen.MENU_BACKGROUND, 0, 0, 0.0F, 0.0F, this.width, yBegin, 32, 32);
+-        guiGraphics.blit(RenderPipelines.GUI_TEXTURED, Screen.MENU_BACKGROUND, 0, yEnd, 0.0F, (float)yEnd - yBegin, this.width, yEnd, 32, 32);
+-        guiGraphics.setColor(1.0F, 1.0F, 1.0F, 1.0F);
++		guiGraphics.blit(RenderPipelines.GUI_TEXTURED, Screen.MENU_BACKGROUND, 0, 0, 0.0F, 0.0F, this.width, yBegin, 32, 32, 0xff3f3f3f);
++        guiGraphics.blit(RenderPipelines.GUI_TEXTURED, Screen.MENU_BACKGROUND, 0, yEnd, 0.0F, (float)yEnd - yBegin, this.width, yEnd, 32, 32, 0xff3f3f3f);
+         
+         guiGraphics.fillGradient(0, yBegin, this.width, yBegin + 4, -16777216, 0);
+ 		guiGraphics.fillGradient(0, yEnd, this.width, yEnd + 1, 0, -16777216);
+diff --git a/src/main/java/yesman/epicfight/client/gui/datapack/screen/StaticAnimationPropertyScreen.java b/src/main/java/yesman/epicfight/client/gui/datapack/screen/StaticAnimationPropertyScreen.java
+index 8cfd69a..88e7353 100644
+--- a/src/main/java/yesman/epicfight/client/gui/datapack/screen/StaticAnimationPropertyScreen.java
++++ b/src/main/java/yesman/epicfight/client/gui/datapack/screen/StaticAnimationPropertyScreen.java
+@@ -454,14 +454,10 @@ public class StaticAnimationPropertyScreen extends Screen {
+ 		
+ 		guiGraphics.drawString(this.font, this.title, 20, 16, 16777215);
+ 		
+-		guiGraphics.setColor(0.125F, 0.125F, 0.125F, 1.0F);
+-        guiGraphics.blit(RenderPipelines.GUI_TEXTURED, Screen.MENU_BACKGROUND, 0, yBegin, (float)this.width, (float)yEnd - yBegin, this.width, yEnd, 32, 32);
+-        guiGraphics.setColor(1.0F, 1.0F, 1.0F, 1.0F);
++        guiGraphics.blit(RenderPipelines.GUI_TEXTURED, Screen.MENU_BACKGROUND, 0, yBegin, (float)this.width, (float)yEnd - yBegin, this.width, yEnd, 32, 32, 0xff1f1f1f);
+ 		
+-		guiGraphics.setColor(0.25F, 0.25F, 0.25F, 1.0F);
+-		guiGraphics.blit(RenderPipelines.GUI_TEXTURED, Screen.MENU_BACKGROUND, 0, 0, 0.0F, 0.0F, this.width, yBegin, 32, 32);
+-        guiGraphics.blit(RenderPipelines.GUI_TEXTURED, Screen.MENU_BACKGROUND, 0, yEnd, 0.0F, (float)yEnd - yBegin, this.width, yEnd, 32, 32);
+-        guiGraphics.setColor(1.0F, 1.0F, 1.0F, 1.0F);
++		guiGraphics.blit(RenderPipelines.GUI_TEXTURED, Screen.MENU_BACKGROUND, 0, 0, 0.0F, 0.0F, this.width, yBegin, 32, 32, 0xff3f3f3f);
++        guiGraphics.blit(RenderPipelines.GUI_TEXTURED, Screen.MENU_BACKGROUND, 0, yEnd, 0.0F, (float)yEnd - yBegin, this.width, yEnd, 32, 32, 0xff3f3f3f);
+         
+         guiGraphics.fillGradient(0, yBegin, this.width, yBegin + 4, -16777216, 0);
+ 		guiGraphics.fillGradient(0, yEnd, this.width, yEnd + 1, 0, -16777216);
+diff --git a/src/main/java/yesman/epicfight/client/gui/datapack/screen/StylesScreen.java b/src/main/java/yesman/epicfight/client/gui/datapack/screen/StylesScreen.java
+index e6b813b..76bac31 100644
+--- a/src/main/java/yesman/epicfight/client/gui/datapack/screen/StylesScreen.java
++++ b/src/main/java/yesman/epicfight/client/gui/datapack/screen/StylesScreen.java
+@@ -366,14 +366,10 @@ public class StylesScreen extends Screen {
+ 		
+ 		guiGraphics.drawString(this.font, this.title, 20, 16, 16777215);
+ 		
+-		guiGraphics.setColor(0.125F, 0.125F, 0.125F, 1.0F);
+-        guiGraphics.blit(RenderPipelines.GUI_TEXTURED, Screen.MENU_BACKGROUND, 0, yBegin, (float)this.width, (float)yEnd - yBegin, this.width, yEnd, 32, 32);
+-        guiGraphics.setColor(1.0F, 1.0F, 1.0F, 1.0F);
++        guiGraphics.blit(RenderPipelines.GUI_TEXTURED, Screen.MENU_BACKGROUND, 0, yBegin, (float)this.width, (float)yEnd - yBegin, this.width, yEnd, 32, 32, 0xff1f1f1f);
+ 		
+-		guiGraphics.setColor(0.25F, 0.25F, 0.25F, 1.0F);
+-		guiGraphics.blit(RenderPipelines.GUI_TEXTURED, Screen.MENU_BACKGROUND, 0, 0, 0.0F, 0.0F, this.width, yBegin, 32, 32);
+-        guiGraphics.blit(RenderPipelines.GUI_TEXTURED, Screen.MENU_BACKGROUND, 0, yEnd, 0.0F, (float)yEnd - yBegin, this.width, yEnd, 32, 32);
+-        guiGraphics.setColor(1.0F, 1.0F, 1.0F, 1.0F);
++		guiGraphics.blit(RenderPipelines.GUI_TEXTURED, Screen.MENU_BACKGROUND, 0, 0, 0.0F, 0.0F, this.width, yBegin, 32, 32, 0xff3f3f3f);
++        guiGraphics.blit(RenderPipelines.GUI_TEXTURED, Screen.MENU_BACKGROUND, 0, yEnd, 0.0F, (float)yEnd - yBegin, this.width, yEnd, 32, 32, 0xff3f3f3f);
+         
+         guiGraphics.fillGradient(0, yBegin, this.width, yBegin + 4, -16777216, 0);
+ 		guiGraphics.fillGradient(0, yEnd, this.width, yEnd + 1, 0, -16777216);
+diff --git a/src/main/java/yesman/epicfight/client/gui/datapack/screen/WeaponAttributeScreen.java b/src/main/java/yesman/epicfight/client/gui/datapack/screen/WeaponAttributeScreen.java
+index 07fb925..1bc94ab 100644
+--- a/src/main/java/yesman/epicfight/client/gui/datapack/screen/WeaponAttributeScreen.java
++++ b/src/main/java/yesman/epicfight/client/gui/datapack/screen/WeaponAttributeScreen.java
+@@ -300,14 +300,10 @@ public class WeaponAttributeScreen extends Screen {
+ 		
+ 		guiGraphics.drawString(this.font, this.title, 20, 16, 16777215);
+ 		
+-		guiGraphics.setColor(0.125F, 0.125F, 0.125F, 1.0F);
+-        guiGraphics.blit(RenderPipelines.GUI_TEXTURED, Screen.MENU_BACKGROUND, 0, yBegin, (float)this.width, (float)yEnd - yBegin, this.width, yEnd, 32, 32);
+-        guiGraphics.setColor(1.0F, 1.0F, 1.0F, 1.0F);
++        guiGraphics.blit(RenderPipelines.GUI_TEXTURED, Screen.MENU_BACKGROUND, 0, yBegin, (float)this.width, (float)yEnd - yBegin, this.width, yEnd, 32, 32, 0xff1f1f1f);
+ 		
+-		guiGraphics.setColor(0.25F, 0.25F, 0.25F, 1.0F);
+-		guiGraphics.blit(RenderPipelines.GUI_TEXTURED, Screen.MENU_BACKGROUND, 0, 0, 0.0F, 0.0F, this.width, yBegin, 32, 32);
+-        guiGraphics.blit(RenderPipelines.GUI_TEXTURED, Screen.MENU_BACKGROUND, 0, yEnd, 0.0F, (float)yEnd - yBegin, this.width, yEnd, 32, 32);
+-        guiGraphics.setColor(1.0F, 1.0F, 1.0F, 1.0F);
++		guiGraphics.blit(RenderPipelines.GUI_TEXTURED, Screen.MENU_BACKGROUND, 0, 0, 0.0F, 0.0F, this.width, yBegin, 32, 32, 0xff3f3f3f);
++        guiGraphics.blit(RenderPipelines.GUI_TEXTURED, Screen.MENU_BACKGROUND, 0, yEnd, 0.0F, (float)yEnd - yBegin, this.width, yEnd, 32, 32, 0xff3f3f3f);
+         
+         guiGraphics.fillGradient(0, yBegin, this.width, yBegin + 4, -16777216, 0);
+ 		guiGraphics.fillGradient(0, yEnd, this.width, yEnd + 1, 0, -16777216);
+diff --git a/src/main/java/yesman/epicfight/client/gui/datapack/screen/WeaponComboScreen.java b/src/main/java/yesman/epicfight/client/gui/datapack/screen/WeaponComboScreen.java
+index dc35865..e6b56d0 100644
+--- a/src/main/java/yesman/epicfight/client/gui/datapack/screen/WeaponComboScreen.java
++++ b/src/main/java/yesman/epicfight/client/gui/datapack/screen/WeaponComboScreen.java
+@@ -352,14 +352,10 @@ public class WeaponComboScreen extends Screen {
+ 		
+ 		guiGraphics.drawString(this.font, this.title, 20, 16, 16777215);
+ 		
+-		guiGraphics.setColor(0.125F, 0.125F, 0.125F, 1.0F);
+-        guiGraphics.blit(RenderPipelines.GUI_TEXTURED, Screen.MENU_BACKGROUND, 0, yBegin, (float)this.width, (float)yEnd - yBegin, this.width, yEnd, 32, 32);
+-        guiGraphics.setColor(1.0F, 1.0F, 1.0F, 1.0F);
+-		
+-		guiGraphics.setColor(0.25F, 0.25F, 0.25F, 1.0F);
+-		guiGraphics.blit(RenderPipelines.GUI_TEXTURED, Screen.MENU_BACKGROUND, 0, 0, 0.0F, 0.0F, this.width, yBegin, 32, 32);
+-        guiGraphics.blit(RenderPipelines.GUI_TEXTURED, Screen.MENU_BACKGROUND, 0, yEnd, 0.0F, (float)yEnd - yBegin, this.width, yEnd, 32, 32);
+-        guiGraphics.setColor(1.0F, 1.0F, 1.0F, 1.0F);
++        guiGraphics.blit(RenderPipelines.GUI_TEXTURED, Screen.MENU_BACKGROUND, 0, yBegin, (float)this.width, (float)yEnd - yBegin, this.width, yEnd, 32, 32, 0xff1f1f1f);
++
++		guiGraphics.blit(RenderPipelines.GUI_TEXTURED, Screen.MENU_BACKGROUND, 0, 0, 0.0F, 0.0F, this.width, yBegin, 32, 32, 0xff3f3f3f);
++        guiGraphics.blit(RenderPipelines.GUI_TEXTURED, Screen.MENU_BACKGROUND, 0, yEnd, 0.0F, (float)yEnd - yBegin, this.width, yEnd, 32, 32, 0xff3f3f3f);
+         
+         guiGraphics.fillGradient(0, yBegin, this.width, yBegin + 4, -16777216, 0);
+ 		guiGraphics.fillGradient(0, yEnd, this.width, yEnd + 1, 0, -16777216);
+diff --git a/src/main/java/yesman/epicfight/client/gui/screen/SideBarScreen.java b/src/main/java/yesman/epicfight/client/gui/screen/SideBarScreen.java
+index e2bb432..e2b4af2 100644
+--- a/src/main/java/yesman/epicfight/client/gui/screen/SideBarScreen.java
++++ b/src/main/java/yesman/epicfight/client/gui/screen/SideBarScreen.java
+@@ -132,7 +132,7 @@ public class SideBarScreen extends Screen {
+         }
+ 
+         @Override
+-        protected void renderWidget(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
++        protected void renderContents(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+             guiGraphics.fill(this.getX(), this.getY(), this.getX() + this.getWidth() + 1, this.getY() + this.getHeight(), 0xFFABABAB);
+             guiGraphics.fill(this.getX(), this.getY() + 1, this.getX() + this.getWidth(), this.getY() + this.getHeight() - 1, 0xFF000000);
+ 
+diff --git a/src/main/java/yesman/epicfight/client/gui/screen/SkillBookScreen.java b/src/main/java/yesman/epicfight/client/gui/screen/SkillBookScreen.java
+index 858ce2d..6cecf53 100644
+--- a/src/main/java/yesman/epicfight/client/gui/screen/SkillBookScreen.java
++++ b/src/main/java/yesman/epicfight/client/gui/screen/SkillBookScreen.java
+@@ -712,7 +712,7 @@ public class SkillBookScreen extends Screen {
+         }
+ 
+         @Override
+-        protected void renderWidget(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTicks) {
++        protected void renderContents(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTicks) {
+             Minecraft minecraft = Minecraft.getInstance();
+ 
+             guiGraphics.pose().pushMatrix();
+diff --git a/src/main/java/yesman/epicfight/client/gui/screen/SkillEditScreen.java b/src/main/java/yesman/epicfight/client/gui/screen/SkillEditScreen.java
+index 03d35fb..89c5bf9 100644
+--- a/src/main/java/yesman/epicfight/client/gui/screen/SkillEditScreen.java
++++ b/src/main/java/yesman/epicfight/client/gui/screen/SkillEditScreen.java
+@@ -456,7 +456,7 @@ public class SkillEditScreen extends Screen {
+         }
+ 
+         @Override
+-        protected void renderWidget(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
++        protected void renderContents(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+             this.active = !this.skillContainer.onReplaceCooldown();
+             int y = ((this.isHoveredOrFocused() || selectedSlotButton == this) && !this.skillContainer.onReplaceCooldown()) ? 35 : 17;
+             guiGraphics.blit(RenderPipelines.GUI_TEXTURED, SKILL_EDIT_UI, this.getX(), this.getY(), 237, y, this.width, this.height, 256, 256);
+@@ -538,7 +538,7 @@ public class SkillEditScreen extends Screen {
+         }
+ 
+         @Override
+-        protected void renderWidget(@NotNull GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
++        protected void renderContents(@NotNull GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+             this.active = true;
+             int yTex = (this.isHoveredOrFocused() || selectedSlotButton == this) ? 35 : 17;
+             guiGraphics.blit(RenderPipelines.GUI_TEXTURED, SKILL_EDIT_UI, this.getX(), this.getY(), 237, yTex, this.width, this.height, 256, 256);
+@@ -569,7 +569,7 @@ public class SkillEditScreen extends Screen {
+         }
+ 
+         @Override
+-        protected void renderWidget(@NotNull GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
++        protected void renderContents(@NotNull GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+             if (this.up && scroll != 0) guiGraphics.blit(RenderPipelines.GUI_TEXTURED, SCROLL_ARROW_UP, this.getX(), this.getY(), 0, 0, this.width, this.height, 16, 16, 16, 16);
+             else if (!this.up && scroll != maxScroll) guiGraphics.blit(RenderPipelines.GUI_TEXTURED, SCROLL_ARROW_DOWN, this.getX(), this.getY(), 0, 0, this.width, this.height, 16, 16, 16, 16);
+         }
+@@ -593,7 +593,7 @@ public class SkillEditScreen extends Screen {
+         }
+ 
+         @Override
+-        public void renderWidget(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
++        public void renderContents(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+             this.isHovered = mouseX >= this.getX() && mouseY >= this.getY() && mouseX < this.getX() + this.width && mouseY < this.getY() + this.height;
+             int texY = (this.isHoveredOrFocused() || !this.active) ? 224 : 200;
+             guiGraphics.blit(RenderPipelines.GUI_TEXTURED, SKILL_EDIT_UI, this.getX(), this.getY(), 0, texY, this.width, this.height, 256, 256);
+diff --git a/src/main/java/yesman/epicfight/client/gui/screen/SlotSelectScreen.java b/src/main/java/yesman/epicfight/client/gui/screen/SlotSelectScreen.java
+index 819c93a..28e78a4 100644
+--- a/src/main/java/yesman/epicfight/client/gui/screen/SlotSelectScreen.java
++++ b/src/main/java/yesman/epicfight/client/gui/screen/SlotSelectScreen.java
+@@ -199,7 +199,7 @@ public class SlotSelectScreen extends Screen {
+         }
+ 
+         @Override
+-        protected void renderWidget(@NotNull GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
++        protected void renderContents(@NotNull GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+             if (this.up && scroll != 0) {
+                 guiGraphics.blit(RenderPipelines.GUI_TEXTURED, SkillEditScreen.SCROLL_ARROW_UP, this.getX(), this.getY(), 0, 0, this.width, this.height, 16, 16, 16, 16);
+             } else if (!this.up && scroll != maxScroll) {
+@@ -223,8 +223,8 @@ public class SlotSelectScreen extends Screen {
+         }
+ 
+         @Override
+-        public void renderWidget(@NotNull GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+-            super.renderWidget(guiGraphics, mouseX, mouseY, partialTick);
++        public void renderContents(@NotNull GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
++            super.renderContents(guiGraphics, mouseX, mouseY, partialTick);
+ 
+             RenderSystem.enableBlend();
+             if (!this.active) RenderSystem.setShaderColor(0.5F, 0.5F, 0.5F, 1.0F);
+diff --git a/src/main/java/yesman/epicfight/client/gui/screen/config/HUDLocationsScreen.java b/src/main/java/yesman/epicfight/client/gui/screen/config/HUDLocationsScreen.java
+index 71c094b..d3ed822 100644
+--- a/src/main/java/yesman/epicfight/client/gui/screen/config/HUDLocationsScreen.java
++++ b/src/main/java/yesman/epicfight/client/gui/screen/config/HUDLocationsScreen.java
+@@ -356,7 +356,7 @@ public class HUDLocationsScreen extends Screen {
+         }
+ 
+         @Override
+-        protected void renderWidget(GuiGraphics guiGraphics, int x, int y, float partialTicks) {
++        protected void renderContents(GuiGraphics guiGraphics, int x, int y, float partialTicks) {
+             RenderSystem.setShader(GameRenderer::getPositionTexShader);
+             RenderSystem.setShaderColor(this.r, this.g, this.b, this.alpha);
+             RenderSystem.enableBlend();
+@@ -389,7 +389,7 @@ public class HUDLocationsScreen extends Screen {
+         }
+ 
+         @Override
+-        protected void renderWidget(GuiGraphics guiGraphics, int x, int y, float partialTicks) {
++        protected void renderContents(GuiGraphics guiGraphics, int x, int y, float partialTicks) {
+             Vec2i startPos = this.alignDirection.getValue().startCoordGetter.get(getX(), getY(), this.width, this.height, 2, this.horizontalBasis.getValue(), this.verticalBasis.getValue());
+ 
+             RenderSystem.setShader(GameRenderer::getPositionTexShader);
+@@ -594,7 +594,7 @@ public class HUDLocationsScreen extends Screen {
+             }
+ 
+             @Override
+-            protected void renderWidget(GuiGraphics guiGraphics, int x, int y, float partialTicks) {
++            protected void renderContents(GuiGraphics guiGraphics, int x, int y, float partialTicks) {
+                 RenderSystem.setShader(GameRenderer::getPositionTexShader);
+                 RenderSystem.setShaderTexture(0, BATTLE_ICONS);
+                 RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, this.alpha);
+diff --git a/src/main/java/yesman/epicfight/client/gui/screen/config/TPSSettingScreen.java b/src/main/java/yesman/epicfight/client/gui/screen/config/TPSSettingScreen.java
+index e4effa7..988ed1a 100644
+--- a/src/main/java/yesman/epicfight/client/gui/screen/config/TPSSettingScreen.java
++++ b/src/main/java/yesman/epicfight/client/gui/screen/config/TPSSettingScreen.java
+@@ -159,7 +159,7 @@ public class TPSSettingScreen extends Screen {
+     }
+ 
+     @Override
+-    protected void renderBlurredBackground(float partialTick) {
++    protected void renderBlurredBackground(GuiGraphics graphics) {
+     }
+ 
+     @Override
+@@ -205,25 +205,21 @@ public class TPSSettingScreen extends Screen {
+         }
+ 
+         @Override
+-        protected void renderWidget(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+-            guiGraphics.setColor(1.0F, 1.0F, 1.0F, this.alpha);
+-            RenderSystem.enableBlend();
+-            RenderSystem.enableDepthTest();
++        protected void renderContents(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+             guiGraphics.pose().pushMatrix();
+             guiGraphics.pose().translate(this.getX(), this.getY());
+             guiGraphics.pose().translate(8.0F, 8.0F);
+ 
+             switch (this.direction) {
+-                case UP -> { guiGraphics.pose().mulPose(Axis.ZP.rotationDegrees(90.0F)); }
+-                case DOWN -> { guiGraphics.pose().mulPose(Axis.ZP.rotationDegrees(270.0F)); }
+-                case RIGHT -> { guiGraphics.pose().mulPose(Axis.ZP.rotationDegrees(180.0F)); }
++                case UP -> { guiGraphics.pose().rotate((float)Math.toRadians(90.0)); }
++                case DOWN -> { guiGraphics.pose().rotate((float)Math.toRadians(270.0)); }
++                case RIGHT -> { guiGraphics.pose().rotate((float)Math.PI); }
+             }
+ 
+             guiGraphics.pose().translate(-8.0F, -8.0F);
+             //guiGraphics.blit(RenderPipelines.GUI_TEXTURED, BUTTON_TEXTURE, 0, 0, u, v, 16, 16, 64, 64);
+             ResourceLocation sprite = this.isActive() ? (this.isHoveredOrFocused() ? DIRECTION_BUTTON_HIGHLIGHTED_SPRITE : DIRECTION_BUTTON_SPRITE) : DIRECTION_BUTTON_DISABLED_SPRITE;
+-            guiGraphics.blitSprite(RenderPipelines.GUI_TEXTURED, sprite, 0, 0, 16, 16);
+-            guiGraphics.setColor(1.0F, 1.0F, 1.0F, 1.0F);
++            guiGraphics.blitSprite(RenderPipelines.GUI_TEXTURED, sprite, 0, 0, 16, 16, net.minecraft.util.ARGB.white(this.alpha));
+ 
+             guiGraphics.pose().popMatrix();
+         }
+diff --git a/src/main/java/yesman/epicfight/client/gui/widgets/AnchoredButton.java b/src/main/java/yesman/epicfight/client/gui/widgets/AnchoredButton.java
+index 2b169b8..8655a19 100644
+--- a/src/main/java/yesman/epicfight/client/gui/widgets/AnchoredButton.java
++++ b/src/main/java/yesman/epicfight/client/gui/widgets/AnchoredButton.java
+@@ -77,7 +77,7 @@ public class AnchoredButton extends Button implements AnchoredWidget, ThemeAppli
+     }
+ 
+     @Override
+-    protected void renderWidget(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
++    protected void renderContents(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+         this.theme.renderBackground(this, guiGraphics, mouseX, mouseY, partialTick);
+         int i = this.getFGColor();
+         this.renderString(guiGraphics, Minecraft.getInstance().font, i | Mth.ceil(this.alpha * 255.0F) << 24);
+diff --git a/src/main/java/yesman/epicfight/client/gui/widgets/EmoteWheelTab.java b/src/main/java/yesman/epicfight/client/gui/widgets/EmoteWheelTab.java
+index 1d9d3c5..040ed49 100644
+--- a/src/main/java/yesman/epicfight/client/gui/widgets/EmoteWheelTab.java
++++ b/src/main/java/yesman/epicfight/client/gui/widgets/EmoteWheelTab.java
+@@ -392,7 +392,7 @@ public class EmoteWheelTab extends AbstractContainerWidget implements AnchoredWi
+         }
+ 
+         @Override
+-        public void renderWidget(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
++        public void renderContents(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+             this.theme.renderBackground(this, guiGraphics, mouseX, mouseY, partialTick);
+             boolean pageWidget = this.getMessage().getContents() == PlainTextContents.EMPTY;
+ 
+@@ -513,7 +513,7 @@ public class EmoteWheelTab extends AbstractContainerWidget implements AnchoredWi
+         }
+ 
+         @Override
+-        protected void renderWidget(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
++        protected void renderContents(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+             if (this.isActive() && this.isHovered() && hoveringWheel != this && (!editable || lastPressedWheel != this)) {
+                 setHoveringWidget(this);
+                 Minecraft.getInstance().getSoundManager().play(SimpleSoundInstance.forUI(EpicFightSounds.HOVER_WIDGET.get(), 1.0F));
+diff --git a/src/main/java/yesman/epicfight/client/gui/widgets/TextButton.java b/src/main/java/yesman/epicfight/client/gui/widgets/TextButton.java
+index bcaced5..8ede2d9 100644
+--- a/src/main/java/yesman/epicfight/client/gui/widgets/TextButton.java
++++ b/src/main/java/yesman/epicfight/client/gui/widgets/TextButton.java
+@@ -29,7 +29,7 @@ public class TextButton extends Button {
+     }
+ 
+     @Override
+-    protected void renderWidget(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
++    protected void renderContents(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+         guiGraphics.drawString(this.font, this.getMessage(), this.getX() + 2, this.getY(), this.isHoveredOrFocused() ? this.hoveredOrFocusedColor : this.defaultColor);
+     }
+ }
+diff --git a/src/main/java/yesman/epicfight/client/renderer/patched/entity/PEnderDragonRenderer.java b/src/main/java/yesman/epicfight/client/renderer/patched/entity/PEnderDragonRenderer.java
+index eb3259c..5d929be 100644
+--- a/src/main/java/yesman/epicfight/client/renderer/patched/entity/PEnderDragonRenderer.java
++++ b/src/main/java/yesman/epicfight/client/renderer/patched/entity/PEnderDragonRenderer.java
+@@ -79,9 +79,9 @@ public class PEnderDragonRenderer extends PatchedEntityRenderer<EnderDragon, End
+ 		OpenMatrix4f modelMatrix;
+ 		
+ 		if (!entitypatch.isGroundPhase() || entitypatch.getOriginal().dragonDeathTime > 0) {
+-			float f = (float)entityIn.getLatencyPos(7, partialTicks)[0];
+-		    float f1 = (float)(entityIn.getLatencyPos(5, partialTicks)[1] - entityIn.getLatencyPos(10, partialTicks)[1]);
+-		    float f2 = entitypatch.getOriginal().dragonDeathTime > 0 ? 0.0F : MathUtils.rotWrap((entityIn.getLatencyPos(5, partialTicks)[0] - entityIn.getLatencyPos(10, partialTicks)[0]));
++			float f = (float)entityIn.flightHistory.get(7, partialTicks).yRot();
++		    float f1 = (float)(entityIn.flightHistory.get(5, partialTicks).y() - entityIn.flightHistory.get(10, partialTicks).y());
++		    float f2 = entitypatch.getOriginal().dragonDeathTime > 0 ? 0.0F : MathUtils.rotWrap((entityIn.flightHistory.get(5, partialTicks).yRot() - entityIn.flightHistory.get(10, partialTicks).yRot()));
+ 			modelMatrix = MathUtils.getModelMatrixIntegral(0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, f1, f1, f, f, partialTicks, 1.0F, 1.0F, 1.0F).rotateDeg(-f2 * 1.5F, Vec3f.Z_AXIS);
+ 		} else {
+ 			modelMatrix = entitypatch.getModelMatrix(partialTicks).scale(-1.0F, 1.0F, -1.0F);
+diff --git a/src/main/java/yesman/epicfight/gameasset/Animations.java b/src/main/java/yesman/epicfight/gameasset/Animations.java
+index 3e6443d..1cef477 100644
+--- a/src/main/java/yesman/epicfight/gameasset/Animations.java
++++ b/src/main/java/yesman/epicfight/gameasset/Animations.java
+@@ -1524,7 +1524,7 @@ public class Animations {
+                         }
+ 
+                         DragonFireball dragonfireball = new DragonFireball(original.level(), original, new Vec3(dx, dy, dz));
+-                        dragonfireball.moveTo(d6, d7, d8, 0.0F, 0.0F);
++                        dragonfireball.snapTo(d6, d7, d8, 0.0F, 0.0F);
+                         original.level().addFreshEntity(dragonfireball);
+                     }, Side.SERVER))
+                 );
+@@ -2354,14 +2354,14 @@ public class Animations {
+                 while (count < i && count < list.size()) {
+                     Entity e = list.get(count++);
+                     BlockPos blockpos = e.blockPosition();
+-                    LightningBolt lightningbolt = EntityType.LIGHTNING_BOLT.create(level);
++                    LightningBolt lightningbolt = EntityType.LIGHTNING_BOLT.create(level, net.minecraft.world.entity.EntitySpawnReason.TRIGGERED);
+                     // Suppresses vanilla thunderHit and spawnFire outright, so NeoForge's
+                     // extra setDamage(0.0F) here has no vanilla equivalent and is not needed.
+                     lightningbolt.setVisualOnly(true);
+-                    lightningbolt.moveTo(Vec3.atBottomCenterOf(blockpos));
++                    lightningbolt.snapTo(Vec3.atBottomCenterOf(blockpos));
+                     lightningbolt.setCause(entitypatch instanceof ServerPlayerPatch serverPlayerPatch ? serverPlayerPatch.getOriginal() : null);
+ 
+-                    DamageSource dmgSource = new DamageSource(e.level().registryAccess().registryOrThrow(Registries.DAMAGE_TYPE).getHolderOrThrow(DamageTypes.LIGHTNING_BOLT), entitypatch.getOriginal());
++                    DamageSource dmgSource = new DamageSource(e.level().registryAccess().lookupOrThrow(Registries.DAMAGE_TYPE).getOrThrow(DamageTypes.LIGHTNING_BOLT), entitypatch.getOriginal());
+                     EpicFightDamageSource damageSource = attackAnimation.getEpicFightDamageSource(dmgSource, entitypatch, e, phase).setUsedItem(entitypatch.getOriginal().getItemInHand(InteractionHand.MAIN_HAND));
+                     e.hurt(damageSource, total);
+                     e.thunderHit(level, lightningbolt);
+diff --git a/src/main/java/yesman/epicfight/world/capabilities/entitypatch/MobPatch.java b/src/main/java/yesman/epicfight/world/capabilities/entitypatch/MobPatch.java
+index c2a61df..6d563bd 100644
+--- a/src/main/java/yesman/epicfight/world/capabilities/entitypatch/MobPatch.java
++++ b/src/main/java/yesman/epicfight/world/capabilities/entitypatch/MobPatch.java
+@@ -163,6 +163,7 @@ public abstract class MobPatch<T extends Mob> extends LivingEntityPatch<T> {
+ 
+     @Override
+     public AttackResult attack(EpicFightDamageSource damageSource, Entity target, InteractionHand hand) {
++        if (!(this.original.level() instanceof net.minecraft.server.level.ServerLevel serverLevel)) return AttackResult.missed(0.0F);
+         boolean offhandValid = this.isOffhandItemValid();
+         ItemStack mainHandItem = this.getOriginal().getMainHandItem();
+         ItemStack offHandItem = this.getOriginal().getOffhandItem();
+@@ -171,7 +172,7 @@ public abstract class MobPatch<T extends Mob> extends LivingEntityPatch<T> {
+ 
+         this.epicFightDamageSource = damageSource;
+         this.setOffhandDamage(hand, mainHandItem, offHandItem, offhandValid, mainHandAttributes, offHandAttributes);
+-        this.original.doHurtTarget(target);
++        this.original.doHurtTarget(serverLevel, target);
+         this.recoverMainhandDamage(hand, mainHandItem, offHandItem, mainHandAttributes, offHandAttributes);
+         this.epicFightDamageSource = null;
+ 
+diff --git a/src/main/java/yesman/epicfight/world/capabilities/entitypatch/boss/enderdragon/DragonAirstrikePhase.java b/src/main/java/yesman/epicfight/world/capabilities/entitypatch/boss/enderdragon/DragonAirstrikePhase.java
+index 05c1ea5..c7d1723 100644
+--- a/src/main/java/yesman/epicfight/world/capabilities/entitypatch/boss/enderdragon/DragonAirstrikePhase.java
++++ b/src/main/java/yesman/epicfight/world/capabilities/entitypatch/boss/enderdragon/DragonAirstrikePhase.java
+@@ -40,7 +40,7 @@ public class DragonAirstrikePhase extends PatchedDragonPhase {
+ 		this.dragonpatch.setAttakTargetSync(null);
+ 		
+ 		if (this.dragonpatch.isLogicalClient()) {
+-			Minecraft.getInstance().getSoundManager().stop(EpicFightSounds.ENDER_DRAGON_BREATH.get().getLocation(), SoundSource.HOSTILE);
++			Minecraft.getInstance().getSoundManager().stop(EpicFightSounds.ENDER_DRAGON_BREATH.get().location(), SoundSource.HOSTILE);
+ 			this.dragon.level().playLocalSound(this.dragon.getX(), this.dragon.getY(), this.dragon.getZ(), EpicFightSounds.ENDER_DRAGON_BREATH_FINALE.get(), this.dragon.getSoundSource(), 5.0F, 1.0F, false);
+ 		}
+ 	}
+@@ -51,9 +51,9 @@ public class DragonAirstrikePhase extends PatchedDragonPhase {
+ 		Vec3 dragonpos = this.dragon.position();
+ 		OpenMatrix4f mouthpos = this.dragonpatch.getArmature().getBoundTransformFor(this.dragonpatch.getAnimator().getPose(1.0F), Armatures.DRAGON.get().upperMouth);
+ 		
+-		float f = (float)this.dragon.getLatencyPos(7, 1.0F)[0];
+-		float f1 = (float)(this.dragon.getLatencyPos(5, 1.0F)[1] - this.dragon.getLatencyPos(10, 1.0F)[1]);
+-		float f2 = MathUtils.rotWrap((this.dragon.getLatencyPos(5, 1.0F)[0] - this.dragon.getLatencyPos(10, 1.0F)[0]));
++		float f = (float)this.dragon.flightHistory.get(7, 1.0F).yRot();
++		float f1 = (float)(this.dragon.flightHistory.get(5, 1.0F).y() - this.dragon.flightHistory.get(10, 1.0F).y());
++		float f2 = MathUtils.rotWrap((this.dragon.flightHistory.get(5, 1.0F).yRot() - this.dragon.flightHistory.get(10, 1.0F).yRot()));
+ 		OpenMatrix4f modelMatrix = MathUtils.getModelMatrixIntegral(0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, f1, f1, f, f, 1.0F, 1.0F, 1.0F, 1.0F).rotateDeg(-f2 * 1.5F, Vec3f.Z_AXIS);
+ 		mouthpos.mulFront(modelMatrix);
+ 		
+@@ -83,7 +83,7 @@ public class DragonAirstrikePhase extends PatchedDragonPhase {
+ 	}
+ 	
+ 	@Override
+-	public void doServerTick() {
++	public void doServerTick(net.minecraft.server.level.ServerLevel serverLevel) {
+ 		LivingEntity target = this.dragon.getTarget();
+ 		
+ 		if (target == null) {
+@@ -145,7 +145,7 @@ public class DragonAirstrikePhase extends PatchedDragonPhase {
+ 							breatharea.setRadius(0.5F);
+ 							breatharea.setDuration(15);
+ 							breatharea.setRadiusPerTick(0.2F);
+-							breatharea.addEffect(new MobEffectInstance(MobEffects.HARM, 1, 1));
++							breatharea.addEffect(new MobEffectInstance(MobEffects.INSTANT_DAMAGE, 1, 1));
+ 							breatharea.setDeltaMovement(0, -1, 0);
+ 							this.dragon.level().addFreshEntity(breatharea);
+ 						}
+diff --git a/src/main/java/yesman/epicfight/world/capabilities/entitypatch/boss/enderdragon/DragonCrystalLinkPhase.java b/src/main/java/yesman/epicfight/world/capabilities/entitypatch/boss/enderdragon/DragonCrystalLinkPhase.java
+index be635c2..6c8b791 100644
+--- a/src/main/java/yesman/epicfight/world/capabilities/entitypatch/boss/enderdragon/DragonCrystalLinkPhase.java
++++ b/src/main/java/yesman/epicfight/world/capabilities/entitypatch/boss/enderdragon/DragonCrystalLinkPhase.java
+@@ -107,7 +107,7 @@ public class DragonCrystalLinkPhase extends PatchedDragonPhase {
+ 	}
+ 	
+ 	@Override
+-	public void doServerTick() {
++	public void doServerTick(net.minecraft.server.level.ServerLevel serverLevel) {
+ 		this.absorbCount--;
+ 		this.dragon.ambientSoundTime = 0;
+ 		
+diff --git a/src/main/java/yesman/epicfight/world/capabilities/entitypatch/boss/enderdragon/DragonFlyingPhase.java b/src/main/java/yesman/epicfight/world/capabilities/entitypatch/boss/enderdragon/DragonFlyingPhase.java
+index 9491f1d..5385946 100644
+--- a/src/main/java/yesman/epicfight/world/capabilities/entitypatch/boss/enderdragon/DragonFlyingPhase.java
++++ b/src/main/java/yesman/epicfight/world/capabilities/entitypatch/boss/enderdragon/DragonFlyingPhase.java
+@@ -1,4 +1,4 @@
+-package yesman.epicfight.world.capabilities.entitypatch.boss.enderdragon;
++package yesman.epicfight.world.capabilities.entitypatch.boss.enderdragon;
+ 
+ import java.util.List;
+ 
+@@ -27,7 +27,7 @@ public class DragonFlyingPhase extends PatchedDragonPhase {
+ 	}
+ 	
+ 	@Override
+-	public void doServerTick() {
++	public void doServerTick(net.minecraft.server.level.ServerLevel serverLevel) {
+ 		double d0 = this.targetLocation == null ? 0.0D : this.targetLocation.distanceToSqr(this.dragon.getX(), this.dragon.getY(), this.dragon.getZ());
+ 		
+ 		if (d0 < 100.0D || d0 > 22500.0D || this.dragon.horizontalCollision || this.dragon.verticalCollision && this.dragon.getDragonFight() != null) {
+diff --git a/src/main/java/yesman/epicfight/world/capabilities/entitypatch/boss/enderdragon/DragonGroundBattlePhase.java b/src/main/java/yesman/epicfight/world/capabilities/entitypatch/boss/enderdragon/DragonGroundBattlePhase.java
+index 1591920..509f9d2 100644
+--- a/src/main/java/yesman/epicfight/world/capabilities/entitypatch/boss/enderdragon/DragonGroundBattlePhase.java
++++ b/src/main/java/yesman/epicfight/world/capabilities/entitypatch/boss/enderdragon/DragonGroundBattlePhase.java
+@@ -50,7 +50,7 @@ public class DragonGroundBattlePhase extends PatchedDragonPhase {
+ 	}
+ 	
+ 	@Override
+-	public void doServerTick() {
++	public void doServerTick(net.minecraft.server.level.ServerLevel serverLevel) {
+ 		LivingEntity target = this.dragon.getTarget();
+ 		
+ 		if (target != null) {
+diff --git a/src/main/java/yesman/epicfight/world/capabilities/entitypatch/boss/enderdragon/DragonLandingPhase.java b/src/main/java/yesman/epicfight/world/capabilities/entitypatch/boss/enderdragon/DragonLandingPhase.java
+index 62e2bc6..9cf6374 100644
+--- a/src/main/java/yesman/epicfight/world/capabilities/entitypatch/boss/enderdragon/DragonLandingPhase.java
++++ b/src/main/java/yesman/epicfight/world/capabilities/entitypatch/boss/enderdragon/DragonLandingPhase.java
+@@ -1,4 +1,4 @@
+-package yesman.epicfight.world.capabilities.entitypatch.boss.enderdragon;
++package yesman.epicfight.world.capabilities.entitypatch.boss.enderdragon;
+ 
+ import net.minecraft.core.BlockPos;
+ import net.minecraft.util.Mth;
+@@ -52,7 +52,7 @@ public class DragonLandingPhase extends PatchedDragonPhase {
+ 	}
+ 	
+ 	@Override
+-	public void doServerTick() {
++	public void doServerTick(net.minecraft.server.level.ServerLevel serverLevel) {
+ 		double dx = this.landingPosition.x - this.dragon.getX();
+ 		double dy = this.landingPosition.y - this.dragon.getY();
+ 		double dz = this.landingPosition.z - this.dragon.getZ();

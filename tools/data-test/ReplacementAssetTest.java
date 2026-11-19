@@ -29,6 +29,7 @@ final class ReplacementAssetTest {
         var manifest = object(ReplacementAssetTest.class.getResourceAsStream("/META-INF/fala-replacement-assets/manifest.json").readAllBytes());
         check(manifest.get("license").getAsString().equals("CC0-1.0"), "asset license");
         var hashes = manifest.getAsJsonObject("sha256");
+        check(hashes.size() == 17, "expected independent asset inventory");
         var packInfo = new PackLocationInfo("fala-assets", Component.literal("Fala"), PackSource.DEFAULT, Optional.empty());
         try (var pack = new PathPackResources(packInfo, directory)) {
             for (var item : hashes.entrySet()) {
@@ -82,7 +83,7 @@ final class ReplacementAssetTest {
                       && indices.get(i+2).getAsInt()<normalCount,"position, UV and normal indices");
             }
         }
-        for (String clip : new String[]{"living/idle","combat/sword_auto1","combat/sword_auto2","combat/sword_auto3","skill/roll_forward","skill/roll_backward"}) {
+        for (String clip : new String[]{"living/idle","living/walk","living/run","skill/guard_sword","skill/step_forward","skill/step_backward","skill/step_left","skill/step_right","combat/sword_auto1","combat/sword_auto2","combat/sword_auto3","skill/roll_forward","skill/roll_backward"}) {
             JsonArray tracks=read("animations/biped/"+clip).getAsJsonArray("animation");
             boolean hasMovement=false;
             for (var element:tracks) {
@@ -100,13 +101,22 @@ final class ReplacementAssetTest {
                     if (!frames.get(i).equals(frames.get(0))) hasMovement=true;
                 }
                 if (name.equals("Coord")) {
-                    double z=frames.get(frames.size()-1).getAsJsonObject().getAsJsonArray("loc").get(2).getAsDouble();
-                    check(clip.endsWith("forward") ? z>1 : z< -1,"directional dodge displacement");
+                    var loc=frames.get(frames.size()-1).getAsJsonObject().getAsJsonArray("loc");
+                    boolean lateral = clip.endsWith("left") || clip.endsWith("right");
+                    double along = loc.get(lateral ? 0 : 2).getAsDouble();
+                    check(loc.get(lateral ? 2 : 0).getAsDouble() == 0 &&
+                          ((clip.endsWith("forward") || clip.endsWith("left")) ? along > 1 : along < -1), "directional dodge " + clip);
                 }
             }
             check(hasMovement,"animated joints for "+clip);
         }
-        System.out.println("PASS: nine licensed resources, pack override and bundled lookup, skeleton, skin layers and six original motion clips");
+        try (var stream = AssetResourceSource.open(null, Identifier.parse("epicfight:textures/particle/swing_trail.png"))) {
+            var mask = javax.imageio.ImageIO.read(stream);
+            check(mask.getWidth() == 64 && mask.getHeight() == 32, "ribbon mask dimensions");
+            check((mask.getRGB(40, 0) >>> 24) == 0 && (mask.getRGB(0, 16) >>> 24) == 0
+                   && (mask.getRGB(63, 16) >>> 24) > 240, "ribbon edge and sweep direction");
+        }
+        System.out.println("PASS: 17 CC0 resources, pack override and bundled lookup, player rigs, 13 motions and ribbon texture");
     }
     private static JsonArray array(JsonObject object,String name) {
         return object.getAsJsonObject(name).getAsJsonArray("array");

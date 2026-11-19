@@ -3,7 +3,9 @@
 """Build original player geometry and keyframes from dimensions, pivots and motion curves."""
 from hashlib import sha256
 import json
-from math import cos, radians, sin
+from math import cos, pi, radians, sin
+import struct
+import zlib
 from pathlib import Path
 import sys
 
@@ -143,6 +145,64 @@ def dodge(sign):
         track('Arm_R',times,[frame((1,0,0),a) for a in (0,-30,-82,-78,-26,0)])]}
 
 
+def gait(running):
+    period = .54 if running else .92
+    swing = 54 if running else 27
+    lift = .065 if running else .022
+    times = [round(i * period / 8, 5) for i in range(9)]
+    phase = [i * pi / 4 for i in range(9)]
+    tracks = [track('Root', times, [frame((1, 0, 0), 7 if running else 1,
+                         (0, round(lift * sin(t) ** 2, 6), 0)) for t in phase])]
+    for side, sign in [('R', 1), ('L', -1)]:
+        tracks.extend([
+            track('Thigh_' + side, times, [frame((1, 0, 0), sign * swing * cos(t)) for t in phase]),
+            track('Leg_' + side, times, [frame((1, 0, 0), -max(0, sign * sin(t)) * swing) for t in phase]),
+            track('Arm_' + side, times, [frame((1, 0, 0), -sign * swing * .75 * cos(t)) for t in phase]),
+        ])
+    return {'format': 'ATTRIBUTES', 'animation': tracks}
+
+
+def step(dx, dz):
+    times = [0, .065, .17, .28, .38, .47]
+    distance = [0, .08, .51, .98, 1.13, 1.15]
+    lean = [0, 10, 16, 9, 4, 0]
+    tracks = [track('Coord', times, [frame((0, 1, 0), 0, (round(dx*d, 5), 0, round(dz*d, 5))) for d in distance]),
+              track('Root', times, [frame((dz, 0, -dx), a, (0, -a * .004, 0)) for a in lean])]
+    for side, sign in [('R', -1), ('L', 1)]:
+        spread = (1.2 if dx * sign > 0 else -.65) if dx else sign
+        tracks.append(track('Thigh_' + side, times, [frame((dz, 0, -dx), a * spread * 1.6) for a in lean]))
+    return {'format': 'ATTRIBUTES', 'animation': tracks}
+
+
+def sword_guard():
+    times = [0, .45, .9]
+    return {'format': 'ATTRIBUTES', 'animation': [
+        track('Chest', times, [frame((0, 1, 0), a) for a in (-17, -20, -17)]),
+        track('Shoulder_R', times, [frame((0, 0, 1), a) for a in (-34, -36, -34)]),
+        track('Arm_R', times, [frame((1, 0, 0), a) for a in (-65, -67, -65)]),
+        track('Hand_R', times, [frame((0, 1, 0), a) for a in (-22, -24, -22)]),
+        track('Arm_L', times, [frame((1, 0, 0), a) for a in (-30, -32, -30)])]}
+
+
+def trail_texture():
+    # Alpha tapers along the strip. A bright ridge fades smoothly to transparency across its width.
+    width, height = 64, 32
+    pixels = bytearray()
+    for y in range(height):
+        pixels.append(0)  # PNG scanline filter, None.
+        v = y / (height - 1)
+        for x in range(width):
+            u = x / (width - 1)
+            ridge = max(0, 1 - abs(2 * v - 1))
+            opacity = round(255 * ridge ** .75 * u ** .8)
+            pixels.extend((round(156 + 99 * ridge), round(201 + 54 * ridge), 255, opacity))
+    def chunk(kind, data):
+        return (struct.pack('>I', len(data)) + kind + data
+                + struct.pack('>I', zlib.crc32(kind + data)))
+    return (bytes.fromhex('89504e470d0a1a0a') + chunk(b'IHDR', struct.pack('>IIBBBBB', width, height, 8, 6, 0, 0, 0))
+            + chunk(b'IDAT', zlib.compress(bytes(pixels), 9)) + chunk(b'IEND', b''))
+
+
 def build(resources):
     inventory={}
     def write(name,data):
@@ -162,6 +222,12 @@ def build(resources):
         asset('animations/biped/skill/roll_'+direction,dodge(sign))
     asset('animations/biped/living/idle',{'format':'ATTRIBUTES','animation':[
         track('Chest',[0,1.1,2.2],[frame((1,0,0),a) for a in (0,2.3,0)])]})
+    for name, running in [('walk', False), ('run', True)]:
+        asset('animations/biped/living/' + name, gait(running))
+    for name, dx, dz in [('left', 1, 0), ('right', -1, 0), ('forward', 0, 1), ('backward', 0, -1)]:
+        asset('animations/biped/skill/step_' + name, step(dx, dz))
+    asset('animations/biped/skill/guard_sword', sword_guard())
+    write('assets/epicfight/textures/particle/swing_trail.png', trail_texture())
     write('assets/fala_epicfight/shaders/compute/skin.comp',(HERE/'skin.comp').read_bytes())
     notice=resources/'META-INF/fala-replacement-assets'
     notice.mkdir(parents=True,exist_ok=True)
