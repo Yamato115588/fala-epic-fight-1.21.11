@@ -22,8 +22,26 @@ jobs:
       - name: Prepare pinned Fabric source
         run: python3 tools/prepare_fabric_port.py "$RUNNER_TEMP/epicfight-fabric-work"
       - name: Run Gradle Wrapper build
+        id: full-build
         working-directory: ${{ runner.temp }}/epicfight-fabric-work
-        run: ./gradlew --no-daemon --no-problems-report --console=plain --max-workers=2 --continue clean build
+        shell: bash
+        run: |
+          set -o pipefail
+          ./gradlew --no-daemon --no-problems-report --console=plain --max-workers=2 --continue \
+            -I "$GITHUB_WORKSPACE/tools/compiler-diagnostics.gradle" clean build 2>&1 | tee "$RUNNER_TEMP/epicfight-build.log"
+      - name: Test compute output in Minecraft RenderPass
+        if: ${{ !cancelled() && steps.full-build.outcome != 'skipped' }}
+        working-directory: ${{ runner.temp }}/epicfight-fabric-work
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
+        run: xvfb-run -a ./gradlew --no-daemon --console=plain --max-workers=2 -I "$GITHUB_WORKSPACE/tools/renderpass-test/renderpass.gradle" testComputeRenderPass
+      - name: Upload compiler diagnostics
+        if: ${{ failure() && steps.full-build.outcome == 'failure' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: epicfight-compiler-diagnostics
+          path: ${{ runner.temp }}/epicfight-build.log
+          if-no-files-found: error
       - name: Validate remapped Fabric JAR
         id: fabric-jar
         run: |

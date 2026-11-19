@@ -1,0 +1,142 @@
+diff --git a/src/main/java/yesman/epicfight/client/renderer/shader/compute/ComputeShaderSetup.java b/src/main/java/yesman/epicfight/client/renderer/shader/compute/ComputeShaderSetup.java
+index 51677ee..ccc36cb 100644
+--- a/src/main/java/yesman/epicfight/client/renderer/shader/compute/ComputeShaderSetup.java
++++ b/src/main/java/yesman/epicfight/client/renderer/shader/compute/ComputeShaderSetup.java
+@@ -8,7 +8,6 @@ import net.minecraft.client.renderer.OutlineBufferSource;
+ import net.minecraft.client.renderer.RenderType;
+ import net.minecraft.util.ARGB;
+ import org.apache.commons.lang3.mutable.MutableInt;
+-import org.lwjgl.opengl.GL20C;
+ import org.lwjgl.opengl.GL30C;
+ import org.lwjgl.opengl.GL33C;
+ import org.lwjgl.opengl.GL43C;
+@@ -160,14 +159,9 @@ public abstract class ComputeShaderSetup {
+         if (this.vcount == 0) {
+             return;
+         }
+-        int previousProgram = GlStateManager._getInteger(GL20C.GL_CURRENT_PROGRAM);
+-        try {
+-            this.applyComputeShader(poseStack, r, g, b, a, overlay, packedLight, joints);
+-            this.vertexBuffer.draw(ComputeShaderProvider.vertexPacker(), renderType, this.outVertexAttrBO.glSSBO,
+-                this.sourceStride, this.midUvBuffer(), this.vcount);
+-        } finally {
+-            GlStateManager._glUseProgram(previousProgram);
+-        }
++        this.vertexBuffer.draw(ComputeShaderProvider.vertexPacker(), renderType, this.outVertexAttrBO.glSSBO,
++            this.sourceStride, this.midUvBuffer(), this.vcount,
++            () -> this.applyComputeShader(poseStack, r, g, b, a, overlay, packedLight, joints));
+     }
+ 
+     public interface BufferUploadable {
+diff --git a/src/main/java/yesman/epicfight/client/renderer/shader/compute/ComputeVertexBuffer.java b/src/main/java/yesman/epicfight/client/renderer/shader/compute/ComputeVertexBuffer.java
+index a0ecb6e..4d918a4 100644
+--- a/src/main/java/yesman/epicfight/client/renderer/shader/compute/ComputeVertexBuffer.java
++++ b/src/main/java/yesman/epicfight/client/renderer/shader/compute/ComputeVertexBuffer.java
+@@ -11,10 +11,12 @@ import org.joml.Vector4f;
+ import org.lwjgl.opengl.GL15C;
+ import org.lwjgl.opengl.GL20C;
+ import org.lwjgl.opengl.GL30C;
++import org.lwjgl.opengl.GL32C;
+ import org.lwjgl.opengl.GL43C;
+ 
+ import com.mojang.blaze3d.buffers.GpuBuffer;
+ import com.mojang.blaze3d.opengl.GlBuffer;
++import com.mojang.blaze3d.opengl.GlStateManager;
+ import com.mojang.blaze3d.systems.RenderSystem;
+ import com.mojang.blaze3d.vertex.VertexFormat;
+ import com.mojang.blaze3d.vertex.VertexFormatElement;
+@@ -33,6 +35,10 @@ final class ComputeVertexBuffer implements AutoCloseable {
+     private static final Vector3f ZERO = new Vector3f();
+ 
+     private final Map<VertexFormat, int[]> layouts = new IdentityHashMap<>();
++    // Skinning uses slots 0 through 5. The packer reuses the first three.
++    private final int[] bindings = new int[6];
++    private final long[] offsets = new long[bindings.length];
++    private final long[] lengths = new long[bindings.length];
+     private GpuBuffer vertices;
+ 
+     static int[] mapLayout(VertexFormat format, int sourceStride, boolean iris) {
+@@ -94,7 +100,35 @@ final class ComputeVertexBuffer implements AutoCloseable {
+         return layout;
+     }
+ 
+-    void draw(ComputeProgram packer, RenderType type, int source, int sourceStride, int irisMidUv, int count) {
++    void draw(ComputeProgram packer, RenderType type, int source, int sourceStride, int irisMidUv, int count, Runnable skin) {
++        int previousProgram = GlStateManager._getInteger(GL20C.GL_CURRENT_PROGRAM);
++        int genericBinding = GL15C.glGetInteger(GL43C.GL_SHADER_STORAGE_BUFFER_BINDING);
++        for (int slot = 0; slot < bindings.length; slot++) {
++            bindings[slot] = GL30C.glGetIntegeri(GL43C.GL_SHADER_STORAGE_BUFFER_BINDING, slot);
++            if (bindings[slot] != 0) {
++                offsets[slot] = GL32C.glGetInteger64i(GL43C.GL_SHADER_STORAGE_BUFFER_START, slot);
++                lengths[slot] = GL32C.glGetInteger64i(GL43C.GL_SHADER_STORAGE_BUFFER_SIZE, slot);
++            }
++        }
++        try {
++            skin.run();
++            this.pack(packer, type, source, sourceStride, irisMidUv, count);
++        } finally {
++            for (int slot = 0; slot < bindings.length; slot++) {
++                if (bindings[slot] == 0 || lengths[slot] == 0) {
++                    GL30C.glBindBufferBase(SSBO, slot, bindings[slot]);
++                } else {
++                    GL30C.glBindBufferRange(SSBO, slot, bindings[slot], offsets[slot], lengths[slot]);
++                }
++            }
++            GL15C.glBindBuffer(SSBO, genericBinding);
++            // The encoder can reuse its cached graphics program across render passes.
++            GlStateManager._glUseProgram(previousProgram);
++        }
++        this.render(type, count);
++    }
++
++    private void pack(ComputeProgram packer, RenderType type, int source, int sourceStride, int irisMidUv, int count) {
+         if (type.mode() != VertexFormat.Mode.TRIANGLES) {
+             throw new IllegalArgumentException("GPU skinning requires triangle geometry: " + type);
+         }
+@@ -110,32 +144,20 @@ final class ComputeVertexBuffer implements AutoCloseable {
+ 
+         // This buffer belongs to Minecraft's OpenGL device. SSBO writes target
+         // the same allocation that RenderPass uses for vertex attribute fetch.
+-        int oldSource = GL30C.glGetIntegeri(GL43C.GL_SHADER_STORAGE_BUFFER_BINDING, 0);
+-        int oldDestination = GL30C.glGetIntegeri(GL43C.GL_SHADER_STORAGE_BUFFER_BINDING, 1);
+-        int oldMidUv = GL30C.glGetIntegeri(GL43C.GL_SHADER_STORAGE_BUFFER_BINDING, 2);
+-        int oldBinding = GL15C.glGetInteger(GL43C.GL_SHADER_STORAGE_BUFFER_BINDING);
+-        try {
+-            packer.useProgram();
+-            packer.getUniform("vertexCount").uploadUnsignedInt(count);
+-            packer.getUniform("sourceWords").uploadUnsignedInt(sourceStride / Integer.BYTES);
+-            packer.getUniform("targetStride").uploadUnsignedInt(layout.length);
+-            GL20C.glUniform1iv(packer.getUniformLocation("byteSources"), layout);
+-            GL30C.glBindBufferBase(SSBO, 0, source);
+-            GL30C.glBindBufferBase(SSBO, 1, ((GlBuffer) this.vertices).handle);
+-            GL30C.glBindBufferBase(SSBO, 2, irisMidUv == 0 ? source : irisMidUv);
+-            // The skinning dispatch writes the raw SSBO. It must be visible
+-            // before this dispatch reads it, and before a previous draw is reused.
+-            GL43C.glMemoryBarrier(GL43C.GL_SHADER_STORAGE_BARRIER_BIT);
+-            packer.dispatch(Math.toIntExact((wordCount + GROUP_SIZE - 1) / GROUP_SIZE), 1, 1);
+-            // Vertex fetch sees the newly packed bytes without a CPU transfer.
+-            packer.memBarriers();
+-        } finally {
+-            GL30C.glBindBufferBase(SSBO, 0, oldSource);
+-            GL30C.glBindBufferBase(SSBO, 1, oldDestination);
+-            GL30C.glBindBufferBase(SSBO, 2, oldMidUv);
+-            GL15C.glBindBuffer(SSBO, oldBinding);
+-        }
+-        this.render(type, count);
++        packer.useProgram();
++        packer.getUniform("vertexCount").uploadUnsignedInt(count);
++        packer.getUniform("sourceWords").uploadUnsignedInt(sourceStride / Integer.BYTES);
++        packer.getUniform("targetStride").uploadUnsignedInt(layout.length);
++        GL20C.glUniform1iv(packer.getUniformLocation("byteSources"), layout);
++        GL30C.glBindBufferBase(SSBO, 0, source);
++        GL30C.glBindBufferBase(SSBO, 1, ((GlBuffer) this.vertices).handle);
++        GL30C.glBindBufferBase(SSBO, 2, irisMidUv == 0 ? source : irisMidUv);
++        // The skinning dispatch writes the raw SSBO. It must be visible
++        // before this dispatch reads it, and before a previous draw is reused.
++        GL43C.glMemoryBarrier(GL43C.GL_SHADER_STORAGE_BARRIER_BIT);
++        packer.dispatch(Math.toIntExact((wordCount + GROUP_SIZE - 1) / GROUP_SIZE), 1, 1);
++        // Vertex fetch sees the newly packed bytes without a CPU transfer.
++        packer.memBarriers();
+     }
+ 
+     private void render(RenderType type, int count) {

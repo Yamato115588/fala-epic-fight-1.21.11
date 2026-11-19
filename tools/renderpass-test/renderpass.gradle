@@ -1,0 +1,28 @@
+// Run in the prepared project. The probe compiles the production buffer and shader backend.
+def probeDir = gradle.startParameter.initScripts.find { it.name == 'renderpass.gradle' }.parentFile
+rootProject { project ->
+    project.plugins.withId('java') {
+        def dest = project.layout.buildDirectory.dir('renderpass-test/classes')
+        def src = project.file('src/main/java/yesman/epicfight/client/renderer/shader/compute')
+        def compileProbe = project.tasks.register('compileComputeRenderPassTest', JavaCompile) {
+            source new File(probeDir, 'ComputeRenderPassTest.java'), new File(src, 'ComputeVertexBuffer.java')
+            source(['ComputeProgram', 'ComputeShader', 'Uniform'].collect { new File(src, "backend/program/${it}.java") })
+            classpath = project.configurations.compileClasspath
+            destinationDirectory.set(dest)
+            options.compilerArgs.add('-proc:none')
+            options.release = 21
+        }
+        project.tasks.register('testComputeRenderPass', JavaExec) {
+            group = 'verification'
+            dependsOn compileProbe
+            classpath = project.files(dest, project.configurations.runtimeClasspath)
+            mainClass.set('yesman.epicfight.client.renderer.shader.compute.ComputeRenderPassTest')
+            args project.file('src/main/resources/assets/epicfight/shaders/compute/vertex_buffer_pack.comp')
+            systemProperty 'epicfight.test.osmesa', project.providers.gradleProperty('osmesa').getOrElse('false')
+            if (System.getProperty('org.lwjgl.librarypath') != null) {
+                systemProperty 'org.lwjgl.librarypath', System.getProperty('org.lwjgl.librarypath')
+            }
+            if (System.getProperty('os.name').startsWith('Mac')) jvmArgs '-XstartOnFirstThread'
+        }
+    }
+}
