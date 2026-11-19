@@ -184,23 +184,54 @@ def sword_guard():
         track('Arm_L', times, [frame((1, 0, 0), a) for a in (-30, -32, -30)])]}
 
 
-def trail_texture():
-    # Alpha tapers along the strip. A bright ridge fades smoothly to transparency across its width.
-    width, height = 64, 32
+def png_rgba(width, height, pixel):
     pixels = bytearray()
     for y in range(height):
-        pixels.append(0)  # PNG scanline filter, None.
-        v = y / (height - 1)
+        pixels.append(0)
         for x in range(width):
-            u = x / (width - 1)
-            ridge = max(0, 1 - abs(2 * v - 1))
-            opacity = round(255 * ridge ** .75 * u ** .8)
-            pixels.extend((round(156 + 99 * ridge), round(201 + 54 * ridge), 255, opacity))
+            pixels.extend(pixel(x, y))
+
     def chunk(kind, data):
         return (struct.pack('>I', len(data)) + kind + data
                 + struct.pack('>I', zlib.crc32(kind + data)))
     return (bytes.fromhex('89504e470d0a1a0a') + chunk(b'IHDR', struct.pack('>IIBBBBB', width, height, 8, 6, 0, 0, 0))
             + chunk(b'IDAT', zlib.compress(bytes(pixels), 9)) + chunk(b'IEND', b''))
+
+
+def trail_texture():
+    def pixel(x, y):
+        u, v = x / 63, y / 31
+        ridge = max(0, 1 - abs(2 * v - 1))
+        opacity = round(255 * ridge ** .75 * u ** .8)
+        return round(156 + 99 * ridge), round(201 + 54 * ridge), 255, opacity
+    return png_rgba(64, 32, pixel)
+
+
+BOOKS = {
+    'skillbook': ((72, 64, 107), ('01010', '10001', '10001', '01110', '00100')),
+    'skillbook_dodge': ((33, 92, 120), ('00100', '01100', '11010', '00111', '00100')),
+    'skillbook_passive': ((66, 106, 71), ('00100', '01110', '11111', '01010', '01010')),
+    'skillbook_guard': ((128, 69, 50), ('11111', '10001', '10101', '01110', '00100')),
+    'skillbook_mover': ((45, 105, 96), ('00100', '01110', '11111', '00100', '00100')),
+    'skillbook_identity': ((104, 60, 114), ('00100', '01010', '10101', '01010', '00100')),
+}
+
+
+def book_texture(color, emblem):
+    def pixel(x, y):
+        y -= (x - 3) // 5
+        if x < 3 or x > 20 or y < 3 or y > 18:
+            return 0, 0, 0, 0
+        if x in (3, 20) or y in (3, 18):
+            return 33, 31, 42, 255
+        if y in (15, 16, 17):
+            return (189, 180, 146, 255) if y == 16 else (224, 211, 171, 255)
+        if 9 <= x <= 13 and 7 <= y <= 11 and emblem[y - 7][x - 9] == '1':
+            return 245, 209, 133, 255
+        if x in (5, 17) or y == 5:
+            return *(min(c + 31, 255) for c in color), 255
+        return *color, 255
+    return png_rgba(24, 24, pixel)
 
 
 def build(resources):
@@ -228,6 +259,11 @@ def build(resources):
         asset('animations/biped/skill/step_' + name, step(dx, dz))
     asset('animations/biped/skill/guard_sword', sword_guard())
     write('assets/epicfight/textures/particle/swing_trail.png', trail_texture())
+    for icon, (color, emblem) in BOOKS.items():
+        for name, document in [('items/' + icon, {'model': {'type': 'minecraft:model', 'model': 'epicfight:item/' + icon}}),
+                               ('models/item/' + icon, {'parent': 'minecraft:item/generated', 'textures': {'layer0': 'epicfight:item/' + icon}})]:
+            write(f'assets/epicfight/{name}.json', (json.dumps(document, separators=(',', ':')) + '\n').encode())
+        write(f'assets/epicfight/textures/item/{icon}.png', book_texture(color, emblem))
     write('assets/fala_epicfight/shaders/compute/skin.comp',(HERE/'skin.comp').read_bytes())
     notice=resources/'META-INF/fala-replacement-assets'
     notice.mkdir(parents=True,exist_ok=True)

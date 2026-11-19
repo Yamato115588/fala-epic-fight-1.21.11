@@ -3,7 +3,9 @@ rootProject { project ->
     project.plugins.withId('java') {
         def dest = project.layout.buildDirectory.dir('port-data-test/classes')
         def compileProbe = project.tasks.register('compilePortDataTest', JavaCompile) {
-            source new File(probeDir, 'PortDataTest.java'), new File(probeDir, 'ReplacementAssetTest.java'),
+            source new File(probeDir, 'PortDataTest.java'), new File(probeDir, 'ReplacementAssetTest.java'), new File(probeDir, 'ItemModelPortTest.java'),
+                   project.file('src/main/java/yesman/epicfight/client/model/SeparateTransformsUnbakedModel.java'),
+                   project.file('src/main/java/yesman/epicfight/client/model/SeparateTransformsBakedModel.java'),
                    project.file('src/main/java/yesman/epicfight/api/asset/AssetResourceSource.java'),
                    project.file('src/main/java/yesman/epicfight/util/TagUtils.java'),
                    project.file('src/main/java/yesman/epicfight/util/EntityPatchDataIO.java'),

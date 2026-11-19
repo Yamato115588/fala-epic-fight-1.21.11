@@ -22,6 +22,7 @@ import net.minecraft.world.level.storage.TagValueOutput;
 
 public final class PortDataTest {
     public static void main(String[] args) throws Exception {
+        yesman.epicfight.client.model.ItemModelPortTest.run();
         ReplacementAssetTest.run(java.nio.file.Path.of(args[0]));
         CompoundTag saved = TagParser.parseCompoundFully("{skill:\"หลบ\",joints:[2,5],speed:1.5d}");
         ByteArrayOutputStream bytes = new ByteArrayOutputStream();
