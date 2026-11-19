@@ -27,6 +27,12 @@ for side, sign in [('R', -1), ('L', 1)]:
     joint('Tool', 'Hand', .35, .83, .035)
 
 
+# Vertex IDs consumed by VanillaModelTransformer and the optional armor renderers.
+JOINTS = ('Root', 'Thigh_R', 'Leg_R', 'Knee_R', 'Thigh_L', 'Leg_L', 'Knee_L',
+          'Torso', 'Chest', 'Head', 'Shoulder_R', 'Arm_R', 'Hand_R', 'Tool_R', 'Elbow_R',
+          'Shoulder_L', 'Arm_L', 'Hand_L', 'Tool_L', 'Elbow_L')
+
+
 def file_coords(p):
     return [round(p[0], 6), round(-p[2], 6), round(p[1], 6)]
 
@@ -41,7 +47,7 @@ def skeleton():
                   else [1,0,0,x, 0,1,0,y, 0,0,1,z, 0,0,0,1])
         return {'name': name, 'transform': [round(v,6) for v in matrix],
                 'children': [node(child) for child, (p, _) in PIVOTS.items() if p == name]}
-    return {'armature_format': 'MATRIX', 'joints': list(PIVOTS), 'hierarchy': [node('Root')]}
+    return {'armature_format': 'MATRIX', 'joints': JOINTS, 'hierarchy': [node('Root')]}
 
 
 def player(slim):
@@ -49,7 +55,6 @@ def player(slim):
     # Six outward-facing cube faces and their skin-net rectangles.
     faces = [(0,3,2,1), (4,5,6,7), (0,4,7,3), (1,2,6,5), (3,7,6,2), (0,1,5,4)]
     dirs = [(0,0,-1),(0,0,1),(-1,0,0),(1,0,0),(0,1,0),(0,-1,0)]
-    names = list(PIVOTS)
     def box(part, joint, cx, low, high, width, depth, skin, dims, slice_y=(0.,1.), expand=0.):
         w, h, d = dims
         s, t = skin
@@ -64,7 +69,7 @@ def player(slim):
         base = len(positions)//3
         for point in points:
             positions.extend(file_coords(point))
-            influences.extend((names.index(joint), 0))
+            influences.extend((JOINTS.index(joint), 0))
             counts.append(1)
         indices = parts.setdefault(part, {'array': []})['array']
         for face_idx, (corners, direction, rect) in enumerate(zip(faces, dirs, rects)):

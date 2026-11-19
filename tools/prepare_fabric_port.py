@@ -13,6 +13,7 @@ import tempfile
 from urllib.request import urlopen
 
 from migrate_mojmap import migrate
+from migrate_recipe_data import migrate_recipes
 
 
 UPSTREAM = '866a2a1e4268d0d7897c6a5be4ef1e58e47d7443'
@@ -89,6 +90,7 @@ def main():
                         dirs_exist_ok=True)
         subprocess.run([sys.executable, str(PROJECT / 'replacement-assets/build_assets.py'),
                         str(stage / 'src/main/resources')], check=True)
+        migrate_recipes(stage)
         migrated = migrate(stage)
         stage.rename(output)
         print(f'Prepared {output}; updated Minecraft class references in {migrated} Java files.')

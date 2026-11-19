@@ -1,0 +1,1567 @@
+diff --git a/build.gradle b/build.gradle
+index a05da75..8b4c311 100644
+--- a/build.gradle
++++ b/build.gradle
+@@ -55,42 +55,25 @@ dependencies {
+     include implementation("com.electronwill.night-config:core:3.8.0")
+     include implementation("com.electronwill.night-config:toml:3.8.0")
+ 
+-    // Transitive dep for SimplyTooltips (needs architectury)
+-    modImplementation "maven.modrinth:architectury-api:13.0.8+fabric"
+-
+-    // Non-conflicting compat mods with simple deps (runtime + compile)
+-    modImplementation "curse.maven:azurelib-817423:${project.azurelib_file_id}"
+-    modImplementation "curse.maven:female-gender-456319:${project.fgm_file_id}"
+-    modImplementation "curse.maven:geckolib-388172:${project.geckolib_file_id}"
+-    modImplementation "curse.maven:jei-238222:${project.jei_file_id}"
+-    modImplementation "curse.maven:playeranimator-658587:${project.playeranimator_file_id}"
+-
+-    // Mods with missing transitive deps or dev-env crashes — kept as modCompileOnly:
+-    // - FirstPerson: missing dev.tr7zw.transition.mc.GeneralUtil at runtime
+-    // - Iris + Sodium + SkinLayers3D: Iris mixin remapping fails in Loom dev env with Mojang mappings
+-    // - Trinkets: needs cardinal-components-base/entity (CCA nested jars stripped by Loom)
+-    // - SimplyTooltips: needs fzzy_config → fabric-language-kotlin (Kotlin runtime)
+-    // - BetterThirdPerson + ShoulderSurfing: mod-level conflict (ShoulderSurfing breaks BetterThirdPerson)
++    // Keep optional adapter APIs on the compiler classpath. A base dev launch uses only
++    // required dependencies. Install compatible optional mods in a separate test instance.
++    modCompileOnly "maven.modrinth:architectury-api:13.0.8+fabric"
++    modCompileOnly "curse.maven:azurelib-817423:${project.azurelib_file_id}"
++    modCompileOnly "curse.maven:female-gender-456319:${project.fgm_file_id}"
++    modCompileOnly "curse.maven:geckolib-388172:${project.geckolib_file_id}"
++    modCompileOnly "curse.maven:jei-238222:${project.jei_file_id}"
++    modCompileOnly "curse.maven:playeranimator-658587:${project.playeranimator_file_id}"
+     modCompileOnly "curse.maven:first-person-model-333287:${project.firstperson_file_id}"
+     modCompileOnly "curse.maven:irisshaders-455508:${project.iris_file_id}"
+     modCompileOnly "curse.maven:sodium-394468:${project.sodium_file_id}"
+     modCompileOnly "curse.maven:skin-layers-3d-521480:${project.skinlayers_file_id}"
+-
+-    // Mods with complex transitive deps — kept as modCompileOnly until deps are resolved:
+-    // - Trinkets: needs cardinal-components-base/entity — RESOLVED via run/mods/
+-    //   (cardinal-components-api-6.1.3.jar; Loom strips JIJ from classpath mods, Ladysnake maven is dead)
+-    // - neoforge_compat: needs forgeconfigapiport — RESOLVED via run/mods/
+-    //   (ForgeConfigAPIPort-v21.1.6-1.21.1-Fabric.jar from Modrinth)
+-    // - SimplyTooltips: needs fzzy_config → fabric-language-kotlin (Kotlin runtime)
+-    // - BetterThirdPerson + ShoulderSurfing: mod-level conflict (ShoulderSurfing breaks BetterThirdPerson)
+-    modImplementation "curse.maven:trinkets-341284:${project.trinkets_file_id}"
++    modCompileOnly "curse.maven:trinkets-341284:${project.trinkets_file_id}"
+     modCompileOnly "curse.maven:simply-tooltips-1475755:${project.simplytooltips_file_id}"
+     modCompileOnly "curse.maven:better-third-person-435044:${project.betterthirdperson_file_id}"
+     modCompileOnly "curse.maven:shoulder-surfing-reloaded-243190:${project.shouldersurfing_file_id}"
+     modCompileOnly "maven.modrinth:spatial-gui:1.6-fabric+1.21.1"
+-
+-    modImplementation "curse.maven:playerrevive-refabric-1675622:${project.playerrevive_file_id}"
+-    modImplementation "curse.maven:creativecore-257814:8127283"
++    modCompileOnly "curse.maven:playerrevive-refabric-1675622:${project.playerrevive_file_id}"
++    modCompileOnly "curse.maven:creativecore-257814:8127283"
+ 
+     // JSR-305 (javax.annotation) — used for @Nullable etc.
+     compileOnly "com.google.code.findbugs:jsr305:3.0.2"
+diff --git a/gradle.properties b/gradle.properties
+index dd73dde..401d408 100644
+--- a/gradle.properties
++++ b/gradle.properties
+@@ -13,7 +13,7 @@ mod_version=21.17.3-fala.2+mc1.21.11
+ group_id=yesman.epicfight
+ mod_id=epicfight
+ display_name=Epic Fight
+-license=Code: GPL-3.0; Assets: All Rights Reserved
++license=Code: GPL-3.0; independent Fala assets listed in META-INF/fala-replacement-assets/manifest.json: CC0-1.0; upstream assets: see LICENSE-ASSETS
+ authors=Yesman, Gui, Asan, Wayfarer(aka squoshi), Fori, Ellet, MikihinaSann
+ description=Adds complex game mechanics and fighting styles to your gameplay, while making Minecraft more Souls-like
+ issue_tracker=https://github.com/Epic-Fight/epicfight/issues
+diff --git a/src/main/java/yesman/epicfight/api/client/camera/EpicFightCameraAPI.java b/src/main/java/yesman/epicfight/api/client/camera/EpicFightCameraAPI.java
+index 7121c64..2b7fb11 100644
+--- a/src/main/java/yesman/epicfight/api/client/camera/EpicFightCameraAPI.java
++++ b/src/main/java/yesman/epicfight/api/client/camera/EpicFightCameraAPI.java
+@@ -616,7 +616,7 @@ public final class EpicFightCameraAPI {
+         double pickRange = this.minecraft.options.renderDistance().get() * 16.0D;
+         Camera mainCamera = this.minecraft.gameRenderer.getMainCamera();
+         Vec3 cameraPos = mainCamera.position();
+-        Vec3 lookVec = new Vec3(mainCamera.getLookVector());
++        Vec3 lookVec = new Vec3(mainCamera.forwardVector());
+         Vec3 rayEed = cameraPos.add(lookVec.x * pickRange, lookVec.y * pickRange, lookVec.z * pickRange);
+         LocalPlayer localPlayer = this.minecraft.player;
+         this.crosshairHitResult = localPlayer.level().clip(new ClipContext(cameraPos, rayEed, ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE, localPlayer));
+@@ -654,7 +654,7 @@ public final class EpicFightCameraAPI {
+         boolean tpsMode = this.isTPSMode();
+ 
+         if (tpsMode) {
+-            Vec3 view = new Vec3(mainCamera.getLookVector());
++            Vec3 view = new Vec3(mainCamera.forwardVector());
+ 
+             // If the hit result is in front of the player based on to camera, set missed.
+             if (view.dot(this.crosshairHitResult.getLocation().subtract(localPlayer.getEyePosition()).normalize()) < -0.1D) {
+@@ -702,7 +702,7 @@ public final class EpicFightCameraAPI {
+                         // Angle between look vec and to target too wide
+                         !this.lockingOnTarget &&
+                             this.focusingEntity.position().subtract(mainCamera.position()).normalize() // camera position -> focusing entity feet
+-                                .dot(new Vec3(mainCamera.getLookVector())) < Mth.clampedLerp(0.8D, 0.96D, Mth.inverseLerp(Mth.clamp(distance, 9.0D, 64.0D), 9.0D, 64.0D))
++                                .dot(new Vec3(mainCamera.forwardVector())) < Mth.clampedLerp(0.8D, 0.96D, Mth.inverseLerp(Mth.clamp(distance, 9.0D, 64.0D), 9.0D, 64.0D))
+                 ) {
+                     if (this.lockingOnTarget) {
+                         this.setLockOn(false);
+@@ -870,9 +870,9 @@ public final class EpicFightCameraAPI {
+ 
+                 Vec3 vec3 = playerPos.add(f, f1, f2);
+                 Vec3 vec31 = new Vec3(
+-                    playerPos.x + (relocation.x - (double)camera.getLookVector().x() * cameraZoom) + (double)f,
+-                    playerPos.y + (relocation.y - (double)camera.getLookVector().y() * cameraZoom) + (double)f1,
+-                    playerPos.z + (relocation.z - (double)camera.getLookVector().z() * cameraZoom) + (double)f2
++                    playerPos.x + (relocation.x - (double)camera.forwardVector().x() * cameraZoom) + (double)f,
++                    playerPos.y + (relocation.y - (double)camera.forwardVector().y() * cameraZoom) + (double)f1,
++                    playerPos.z + (relocation.z - (double)camera.forwardVector().z() * cameraZoom) + (double)f2
+                 );
+                 double length = vec3.distanceTo(vec31);
+                 HitResult hitresult = this.minecraft.level.clip(new ClipContext(vec3, vec31, ClipContext.Block.VISUAL, ClipContext.Fluid.NONE, camera.entity()));
+@@ -886,9 +886,9 @@ public final class EpicFightCameraAPI {
+                 }
+             }
+ 
+-            double nearestX = playerPos.x + (relocation.x - (double)camera.getLookVector().x() * cameraZoom) * hitDistance;
+-            double nearestY = playerPos.y + (relocation.y - (double)camera.getLookVector().y() * cameraZoom) * hitDistance;
+-            double nearestZ = playerPos.z + (relocation.z - (double)camera.getLookVector().z() * cameraZoom) * hitDistance;
++            double nearestX = playerPos.x + (relocation.x - (double)camera.forwardVector().x() * cameraZoom) * hitDistance;
++            double nearestY = playerPos.y + (relocation.y - (double)camera.forwardVector().y() * cameraZoom) * hitDistance;
++            double nearestZ = playerPos.z + (relocation.z - (double)camera.forwardVector().z() * cameraZoom) * hitDistance;
+ 
+             if (Float.compare(1.0F, delta) == 0) {
+                 camera.setPosition(nearestX, nearestY, nearestZ);
+diff --git a/src/main/java/yesman/epicfight/api/client/event/types/camera/package-info.java b/src/main/java/yesman/epicfight/api/client/event/types/camera/package-info.java
+index 5bbc79d..8235035 100644
+--- a/src/main/java/yesman/epicfight/api/client/event/types/camera/package-info.java
++++ b/src/main/java/yesman/epicfight/api/client/event/types/camera/package-info.java
+@@ -1,6 +1,4 @@
+-@FieldsAreNonnullByDefault
+-@MethodsReturnNonnullByDefault
++@NullMarked
+ package yesman.epicfight.api.client.event.types.camera;
+ 
+-import net.minecraft.FieldsAreNonnullByDefault;
+-import net.minecraft.MethodsReturnNonnullByDefault;
+\ No newline at end of file
++import org.jspecify.annotations.NullMarked;
+\ No newline at end of file
+diff --git a/src/main/java/yesman/epicfight/api/client/event/types/control/package-info.java b/src/main/java/yesman/epicfight/api/client/event/types/control/package-info.java
+index 61c79cf..d75289b 100644
+--- a/src/main/java/yesman/epicfight/api/client/event/types/control/package-info.java
++++ b/src/main/java/yesman/epicfight/api/client/event/types/control/package-info.java
+@@ -1,6 +1,4 @@
+-@FieldsAreNonnullByDefault
+-@MethodsReturnNonnullByDefault
++@NullMarked
+ package yesman.epicfight.api.client.event.types.control;
+ 
+-import net.minecraft.FieldsAreNonnullByDefault;
+-import net.minecraft.MethodsReturnNonnullByDefault;
+\ No newline at end of file
++import org.jspecify.annotations.NullMarked;
+\ No newline at end of file
+diff --git a/src/main/java/yesman/epicfight/api/client/event/types/entity/package-info.java b/src/main/java/yesman/epicfight/api/client/event/types/entity/package-info.java
+index c3cadf9..487fcc5 100644
+--- a/src/main/java/yesman/epicfight/api/client/event/types/entity/package-info.java
++++ b/src/main/java/yesman/epicfight/api/client/event/types/entity/package-info.java
+@@ -1,6 +1,4 @@
+-@FieldsAreNonnullByDefault
+-@MethodsReturnNonnullByDefault
++@NullMarked
+ package yesman.epicfight.api.client.event.types.entity;
+ 
+-import net.minecraft.FieldsAreNonnullByDefault;
+-import net.minecraft.MethodsReturnNonnullByDefault;
+\ No newline at end of file
++import org.jspecify.annotations.NullMarked;
+\ No newline at end of file
+diff --git a/src/main/java/yesman/epicfight/api/client/event/types/hud/package-info.java b/src/main/java/yesman/epicfight/api/client/event/types/hud/package-info.java
+index 7a1fcc4..c011127 100644
+--- a/src/main/java/yesman/epicfight/api/client/event/types/hud/package-info.java
++++ b/src/main/java/yesman/epicfight/api/client/event/types/hud/package-info.java
+@@ -1,6 +1,4 @@
+-@FieldsAreNonnullByDefault
+-@MethodsReturnNonnullByDefault
++@NullMarked
+ package yesman.epicfight.api.client.event.types.hud;
+ 
+-import net.minecraft.FieldsAreNonnullByDefault;
+-import net.minecraft.MethodsReturnNonnullByDefault;
+\ No newline at end of file
++import org.jspecify.annotations.NullMarked;
+\ No newline at end of file
+diff --git a/src/main/java/yesman/epicfight/api/client/event/types/registry/package-info.java b/src/main/java/yesman/epicfight/api/client/event/types/registry/package-info.java
+index d561a4b..9a5d35e 100644
+--- a/src/main/java/yesman/epicfight/api/client/event/types/registry/package-info.java
++++ b/src/main/java/yesman/epicfight/api/client/event/types/registry/package-info.java
+@@ -1,6 +1,4 @@
+-@FieldsAreNonnullByDefault
+-@MethodsReturnNonnullByDefault
++@NullMarked
+ package yesman.epicfight.api.client.event.types.registry;
+ 
+-import net.minecraft.FieldsAreNonnullByDefault;
+-import net.minecraft.MethodsReturnNonnullByDefault;
+\ No newline at end of file
++import org.jspecify.annotations.NullMarked;
+\ No newline at end of file
+diff --git a/src/main/java/yesman/epicfight/api/client/event/types/render/package-info.java b/src/main/java/yesman/epicfight/api/client/event/types/render/package-info.java
+index fc9723a..a3a842a 100644
+--- a/src/main/java/yesman/epicfight/api/client/event/types/render/package-info.java
++++ b/src/main/java/yesman/epicfight/api/client/event/types/render/package-info.java
+@@ -1,6 +1,4 @@
+-@FieldsAreNonnullByDefault
+-@MethodsReturnNonnullByDefault
++@NullMarked
+ package yesman.epicfight.api.client.event.types.render;
+ 
+-import net.minecraft.FieldsAreNonnullByDefault;
+-import net.minecraft.MethodsReturnNonnullByDefault;
+\ No newline at end of file
++import org.jspecify.annotations.NullMarked;
+\ No newline at end of file
+diff --git a/src/main/java/yesman/epicfight/api/data/reloader/ItemCapabilityReloadListener.java b/src/main/java/yesman/epicfight/api/data/reloader/ItemCapabilityReloadListener.java
+index cb236c6..e9b2ab2 100644
+--- a/src/main/java/yesman/epicfight/api/data/reloader/ItemCapabilityReloadListener.java
++++ b/src/main/java/yesman/epicfight/api/data/reloader/ItemCapabilityReloadListener.java
+@@ -79,7 +79,7 @@ public class ItemCapabilityReloadListener extends SimpleJsonResourceReloadListen
+ 					continue;
+ 				}
+ 
+-				Item item = BuiltInRegistries.ITEM.get(registryName);
++				Item item = BuiltInRegistries.ITEM.getValue(registryName);
+ 				CompoundTag tag = null;
+ 
+ 				try {
+@@ -127,7 +127,7 @@ public class ItemCapabilityReloadListener extends SimpleJsonResourceReloadListen
+ 
+     private static void setSound(String location, Function<Holder<SoundEvent>, WeaponCapability.Builder> setter) {
+         ResourceLocation soundLocation = ResourceLocation.parse(location);
+-        Holder<SoundEvent> sound = BuiltInRegistries.SOUND_EVENT.getHolder(soundLocation).get();
++        Holder<SoundEvent> sound = BuiltInRegistries.SOUND_EVENT.get(soundLocation).get();
+         setter.apply(sound);
+     }
+ 
+@@ -193,7 +193,7 @@ public class ItemCapabilityReloadListener extends SimpleJsonResourceReloadListen
+ 
+ 				for (var key : data.keySet()) {
+ 					//Debugging
+-					Optional<Holder.Reference<CustomData<?>>> trueData = EpicFightRegistries.WEAPON_DATA.getHolder(ResourceLocation.parse(key));
++					Optional<Holder.Reference<CustomData<?>>> trueData = EpicFightRegistries.WEAPON_DATA.get(ResourceLocation.parse(key));
+ 					if (trueData.isPresent())
+ 					{
+ 						if (trueData.get().value().deserializer().isPresent()) {
+@@ -219,7 +219,7 @@ public class ItemCapabilityReloadListener extends SimpleJsonResourceReloadListen
+                 if (tag.contains("hit_particle"))
+                 {
+                     ResourceLocation hitParticleLocation = ResourceLocation.parse(tag.getStringOr("hit_particle", ""));
+-                    Holder<ParticleType<?>> hitParticle = BuiltInRegistries.PARTICLE_TYPE.getHolder(hitParticleLocation).get();
++                    Holder<ParticleType<?>> hitParticle = BuiltInRegistries.PARTICLE_TYPE.get(hitParticleLocation).get();
+                     if (hitParticle.value() instanceof HitParticleType trueParticle)
+                     {
+                         weaponBuilder.hitParticle(hitParticle);
+diff --git a/src/main/java/yesman/epicfight/api/data/reloader/MobPatchReloadListener.java b/src/main/java/yesman/epicfight/api/data/reloader/MobPatchReloadListener.java
+index 0c43a79..7969dfb 100644
+--- a/src/main/java/yesman/epicfight/api/data/reloader/MobPatchReloadListener.java
++++ b/src/main/java/yesman/epicfight/api/data/reloader/MobPatchReloadListener.java
+@@ -92,11 +92,11 @@ public class MobPatchReloadListener extends SimpleJsonResourceReloadListener<Jso
+ 				continue;
+ 			}
+ 			
+-			EntityType<?> entityType = BuiltInRegistries.ENTITY_TYPE.get(registryName);
++			EntityType<?> entityType = BuiltInRegistries.ENTITY_TYPE.getValue(registryName);
+ 			CompoundTag tag = null;
+ 			
+ 			try {
+-				tag = TagParser.parseTag(entry.getValue().toString());
++				tag = TagParser.parseCompoundFully(entry.getValue().toString());
+ 			} catch (CommandSyntaxException e) {
+                 EpicFight.LOGGER.warn("Error while deserializing datapack for {} : {}", registryName, e.getLocalizedMessage());
+ 				continue;
+@@ -587,7 +587,7 @@ public class MobPatchReloadListener extends SimpleJsonResourceReloadListener<Jso
+ 				disabled = tag.getBooleanOr("disabled", false);
+ 			}
+ 			
+-			EntityType<?> entityType = BuiltInRegistries.ENTITY_TYPE.get(ResourceLocation.parse(tag.getStringOr("id", "")));
++			EntityType<?> entityType = BuiltInRegistries.ENTITY_TYPE.getValue(ResourceLocation.parse(tag.getStringOr("id", "")));
+ 			MOB_PATCH_PROVIDERS.put(entityType, deserialize(entityType, tag, true, Minecraft.getInstance().getResourceManager()));
+ 			EpicFightCapabilities.ENTITY_PATCH_PROVIDER.putCustomEntityPatch(entityType, (entity) -> MOB_PATCH_PROVIDERS.get(entity.getType()).get(entity));
+ 			
+diff --git a/src/main/java/yesman/epicfight/api/event/types/animation/package-info.java b/src/main/java/yesman/epicfight/api/event/types/animation/package-info.java
+index f4affef..6769fd4 100644
+--- a/src/main/java/yesman/epicfight/api/event/types/animation/package-info.java
++++ b/src/main/java/yesman/epicfight/api/event/types/animation/package-info.java
+@@ -1,6 +1,4 @@
+-@FieldsAreNonnullByDefault
+-@MethodsReturnNonnullByDefault
++@NullMarked
+ package yesman.epicfight.api.event.types.animation;
+ 
+-import net.minecraft.FieldsAreNonnullByDefault;
+-import net.minecraft.MethodsReturnNonnullByDefault;
+\ No newline at end of file
++import org.jspecify.annotations.NullMarked;
+\ No newline at end of file
+diff --git a/src/main/java/yesman/epicfight/api/event/types/entity/package-info.java b/src/main/java/yesman/epicfight/api/event/types/entity/package-info.java
+index e0bc302..5436244 100644
+--- a/src/main/java/yesman/epicfight/api/event/types/entity/package-info.java
++++ b/src/main/java/yesman/epicfight/api/event/types/entity/package-info.java
+@@ -1,6 +1,4 @@
+-@FieldsAreNonnullByDefault
+-@MethodsReturnNonnullByDefault
++@NullMarked
+ package yesman.epicfight.api.event.types.entity;
+ 
+-import net.minecraft.FieldsAreNonnullByDefault;
+-import net.minecraft.MethodsReturnNonnullByDefault;
+\ No newline at end of file
++import org.jspecify.annotations.NullMarked;
+\ No newline at end of file
+diff --git a/src/main/java/yesman/epicfight/api/event/types/player/package-info.java b/src/main/java/yesman/epicfight/api/event/types/player/package-info.java
+index d188fd0..2d6ced1 100644
+--- a/src/main/java/yesman/epicfight/api/event/types/player/package-info.java
++++ b/src/main/java/yesman/epicfight/api/event/types/player/package-info.java
+@@ -1,6 +1,4 @@
+-@FieldsAreNonnullByDefault
+-@MethodsReturnNonnullByDefault
++@NullMarked
+ package yesman.epicfight.api.event.types.player;
+ 
+-import net.minecraft.FieldsAreNonnullByDefault;
+-import net.minecraft.MethodsReturnNonnullByDefault;
+\ No newline at end of file
++import org.jspecify.annotations.NullMarked;
+\ No newline at end of file
+diff --git a/src/main/java/yesman/epicfight/api/event/types/registry/package-info.java b/src/main/java/yesman/epicfight/api/event/types/registry/package-info.java
+index 0be0c14..fd0a51b 100644
+--- a/src/main/java/yesman/epicfight/api/event/types/registry/package-info.java
++++ b/src/main/java/yesman/epicfight/api/event/types/registry/package-info.java
+@@ -1,6 +1,4 @@
+-@FieldsAreNonnullByDefault
+-@MethodsReturnNonnullByDefault
++@NullMarked
+ package yesman.epicfight.api.event.types.registry;
+ 
+-import net.minecraft.FieldsAreNonnullByDefault;
+-import net.minecraft.MethodsReturnNonnullByDefault;
+\ No newline at end of file
++import org.jspecify.annotations.NullMarked;
+\ No newline at end of file
+diff --git a/src/main/java/yesman/epicfight/api/ex_cap/provider/ProviderConditional.java b/src/main/java/yesman/epicfight/api/ex_cap/provider/ProviderConditional.java
+index 22cf84d..7494e79 100644
+--- a/src/main/java/yesman/epicfight/api/ex_cap/provider/ProviderConditional.java
++++ b/src/main/java/yesman/epicfight/api/ex_cap/provider/ProviderConditional.java
+@@ -332,16 +332,16 @@ public class ProviderConditional
+ 							.setHand(InteractionHand.valueOf(gsonObject.get("hand").getAsString().toUpperCase()));
+ 					case SPECIFIC_WEAPON -> builder
+ 							.setType(type).setWieldStyle(wieldStyle).isVisibleOffHand(visibleOffHand)
+-							.setWeapon(BuiltInRegistries.ITEM.get(ResourceLocation.parse(gsonObject.get("specific_weapon").getAsString())))
++							.setWeapon(BuiltInRegistries.ITEM.getValue(ResourceLocation.parse(gsonObject.get("specific_weapon").getAsString())))
+ 							.setHand(InteractionHand.valueOf(gsonObject.get("hand").getAsString().toUpperCase()));
+ 					case SKILL_EXISTENCE, SKILL_ACTIVATION -> builder
+ 							.setType(type).setWieldStyle(wieldStyle).isVisibleOffHand(visibleOffHand)
+-							.setSkillToCheck(EpicFightRegistries.SKILL.getHolder(ResourceLocation.parse(gsonObject.get("skill").getAsString())).get())
++							.setSkillToCheck(EpicFightRegistries.SKILL.get(ResourceLocation.parse(gsonObject.get("skill").getAsString())).get())
+ 							.setSlot(SkillSlot.ENUM_MANAGER.get(gsonObject.get("slot").getAsString().toUpperCase()));
+ 					case DATA_KEY -> builder
+ 							.setType(type).setWieldStyle(wieldStyle).isVisibleOffHand(visibleOffHand)
+-							.setSkillToCheck(EpicFightRegistries.SKILL.getHolder(ResourceLocation.parse(gsonObject.get("skill").getAsString())).get())
+-							.setKey(EpicFightRegistries.SKILL_DATA_KEY.getHolder(ResourceLocation.parse(gsonObject.get("boolean_key").getAsString())).get())
++							.setSkillToCheck(EpicFightRegistries.SKILL.get(ResourceLocation.parse(gsonObject.get("skill").getAsString())).get())
++							.setKey(EpicFightRegistries.SKILL_DATA_KEY.get(ResourceLocation.parse(gsonObject.get("boolean_key").getAsString())).get())
+ 							.setSlot(SkillSlot.ENUM_MANAGER.get(gsonObject.get("slot").getAsString().toUpperCase()));
+ 				}
+ 			}
+diff --git a/src/main/java/yesman/epicfight/api/utils/EntitySnapshot.java b/src/main/java/yesman/epicfight/api/utils/EntitySnapshot.java
+index bbf6ffc..7d7f605 100644
+--- a/src/main/java/yesman/epicfight/api/utils/EntitySnapshot.java
++++ b/src/main/java/yesman/epicfight/api/utils/EntitySnapshot.java
+@@ -1,4 +1,5 @@
+ package yesman.epicfight.api.utils;
++import yesman.epicfight.client.online.SkinTextures;
+ import yesman.epicfight.platform.neoforged.client.ClientHooks;
+ 
+ import com.google.common.collect.ImmutableList;
+@@ -265,7 +266,7 @@ public class EntitySnapshot<T extends LivingEntityPatch<?>> {
+ 				this.unboundPoseMatrices[i] = new OpenMatrix4f(entitypatch.getArmature().getPoseMatrices()[i]);
+ 			}
+ 			
+-			if (entitypatch.getOriginal().isModelPartShown(PlayerModelPart.CAPE) && entitypatch.getOriginal().getSkin().capeTexture() != null) {
++			if (entitypatch.getOriginal().isModelPartShown(PlayerModelPart.CAPE) && entitypatch.getOriginal().getSkin().cape() != null) {
+ 				entitypatch.getSimulator(SimulationTypes.CLOTH).ifPresent(clohtSimulator -> {
+ 					clohtSimulator.getRunningObject(ClothSimulator.PLAYER_CLOAK).ifPresent(clothObj -> {
+ 						ClothObject capturedClothObj = clothObj.captureMyself();
+@@ -277,7 +278,7 @@ public class EntitySnapshot<T extends LivingEntityPatch<?>> {
+ 				        };
+ 						
+ 						capturedClothObj.tick(entitypatch, partialColliderTransformProvider, 1.0F, entitypatch.getArmature(), this.unboundPoseMatrices);
+-						this.capeFigure = new RenderableFigure(capturedClothObj, entitypatch.getOriginal().getSkin().capeTexture());
++						this.capeFigure = new RenderableFigure(capturedClothObj, SkinTextures.cape(entitypatch.getOriginal().getSkin()));
+ 					});
+ 				});
+ 			}
+diff --git a/src/main/java/yesman/epicfight/client/events/engine/RenderEngine.java b/src/main/java/yesman/epicfight/client/events/engine/RenderEngine.java
+index 6131f1e..df2d661 100644
+--- a/src/main/java/yesman/epicfight/client/events/engine/RenderEngine.java
++++ b/src/main/java/yesman/epicfight/client/events/engine/RenderEngine.java
+@@ -171,7 +171,7 @@ public class RenderEngine implements IEventBasedEngine {
+                 continue;
+             }
+ 
+-            Item item = BuiltInRegistries.ITEM.get(registryName);
++            Item item = BuiltInRegistries.ITEM.getValue(registryName);
+             Function<JsonElement, RenderItemBase> rendererProvider;
+ 
+             if (entry.getValue().getAsJsonObject().has("renderer")) {
+@@ -241,7 +241,7 @@ public class RenderEngine implements IEventBasedEngine {
+                 this.entityRendererCache.put(entityType, new PCustomEntityRenderer(Meshes.getOrCreate(ResourceLocation.parse(compound.getStringOr("model", "")), (jsonAssetLoader) -> jsonAssetLoader.loadSkinnedMesh(HumanoidMesh::new)), context));
+             }
+         } else {
+-            EntityType<?> presetEntityType = BuiltInRegistries.ENTITY_TYPE.get(ResourceLocation.parse(rendererName));
++            EntityType<?> presetEntityType = BuiltInRegistries.ENTITY_TYPE.getValue(ResourceLocation.parse(rendererName));
+ 
+             if (this.entityRendererProvider.containsKey(presetEntityType)) {
+                 PatchedEntityRenderer renderer = this.entityRendererProvider.get(presetEntityType).apply(entityType);
+diff --git a/src/main/java/yesman/epicfight/client/gui/datapack/screen/DatapackEditScreen.java b/src/main/java/yesman/epicfight/client/gui/datapack/screen/DatapackEditScreen.java
+index 60ee3c1..0e5318e 100644
+--- a/src/main/java/yesman/epicfight/client/gui/datapack/screen/DatapackEditScreen.java
++++ b/src/main/java/yesman/epicfight/client/gui/datapack/screen/DatapackEditScreen.java
+@@ -1240,7 +1240,7 @@ public class DatapackEditScreen extends Screen implements ExtraEntryProvider {
+ 			try {
+ 				jsonReader.setLenient(true);
+ 				JsonObject jsonObject = Streams.parse(jsonReader).getAsJsonObject();
+-				CompoundTag compTag = TagParser.parseTag(jsonObject.toString());
++				CompoundTag compTag = TagParser.parseCompoundFully(jsonObject.toString());
+ 				
+ 				try {
+ 					WeaponCapability.Builder builder = WeaponTypeReloadListener.deserializeWeaponCapabilityBuilder(registryName, compTag, DatapackEditScreen.this);
+@@ -2030,7 +2030,7 @@ public class DatapackEditScreen extends Screen implements ExtraEntryProvider {
+                         throw new NoSuchElementException("Item type undefined!");
+                     }
+ 
+-                    Item item = BuiltInRegistries.ITEM.get(packEntry.getKey());
++                    Item item = BuiltInRegistries.ITEM.getValue(packEntry.getKey());
+                     ItemType itemType = ItemType.valueOf(packEntry.getValue().getStringOr("item_type", ""));
+ 
+                     if (itemType == ItemType.WEAPON && !packEntry.getValue().contains("type")) {
+@@ -2076,7 +2076,7 @@ public class DatapackEditScreen extends Screen implements ExtraEntryProvider {
+ 								CompoundTag comp = null;
+ 								
+ 								try {
+-									comp = TagParser.parseTag(Streams.parse(jsonReader).getAsJsonObject().toString());
++									comp = TagParser.parseCompoundFully(Streams.parse(jsonReader).getAsJsonObject().toString());
+ 								} finally {
+ 									jsonReader.close();
+ 								}
+@@ -2098,7 +2098,7 @@ public class DatapackEditScreen extends Screen implements ExtraEntryProvider {
+ 			try {
+ 				jsonReader.setLenient(true);
+ 				JsonObject jsonObject = Streams.parse(jsonReader).getAsJsonObject();
+-				CompoundTag compTag = TagParser.parseTag(jsonObject.toString());
++				CompoundTag compTag = TagParser.parseCompoundFully(jsonObject.toString());
+ 				
+ 				if (itemType != null) {
+ 					compTag.putString("item_type", itemType.toString());
+@@ -2725,7 +2725,7 @@ public class DatapackEditScreen extends Screen implements ExtraEntryProvider {
+ 					sb.append((char) data);
+ 				}
+ 				
+-				CompoundTag compTag = TagParser.parseTag(sb.toString());
++				CompoundTag compTag = TagParser.parseCompoundFully(sb.toString());
+ 				
+ 				if (compTag.getBooleanOr("isHumanoid", false)) {
+ 					ListTag combatBehaviorList = TagUtils.getTypedList(compTag, "combat_behavior", Tag.TAG_COMPOUND);
+diff --git a/src/main/java/yesman/epicfight/client/gui/screen/EmoteEditScreen.java b/src/main/java/yesman/epicfight/client/gui/screen/EmoteEditScreen.java
+index adfaffe..e72251b 100644
+--- a/src/main/java/yesman/epicfight/client/gui/screen/EmoteEditScreen.java
++++ b/src/main/java/yesman/epicfight/client/gui/screen/EmoteEditScreen.java
+@@ -90,7 +90,7 @@ public class EmoteEditScreen extends Screen {
+         );
+ 
+         this.emotePreviewer.setBackgroundClearColor(new Vec4f(0.0F, 0.0F, 0.0F, 0.0F));
+-        this.emotePreviewer.setFigureTexture(playerpatch.getOriginal().getSkin().texture());
++        this.emotePreviewer.setFigureTexture(playerpatch.getOriginal().getSkin().body().texturePath());
+         this.emotePreviewer.setMesh(playerpatch.getOriginal().getSkin().model() == PlayerSkin.Model.SLIM ? Meshes.ALEX : Meshes.BIPED);
+ 
+         this.saveButton = AnchoredButton.buttonBuilder(
+diff --git a/src/main/java/yesman/epicfight/client/gui/widgets/package-info.java b/src/main/java/yesman/epicfight/client/gui/widgets/package-info.java
+index 9d812ac..b6bb85b 100644
+--- a/src/main/java/yesman/epicfight/client/gui/widgets/package-info.java
++++ b/src/main/java/yesman/epicfight/client/gui/widgets/package-info.java
+@@ -3,7 +3,6 @@
+ @FieldsAreNonnullByDefault
+ package yesman.epicfight.client.gui.widgets;
+ 
+-import net.minecraft.FieldsAreNonnullByDefault;
+-import net.minecraft.MethodsReturnNonnullByDefault;
++import org.jspecify.annotations.NullMarked;
+ 
+ import javax.annotation.ParametersAreNonnullByDefault;
+\ No newline at end of file
+diff --git a/src/main/java/yesman/epicfight/client/online/EpicSkins.java b/src/main/java/yesman/epicfight/client/online/EpicSkins.java
+index a9c2cd5..3b9af59 100644
+--- a/src/main/java/yesman/epicfight/client/online/EpicSkins.java
++++ b/src/main/java/yesman/epicfight/client/online/EpicSkins.java
+@@ -67,7 +67,7 @@ public record EpicSkins(Supplier<ResourceLocation> capeTexture, float r, float g
+ 					Supplier<ResourceLocation> cloakTextureProvider = null;
+ 					
+ 					if (cosmetic.useBoolParam1() && cosmetic.boolParam1()) {
+-						cloakTextureProvider = () -> playerpatch.getOriginal().getSkin().capeTexture();
++						cloakTextureProvider = () -> SkinTextures.cape(playerpatch.getOriginal().getSkin());
+ 					} else {
+ 						cloakTextureProvider = () -> cosmetic.textureLocation();
+ 					}
+@@ -84,7 +84,7 @@ public record EpicSkins(Supplier<ResourceLocation> capeTexture, float r, float g
+ 								.parentJoint(Armatures.BIPED.get().torso)
+ 								.putAll(ClothColliderPresets.BIPED)
+ 							, () -> {
+-								  return playerpatch.getOriginal().getSkin().capeTexture() != null
++								  return playerpatch.getOriginal().getSkin().cape() != null
+ 										  && !playerpatch.getOriginal().isInvisible()
+ 										  && playerpatch.getOriginal().isModelPartShown(PlayerModelPart.CAPE)
+ 										  && playerpatch.getOriginal().getItemBySlot(EquipmentSlot.CHEST).getItem() != Items.ELYTRA;
+@@ -126,13 +126,13 @@ public record EpicSkins(Supplier<ResourceLocation> capeTexture, float r, float g
+ 				.parentJoint(Armatures.BIPED.get().torso)
+ 				.putAll(PlayerSkin.Model.WIDE.equals(playerpatch.getOriginal().getSkin().model())
+ 							? ClothColliderPresets.BIPED : ClothColliderPresets.BIPED_SLIM)
+-			, () -> playerpatch.getOriginal().getSkin().capeTexture() != null
++			, () -> playerpatch.getOriginal().getSkin().cape() != null
+ 					&& !playerpatch.getOriginal().isInvisible()
+ 					&& playerpatch.getOriginal().isModelPartShown(PlayerModelPart.CAPE)
+ 					&& playerpatch.getOriginal().getItemBySlot(EquipmentSlot.CHEST).getItem() != Items.ELYTRA
+ 		);
+ 		
+-		playerpatch.setEpicSkinsInformation(new EpicSkins(() -> playerpatch.getOriginal().getSkin().capeTexture(), 1.0F, 1.0F, 1.0F));
++		playerpatch.setEpicSkinsInformation(new EpicSkins(() -> SkinTextures.cape(playerpatch.getOriginal().getSkin()), 1.0F, 1.0F, 1.0F));
+ 	}
+ 
+     public enum Slot {
+diff --git a/src/main/java/yesman/epicfight/client/online/SkinTextures.java b/src/main/java/yesman/epicfight/client/online/SkinTextures.java
+new file mode 100644
+index 0000000..d686006
+--- /dev/null
++++ b/src/main/java/yesman/epicfight/client/online/SkinTextures.java
+@@ -0,0 +1,14 @@
++package yesman.epicfight.client.online;
++
++import javax.annotation.Nullable;
++import net.minecraft.resources.Identifier;
++import net.minecraft.world.entity.player.PlayerSkin;
++
++public final class SkinTextures {
++    private SkinTextures() {}
++
++    @Nullable
++    public static Identifier cape(PlayerSkin skin) {
++        return skin.cape() == null ? null : skin.cape().texturePath();
++    }
++}
+diff --git a/src/main/java/yesman/epicfight/client/renderer/FirstPersonRenderer.java b/src/main/java/yesman/epicfight/client/renderer/FirstPersonRenderer.java
+index af61783..d60c474 100644
+--- a/src/main/java/yesman/epicfight/client/renderer/FirstPersonRenderer.java
++++ b/src/main/java/yesman/epicfight/client/renderer/FirstPersonRenderer.java
+@@ -107,7 +107,7 @@ public class FirstPersonRenderer extends PatchedLivingEntityRenderer<LocalPlayer
+ 					}
+ 				}
+ 				
+-				RenderType renderType = RenderTypes.entityCutoutNoCull(entity.getSkin().texture());
++				RenderType renderType = RenderTypes.entityCutoutNoCull(entity.getSkin().body().texturePath());
+ 				mesh.draw(poseStack, buffer, renderType, packedLight, 1.0F, 1.0F, 1.0F, 1.0F, OverlayTexture.NO_OVERLAY, localPlayerPatch.getArmature(), poses);
+ 			}
+ 			
+@@ -146,7 +146,7 @@ public class FirstPersonRenderer extends PatchedLivingEntityRenderer<LocalPlayer
+ 				mesh.leftSleeve.setHidden(false);
+ 				mesh.rightSleeve.setHidden(false);
+ 				
+-				RenderType renderType = RenderTypes.entityCutoutNoCull(entity.getSkin().texture());
++				RenderType renderType = RenderTypes.entityCutoutNoCull(entity.getSkin().body().texturePath());
+ 				mesh.draw(poseStack, buffer, renderType, packedLight, 1.0F, 1.0F, 1.0F, 1.0F, OverlayTexture.NO_OVERLAY, localPlayerPatch.getArmature(), poses);
+ 			}
+ 			
+diff --git a/src/main/java/yesman/epicfight/client/renderer/patched/layer/PatchedCapeLayer.java b/src/main/java/yesman/epicfight/client/renderer/patched/layer/PatchedCapeLayer.java
+index fb2c2e7..440ec38 100644
+--- a/src/main/java/yesman/epicfight/client/renderer/patched/layer/PatchedCapeLayer.java
++++ b/src/main/java/yesman/epicfight/client/renderer/patched/layer/PatchedCapeLayer.java
+@@ -1,5 +1,6 @@
+ package yesman.epicfight.client.renderer.patched.layer;
+ 
++import yesman.epicfight.client.online.SkinTextures;
+ import java.util.function.Function;
+ 
+ import org.joml.Matrix4f;
+@@ -48,7 +49,7 @@ public class PatchedCapeLayer extends PatchedLayer<AbstractClientPlayer, Abstrac
+ 			}
+ 			
+ 			entitypatch.getClothSimulator().getRunningObject(ClothSimulator.PLAYER_CLOAK).ifPresent(clothObj -> {
+-				ResourceLocation capeTexture = entitypatch.isEpicSkinsLoaded() ? entitypatch.getEpicSkinsInformation().capeTexture().get() : entityliving.getSkin().capeTexture();
++				ResourceLocation capeTexture = entitypatch.isEpicSkinsLoaded() ? entitypatch.getEpicSkinsInformation().capeTexture().get() : SkinTextures.cape(entityliving.getSkin());
+ 				
+ 				if (capeTexture != null) {
+ 					Function<Float, OpenMatrix4f> partialColliderTransformProvider = (partialFrame) -> {
+@@ -80,7 +81,7 @@ public class PatchedCapeLayer extends PatchedLayer<AbstractClientPlayer, Abstrac
+ 				}
+ 			});
+ 		} else {
+-			if (entityliving.getSkin().capeTexture() != null && !entityliving.isInvisible() && entityliving.isModelPartShown(PlayerModelPart.CAPE)) {
++			if (entityliving.getSkin().cape() != null && !entityliving.isInvisible() && entityliving.isModelPartShown(PlayerModelPart.CAPE)) {
+ 				ItemStack itemstack = entityliving.getItemBySlot(EquipmentSlot.CHEST);
+ 				
+ 				if (itemstack.getItem() != Items.ELYTRA) {
+diff --git a/src/main/java/yesman/epicfight/compat/fgm/WildfireFGMCompat.java b/src/main/java/yesman/epicfight/compat/fgm/WildfireFGMCompat.java
+index d8305a0..9c65dbc 100644
+--- a/src/main/java/yesman/epicfight/compat/fgm/WildfireFGMCompat.java
++++ b/src/main/java/yesman/epicfight/compat/fgm/WildfireFGMCompat.java
+@@ -113,7 +113,7 @@ public class WildfireFGMCompat implements ICompatModule {
+                         RenderType breastRenderType = null;
+                         // NeoForge had GenderLayer.getBreastTexture(); Fabric does not.
+                         // Get the player's skin texture directly instead.
+-                        ResourceLocation entityTexture = entity.getSkin().texture();
++                        ResourceLocation entityTexture = entity.getSkin().body().texturePath();
+                         if (entityTexture != null) {
+                             boolean bodyVisible = !entity.isInvisible();
+                             Minecraft minecraft = Minecraft.getInstance();
+diff --git a/src/main/java/yesman/epicfight/compat/fgm/mixin/FemaleLayerAccessor.java b/src/main/java/yesman/epicfight/compat/fgm/mixin/FemaleLayerAccessor.java
+index 1c04540..7ad4d0b 100644
+--- a/src/main/java/yesman/epicfight/compat/fgm/mixin/FemaleLayerAccessor.java
++++ b/src/main/java/yesman/epicfight/compat/fgm/mixin/FemaleLayerAccessor.java
+@@ -8,7 +8,7 @@ import org.spongepowered.asm.mixin.Mixin;
+ /// On NeoForge, GenderLayer had a private getBreastTexture method accessed via @Invoker.
+ /// The Fabric version of Wildfire Gender does not have this method, so this mixin
+ /// is kept only as a type tag for instanceof checks in WildfireFGMCompat.
+-/// Texture retrieval is handled directly via AbstractClientPlayer.getSkin().texture().
++/// Texture retrieval is handled directly via AbstractClientPlayer.getSkin().body().texturePath().
+ @Mixin(GenderLayer.class)
+ public interface FemaleLayerAccessor<E extends LivingEntity, M extends HumanoidModel<E>> {
+ }
+diff --git a/src/main/java/yesman/epicfight/compat/skinlayer3d/SkinLayer3DCompat.java b/src/main/java/yesman/epicfight/compat/skinlayer3d/SkinLayer3DCompat.java
+index 21dcdc9..f6e01de 100644
+--- a/src/main/java/yesman/epicfight/compat/skinlayer3d/SkinLayer3DCompat.java
++++ b/src/main/java/yesman/epicfight/compat/skinlayer3d/SkinLayer3DCompat.java
+@@ -188,14 +188,14 @@ public class SkinLayer3DCompat implements ICompatModule {
+ 					SkinnedMesh mesh = skin3dlayerMeshes.partMeshes.get(playerModelPart);
+ 					
+ 					if (mesh != null) {
+-						mesh.draw(poseStack, buffer, RenderTypes.entityTranslucent(player.getSkin().texture(), true), packedLight, 1.0F, 1.0F, 1.0F, 1.0F, overlay, entitypatch.getArmature(), poses);
++						mesh.draw(poseStack, buffer, RenderTypes.entityTranslucent(player.getSkin().body().texturePath(), true), packedLight, 1.0F, 1.0F, 1.0F, 1.0F, overlay, entitypatch.getArmature(), poses);
+ 					}
+ 				}
+ 			}
+ 		}
+ 		
+ 		private static SkinnedMesh createEpicFight3DSkinLayer(AbstractClientPlayer player, PlayerModelPart playerModelPart, Mesh skinlayerModelPart, ModelPart vanillaModelPart, int width, int height, int depth, int textureU, int textureV, boolean topPivot, float rotationOffset) {
+-			ResourceLocation skinLocation = player.getSkin().texture();
++			ResourceLocation skinLocation = player.getSkin().body().texturePath();
+ 			NativeImage skinImage = SkinUtil.getTexture(skinLocation, null);
+ 
+ 			if (skinImage == null) {
+diff --git a/src/main/java/yesman/epicfight/config/ClientConfig.java b/src/main/java/yesman/epicfight/config/ClientConfig.java
+index 86e2f5a..a66f9e7 100644
+--- a/src/main/java/yesman/epicfight/config/ClientConfig.java
++++ b/src/main/java/yesman/epicfight/config/ClientConfig.java
+@@ -235,10 +235,10 @@ public class ClientConfig {
+         cameraPerspectiveToggleMode = CAMERA_PERSPECTIVE_TOGGLE_MODE.get();
+ 
+         combatCategorizedItems = COMBAT_CATEGORIZED_ITEMS.get().stream()
+-                .map(itemName -> BuiltInRegistries.ITEM.get(ResourceLocation.parse(itemName)))
++                .map(itemName -> BuiltInRegistries.ITEM.getValue(ResourceLocation.parse(itemName)))
+                 .collect(Collectors.toSet());
+         miningCategorizedItems = MINING_CATEGORIZED_ITEMS.get().stream()
+-                .map(itemName -> BuiltInRegistries.ITEM.get(ResourceLocation.parse(itemName)))
++                .map(itemName -> BuiltInRegistries.ITEM.getValue(ResourceLocation.parse(itemName)))
+                 .collect(Collectors.toSet());
+ 
+         showTargetIndicator = SHOW_TARGET_INDICATOR.get();
+@@ -469,7 +469,7 @@ public class ClientConfig {
+ 
+         if (!combatCategorizedItems.equals(
+             COMBAT_CATEGORIZED_ITEMS.get().stream()
+-                .map(itemName -> BuiltInRegistries.ITEM.get(ResourceLocation.parse(itemName)))
++                .map(itemName -> BuiltInRegistries.ITEM.getValue(ResourceLocation.parse(itemName)))
+                 .collect(Collectors.toSet())
+         )
+         ) {
+@@ -479,14 +479,14 @@ public class ClientConfig {
+             });
+             discard.add(() -> {
+                 combatCategorizedItems.clear();
+-                combatCategorizedItems.addAll(COMBAT_CATEGORIZED_ITEMS.get().stream().map(itemStr -> BuiltInRegistries.ITEM.get(ResourceLocation.parse(itemStr))).toList());
++                combatCategorizedItems.addAll(COMBAT_CATEGORIZED_ITEMS.get().stream().map(itemStr -> BuiltInRegistries.ITEM.getValue(ResourceLocation.parse(itemStr))).toList());
+             });
+         }
+ 
+         if (
+             !miningCategorizedItems.equals(
+                 MINING_CATEGORIZED_ITEMS.get().stream()
+-                    .map(itemName -> BuiltInRegistries.ITEM.get(ResourceLocation.parse(itemName)))
++                    .map(itemName -> BuiltInRegistries.ITEM.getValue(ResourceLocation.parse(itemName)))
+                     .collect(Collectors.toSet())
+             )
+         ) {
+@@ -496,7 +496,7 @@ public class ClientConfig {
+             });
+             discard.add(() -> {
+                 miningCategorizedItems.clear();
+-                miningCategorizedItems.addAll(MINING_CATEGORIZED_ITEMS.get().stream().map(itemStr -> BuiltInRegistries.ITEM.get(ResourceLocation.parse(itemStr))).toList());
++                miningCategorizedItems.addAll(MINING_CATEGORIZED_ITEMS.get().stream().map(itemStr -> BuiltInRegistries.ITEM.getValue(ResourceLocation.parse(itemStr))).toList());
+             });
+         }
+ 
+diff --git a/src/main/java/yesman/epicfight/data/recipes/pack/EpicFightRecipeProvider.java b/src/main/java/yesman/epicfight/data/recipes/pack/EpicFightRecipeProvider.java
+index 32cb9b5..3385b42 100644
+--- a/src/main/java/yesman/epicfight/data/recipes/pack/EpicFightRecipeProvider.java
++++ b/src/main/java/yesman/epicfight/data/recipes/pack/EpicFightRecipeProvider.java
+@@ -6,276 +6,292 @@ import net.minecraft.core.HolderLookup.Provider;
+ import net.minecraft.data.PackOutput;
+ import net.minecraft.data.recipes.RecipeCategory;
+ import net.minecraft.data.recipes.RecipeOutput;
+-import net.minecraft.data.recipes.ShapedRecipeBuilder;
+-import net.minecraft.data.recipes.packs.VanillaRecipeProvider;
++import net.minecraft.data.recipes.RecipeProvider;
+ import net.minecraft.tags.ItemTags;
+ import net.minecraft.world.item.Items;
+ import yesman.epicfight.registry.entries.EpicFightItems;
+ 
+-public class EpicFightRecipeProvider extends VanillaRecipeProvider {
+-	public EpicFightRecipeProvider(PackOutput output, CompletableFuture<Provider> registries) {
+-		super(output, registries);
+-	}
+-	
+-    public void buildRecipes(RecipeOutput recipeOutput) {
+-		ShapedRecipeBuilder.shaped(RecipeCategory.COMBAT, EpicFightItems.DIAMOND_DAGGER.get())
+-			.pattern(" X")
+-			.pattern("# ")
+-			.define('X', Items.DIAMOND)
+-			.define('#', Items.STICK)
+-			.unlockedBy("has_diamond", has(Items.DIAMOND))
+-			.save(recipeOutput)
+-			;
+-		
+-		ShapedRecipeBuilder.shaped(RecipeCategory.COMBAT, EpicFightItems.DIAMOND_GREATSWORD.get())
+-			.pattern(" XX")
+-			.pattern("XXX")
+-			.pattern("#X ")
+-			.define('X', Items.DIAMOND)
+-			.define('#', Items.STICK)
+-			.unlockedBy("has_diamond", has(Items.DIAMOND))
+-			.save(recipeOutput)
+-			;
+-		
+-		ShapedRecipeBuilder.shaped(RecipeCategory.COMBAT, EpicFightItems.DIAMOND_LONGSWORD.get())
+-			.pattern("  X")
+-			.pattern(" X ")
+-			.pattern("#  ")
+-			.define('X', Items.DIAMOND)
+-			.define('#', Items.DIAMOND_SWORD)
+-			.unlockedBy("has_diamond", has(Items.DIAMOND))
+-			.save(recipeOutput)
+-			;
+-		
+-		ShapedRecipeBuilder.shaped(RecipeCategory.COMBAT, EpicFightItems.DIAMOND_SPEAR.get())
+-			.pattern("  X")
+-			.pattern(" # ")
+-			.pattern("#  ")
+-			.define('X', Items.DIAMOND_SWORD)
+-			.define('#', Items.STICK)
+-			.unlockedBy("has_diamond", has(Items.DIAMOND))
+-			.save(recipeOutput)
+-			;
+-		
+-		ShapedRecipeBuilder.shaped(RecipeCategory.COMBAT, EpicFightItems.DIAMOND_TACHI.get())
+-			.pattern(" X ")
+-			.pattern(" X ")
+-			.pattern("#  ")
+-			.define('X', Items.DIAMOND)
+-			.define('#', Items.DIAMOND_SWORD)
+-			.unlockedBy("has_diamond", has(Items.DIAMOND))
+-			.save(recipeOutput)
+-			;
+-		
+-		ShapedRecipeBuilder.shaped(RecipeCategory.COMBAT, EpicFightItems.GLOVE.get())
+-			.pattern("XX")
+-			.pattern("##")
+-			.define('X', Items.IRON_NUGGET)
+-			.define('#', Items.LEATHER)
+-			.unlockedBy("has_iron_nugget", has(Items.IRON_NUGGET))
+-			.save(recipeOutput)
+-			;
+-		
+-		ShapedRecipeBuilder.shaped(RecipeCategory.COMBAT, EpicFightItems.GOLDEN_DAGGER.get())
+-			.pattern(" X")
+-			.pattern("# ")
+-			.define('X', Items.GOLD_INGOT)
+-			.define('#', Items.STICK)
+-			.unlockedBy("has_gold_ingot", has(Items.GOLD_INGOT))
+-			.save(recipeOutput)
+-			;
+-		
+-		ShapedRecipeBuilder.shaped(RecipeCategory.COMBAT, EpicFightItems.GOLDEN_GREATSWORD.get())
+-			.pattern(" XX")
+-			.pattern("XXX")
+-			.pattern("#X ")
+-			.define('X', Items.GOLD_INGOT)
+-			.define('#', Items.STICK)
+-			.unlockedBy("has_gold_ingot", has(Items.GOLD_INGOT))
+-			.save(recipeOutput)
+-			;
+-		
+-		ShapedRecipeBuilder.shaped(RecipeCategory.COMBAT, EpicFightItems.GOLDEN_LONGSWORD.get())
+-			.pattern("  X")
+-			.pattern(" X ")
+-			.pattern("#  ")
+-			.define('X', Items.GOLD_INGOT)
+-			.define('#', Items.GOLDEN_SWORD)
+-			.unlockedBy("has_gold_ingot", has(Items.GOLD_INGOT))
+-			.save(recipeOutput)
+-			;
+-		
+-		ShapedRecipeBuilder.shaped(RecipeCategory.COMBAT, EpicFightItems.GOLDEN_SPEAR.get())
+-			.pattern("  X")
+-			.pattern(" # ")
+-			.pattern("#  ")
+-			.define('X', Items.GOLDEN_SWORD)
+-			.define('#', Items.STICK)
+-			.unlockedBy("has_gold_ingot", has(Items.GOLD_INGOT))
+-			.save(recipeOutput)
+-			;
+-		
+-		ShapedRecipeBuilder.shaped(RecipeCategory.COMBAT, EpicFightItems.GOLDEN_TACHI.get())
+-			.pattern(" X ")
+-			.pattern(" X ")
+-			.pattern("#  ")
+-			.define('X', Items.GOLD_INGOT)
+-			.define('#', Items.GOLDEN_SWORD)
+-			.unlockedBy("has_gold_ingot", has(Items.GOLD_INGOT))
+-			.save(recipeOutput)
+-			;
+-		
+-		ShapedRecipeBuilder.shaped(RecipeCategory.COMBAT, EpicFightItems.IRON_DAGGER.get())
+-			.pattern(" X")
+-			.pattern("# ")
+-			.define('X', Items.IRON_INGOT)
+-			.define('#', Items.STICK)
+-			.unlockedBy("has_iron_ingot", has(Items.IRON_INGOT))
+-			.save(recipeOutput)
+-			;
+-		
+-		ShapedRecipeBuilder.shaped(RecipeCategory.COMBAT, EpicFightItems.IRON_GREATSWORD.get())
+-			.pattern(" XX")
+-			.pattern("XXX")
+-			.pattern("#X ")
+-			.define('X', Items.IRON_INGOT)
+-			.define('#', Items.STICK)
+-			.unlockedBy("has_iron_ingot", has(Items.IRON_INGOT))
+-			.save(recipeOutput)
+-			;
+-		
+-		ShapedRecipeBuilder.shaped(RecipeCategory.COMBAT, EpicFightItems.IRON_LONGSWORD.get())
+-			.pattern("  X")
+-			.pattern(" X ")
+-			.pattern("#  ")
+-			.define('X', Items.IRON_INGOT)
+-			.define('#', Items.IRON_SWORD)
+-			.unlockedBy("has_iron_ingot", has(Items.IRON_INGOT))
+-			.save(recipeOutput)
+-			;
+-		
+-		ShapedRecipeBuilder.shaped(RecipeCategory.COMBAT, EpicFightItems.IRON_SPEAR.get())
+-			.pattern("  X")
+-			.pattern(" # ")
+-			.pattern("#  ")
+-			.define('X', Items.IRON_SWORD)
+-			.define('#', Items.STICK)
+-			.unlockedBy("has_iron_ingot", has(Items.IRON_INGOT))
+-			.save(recipeOutput)
+-			;
+-		
+-		ShapedRecipeBuilder.shaped(RecipeCategory.COMBAT, EpicFightItems.IRON_TACHI.get())
+-			.pattern(" X ")
+-			.pattern(" X ")
+-			.pattern("#  ")
+-			.define('X', Items.IRON_INGOT)
+-			.define('#', Items.IRON_SWORD)
+-			.unlockedBy("has_iron_ingot", has(Items.IRON_INGOT))
+-			.save(recipeOutput)
+-			;
+-		
+-		netheriteSmithing(recipeOutput, EpicFightItems.DIAMOND_DAGGER.get(), RecipeCategory.COMBAT, EpicFightItems.NETHERITE_DAGGER.get());
+-		netheriteSmithing(recipeOutput, EpicFightItems.DIAMOND_GREATSWORD.get(), RecipeCategory.COMBAT, EpicFightItems.NETHERITE_GREATSWORD.get());
+-		netheriteSmithing(recipeOutput, EpicFightItems.DIAMOND_LONGSWORD.get(), RecipeCategory.COMBAT, EpicFightItems.NETHERITE_LONGSWORD.get());
+-		netheriteSmithing(recipeOutput, EpicFightItems.DIAMOND_SPEAR.get(), RecipeCategory.COMBAT, EpicFightItems.NETHERITE_SPEAR.get());
+-		netheriteSmithing(recipeOutput, EpicFightItems.DIAMOND_TACHI.get(), RecipeCategory.COMBAT, EpicFightItems.NETHERITE_TACHI.get());
+-		
+-		ShapedRecipeBuilder.shaped(RecipeCategory.COMBAT, EpicFightItems.STONE_DAGGER.get())
+-			.pattern(" X")
+-			.pattern("# ")
+-			.define('X', ItemTags.STONE_TOOL_MATERIALS)
+-			.define('#', Items.STICK)
+-			.unlockedBy("has_cobblestone", has(ItemTags.STONE_TOOL_MATERIALS))
+-			.save(recipeOutput)
+-			;
+-		
+-		ShapedRecipeBuilder.shaped(RecipeCategory.COMBAT, EpicFightItems.STONE_GREATSWORD.get())
+-			.pattern(" XX")
+-			.pattern("XXX")
+-			.pattern("#X ")
+-			.define('X', ItemTags.STONE_TOOL_MATERIALS)
+-			.define('#', Items.STICK)
+-			.unlockedBy("has_cobblestone", has(ItemTags.STONE_TOOL_MATERIALS))
+-			.save(recipeOutput)
+-			;
+-		
+-		ShapedRecipeBuilder.shaped(RecipeCategory.COMBAT, EpicFightItems.STONE_LONGSWORD.get())
+-			.pattern("  X")
+-			.pattern(" X ")
+-			.pattern("#  ")
+-			.define('X', ItemTags.STONE_TOOL_MATERIALS)
+-			.define('#', Items.STONE_SWORD)
+-			.unlockedBy("has_cobblestone", has(ItemTags.STONE_TOOL_MATERIALS))
+-			.save(recipeOutput)
+-			;
+-		
+-		ShapedRecipeBuilder.shaped(RecipeCategory.COMBAT, EpicFightItems.STONE_SPEAR.get())
+-			.pattern("  X")
+-			.pattern(" # ")
+-			.pattern("#  ")
+-			.define('X', Items.STONE_SWORD)
+-			.define('#', Items.STICK)
+-			.unlockedBy("has_cobblestone", has(ItemTags.STONE_TOOL_MATERIALS))
+-			.save(recipeOutput)
+-			;
+-		
+-		ShapedRecipeBuilder.shaped(RecipeCategory.COMBAT, EpicFightItems.STONE_TACHI.get())
+-			.pattern(" X ")
+-			.pattern(" X ")
+-			.pattern("#  ")
+-			.define('X', ItemTags.STONE_TOOL_MATERIALS)
+-			.define('#', Items.STONE_SWORD)
+-			.unlockedBy("has_cobblestone", has(ItemTags.STONE_TOOL_MATERIALS))
+-			.save(recipeOutput)
+-			;
+-		
+-		ShapedRecipeBuilder.shaped(RecipeCategory.COMBAT, EpicFightItems.WOODEN_DAGGER.get())
+-			.pattern(" X")
+-			.pattern("# ")
+-			.define('X', ItemTags.PLANKS)
+-			.define('#', Items.STICK)
+-			.unlockedBy("has_stick", has(Items.STICK))
+-			.save(recipeOutput)
+-			;
+-		
+-		ShapedRecipeBuilder.shaped(RecipeCategory.COMBAT, EpicFightItems.WOODEN_GREATSWORD.get())
+-			.pattern(" XX")
+-			.pattern("XXX")
+-			.pattern("#X ")
+-			.define('X', ItemTags.PLANKS)
+-			.define('#', Items.STICK)
+-			.unlockedBy("has_stick", has(Items.STICK))
+-			.save(recipeOutput)
+-			;
+-		
+-		ShapedRecipeBuilder.shaped(RecipeCategory.COMBAT, EpicFightItems.WOODEN_LONGSWORD.get())
+-			.pattern("  X")
+-			.pattern(" X ")
+-			.pattern("#  ")
+-			.define('X', ItemTags.PLANKS)
+-			.define('#', Items.WOODEN_SWORD)
+-			.unlockedBy("has_stick", has(Items.STICK))
+-			.save(recipeOutput)
+-			;
+-		
+-		ShapedRecipeBuilder.shaped(RecipeCategory.COMBAT, EpicFightItems.WOODEN_SPEAR.get())
+-			.pattern("  X")
+-			.pattern(" # ")
+-			.pattern("#  ")
+-			.define('X', Items.WOODEN_SWORD)
+-			.define('#', Items.STICK)
+-			.unlockedBy("has_stick", has(Items.STICK))
+-			.save(recipeOutput)
+-			;
+-		
+-		ShapedRecipeBuilder.shaped(RecipeCategory.COMBAT, EpicFightItems.WOODEN_TACHI.get())
+-			.pattern(" X ")
+-			.pattern(" X ")
+-			.pattern("#  ")
+-			.define('X', ItemTags.PLANKS)
+-			.define('#', Items.WOODEN_SWORD)
+-			.unlockedBy("has_stick", has(Items.STICK))
+-			.save(recipeOutput)
+-			;
+-	}
++public class EpicFightRecipeProvider extends RecipeProvider.Runner {
++    public EpicFightRecipeProvider(PackOutput output, CompletableFuture<Provider> registries) {
++        super(output, registries);
++    }
++
++    @Override
++    protected RecipeProvider createRecipeProvider(Provider registries, RecipeOutput output) {
++        return new WeaponRecipes(registries, output);
++    }
++
++    @Override
++    public String getName() {
++        return "Epic Fight weapon recipes";
++    }
++
++    private static final class WeaponRecipes extends RecipeProvider {
++        private WeaponRecipes(Provider registries, RecipeOutput output) {
++            super(registries, output);
++        }
++
++        @Override
++        public void buildRecipes() {
++            shaped(RecipeCategory.COMBAT, EpicFightItems.DIAMOND_DAGGER.get())
++                .pattern(" X")
++                .pattern("# ")
++                .define('X', Items.DIAMOND)
++                .define('#', Items.STICK)
++                .unlockedBy("has_diamond", has(Items.DIAMOND))
++                .save(output)
++                ;
++
++            shaped(RecipeCategory.COMBAT, EpicFightItems.DIAMOND_GREATSWORD.get())
++                .pattern(" XX")
++                .pattern("XXX")
++                .pattern("#X ")
++                .define('X', Items.DIAMOND)
++                .define('#', Items.STICK)
++                .unlockedBy("has_diamond", has(Items.DIAMOND))
++                .save(output)
++                ;
++
++            shaped(RecipeCategory.COMBAT, EpicFightItems.DIAMOND_LONGSWORD.get())
++                .pattern("  X")
++                .pattern(" X ")
++                .pattern("#  ")
++                .define('X', Items.DIAMOND)
++                .define('#', Items.DIAMOND_SWORD)
++                .unlockedBy("has_diamond", has(Items.DIAMOND))
++                .save(output)
++                ;
++
++            shaped(RecipeCategory.COMBAT, EpicFightItems.DIAMOND_SPEAR.get())
++                .pattern("  X")
++                .pattern(" # ")
++                .pattern("#  ")
++                .define('X', Items.DIAMOND_SWORD)
++                .define('#', Items.STICK)
++                .unlockedBy("has_diamond", has(Items.DIAMOND))
++                .save(output)
++                ;
++
++            shaped(RecipeCategory.COMBAT, EpicFightItems.DIAMOND_TACHI.get())
++                .pattern(" X ")
++                .pattern(" X ")
++                .pattern("#  ")
++                .define('X', Items.DIAMOND)
++                .define('#', Items.DIAMOND_SWORD)
++                .unlockedBy("has_diamond", has(Items.DIAMOND))
++                .save(output)
++                ;
++
++            shaped(RecipeCategory.COMBAT, EpicFightItems.GLOVE.get())
++                .pattern("XX")
++                .pattern("##")
++                .define('X', Items.IRON_NUGGET)
++                .define('#', Items.LEATHER)
++                .unlockedBy("has_iron_nugget", has(Items.IRON_NUGGET))
++                .save(output)
++                ;
++
++            shaped(RecipeCategory.COMBAT, EpicFightItems.GOLDEN_DAGGER.get())
++                .pattern(" X")
++                .pattern("# ")
++                .define('X', Items.GOLD_INGOT)
++                .define('#', Items.STICK)
++                .unlockedBy("has_gold_ingot", has(Items.GOLD_INGOT))
++                .save(output)
++                ;
++
++            shaped(RecipeCategory.COMBAT, EpicFightItems.GOLDEN_GREATSWORD.get())
++                .pattern(" XX")
++                .pattern("XXX")
++                .pattern("#X ")
++                .define('X', Items.GOLD_INGOT)
++                .define('#', Items.STICK)
++                .unlockedBy("has_gold_ingot", has(Items.GOLD_INGOT))
++                .save(output)
++                ;
++
++            shaped(RecipeCategory.COMBAT, EpicFightItems.GOLDEN_LONGSWORD.get())
++                .pattern("  X")
++                .pattern(" X ")
++                .pattern("#  ")
++                .define('X', Items.GOLD_INGOT)
++                .define('#', Items.GOLDEN_SWORD)
++                .unlockedBy("has_gold_ingot", has(Items.GOLD_INGOT))
++                .save(output)
++                ;
++
++            shaped(RecipeCategory.COMBAT, EpicFightItems.GOLDEN_SPEAR.get())
++                .pattern("  X")
++                .pattern(" # ")
++                .pattern("#  ")
++                .define('X', Items.GOLDEN_SWORD)
++                .define('#', Items.STICK)
++                .unlockedBy("has_gold_ingot", has(Items.GOLD_INGOT))
++                .save(output)
++                ;
++
++            shaped(RecipeCategory.COMBAT, EpicFightItems.GOLDEN_TACHI.get())
++                .pattern(" X ")
++                .pattern(" X ")
++                .pattern("#  ")
++                .define('X', Items.GOLD_INGOT)
++                .define('#', Items.GOLDEN_SWORD)
++                .unlockedBy("has_gold_ingot", has(Items.GOLD_INGOT))
++                .save(output)
++                ;
++
++            shaped(RecipeCategory.COMBAT, EpicFightItems.IRON_DAGGER.get())
++                .pattern(" X")
++                .pattern("# ")
++                .define('X', Items.IRON_INGOT)
++                .define('#', Items.STICK)
++                .unlockedBy("has_iron_ingot", has(Items.IRON_INGOT))
++                .save(output)
++                ;
++
++            shaped(RecipeCategory.COMBAT, EpicFightItems.IRON_GREATSWORD.get())
++                .pattern(" XX")
++                .pattern("XXX")
++                .pattern("#X ")
++                .define('X', Items.IRON_INGOT)
++                .define('#', Items.STICK)
++                .unlockedBy("has_iron_ingot", has(Items.IRON_INGOT))
++                .save(output)
++                ;
++
++            shaped(RecipeCategory.COMBAT, EpicFightItems.IRON_LONGSWORD.get())
++                .pattern("  X")
++                .pattern(" X ")
++                .pattern("#  ")
++                .define('X', Items.IRON_INGOT)
++                .define('#', Items.IRON_SWORD)
++                .unlockedBy("has_iron_ingot", has(Items.IRON_INGOT))
++                .save(output)
++                ;
++
++            shaped(RecipeCategory.COMBAT, EpicFightItems.IRON_SPEAR.get())
++                .pattern("  X")
++                .pattern(" # ")
++                .pattern("#  ")
++                .define('X', Items.IRON_SWORD)
++                .define('#', Items.STICK)
++                .unlockedBy("has_iron_ingot", has(Items.IRON_INGOT))
++                .save(output)
++                ;
++
++            shaped(RecipeCategory.COMBAT, EpicFightItems.IRON_TACHI.get())
++                .pattern(" X ")
++                .pattern(" X ")
++                .pattern("#  ")
++                .define('X', Items.IRON_INGOT)
++                .define('#', Items.IRON_SWORD)
++                .unlockedBy("has_iron_ingot", has(Items.IRON_INGOT))
++                .save(output)
++                ;
++
++            netheriteSmithing(EpicFightItems.DIAMOND_DAGGER.get(), RecipeCategory.COMBAT, EpicFightItems.NETHERITE_DAGGER.get());
++            netheriteSmithing(EpicFightItems.DIAMOND_GREATSWORD.get(), RecipeCategory.COMBAT, EpicFightItems.NETHERITE_GREATSWORD.get());
++            netheriteSmithing(EpicFightItems.DIAMOND_LONGSWORD.get(), RecipeCategory.COMBAT, EpicFightItems.NETHERITE_LONGSWORD.get());
++            netheriteSmithing(EpicFightItems.DIAMOND_SPEAR.get(), RecipeCategory.COMBAT, EpicFightItems.NETHERITE_SPEAR.get());
++            netheriteSmithing(EpicFightItems.DIAMOND_TACHI.get(), RecipeCategory.COMBAT, EpicFightItems.NETHERITE_TACHI.get());
++
++            shaped(RecipeCategory.COMBAT, EpicFightItems.STONE_DAGGER.get())
++                .pattern(" X")
++                .pattern("# ")
++                .define('X', ItemTags.STONE_TOOL_MATERIALS)
++                .define('#', Items.STICK)
++                .unlockedBy("has_cobblestone", has(ItemTags.STONE_TOOL_MATERIALS))
++                .save(output)
++                ;
++
++            shaped(RecipeCategory.COMBAT, EpicFightItems.STONE_GREATSWORD.get())
++                .pattern(" XX")
++                .pattern("XXX")
++                .pattern("#X ")
++                .define('X', ItemTags.STONE_TOOL_MATERIALS)
++                .define('#', Items.STICK)
++                .unlockedBy("has_cobblestone", has(ItemTags.STONE_TOOL_MATERIALS))
++                .save(output)
++                ;
++
++            shaped(RecipeCategory.COMBAT, EpicFightItems.STONE_LONGSWORD.get())
++                .pattern("  X")
++                .pattern(" X ")
++                .pattern("#  ")
++                .define('X', ItemTags.STONE_TOOL_MATERIALS)
++                .define('#', Items.STONE_SWORD)
++                .unlockedBy("has_cobblestone", has(ItemTags.STONE_TOOL_MATERIALS))
++                .save(output)
++                ;
++
++            shaped(RecipeCategory.COMBAT, EpicFightItems.STONE_SPEAR.get())
++                .pattern("  X")
++                .pattern(" # ")
++                .pattern("#  ")
++                .define('X', Items.STONE_SWORD)
++                .define('#', Items.STICK)
++                .unlockedBy("has_cobblestone", has(ItemTags.STONE_TOOL_MATERIALS))
++                .save(output)
++                ;
++
++            shaped(RecipeCategory.COMBAT, EpicFightItems.STONE_TACHI.get())
++                .pattern(" X ")
++                .pattern(" X ")
++                .pattern("#  ")
++                .define('X', ItemTags.STONE_TOOL_MATERIALS)
++                .define('#', Items.STONE_SWORD)
++                .unlockedBy("has_cobblestone", has(ItemTags.STONE_TOOL_MATERIALS))
++                .save(output)
++                ;
++
++            shaped(RecipeCategory.COMBAT, EpicFightItems.WOODEN_DAGGER.get())
++                .pattern(" X")
++                .pattern("# ")
++                .define('X', ItemTags.PLANKS)
++                .define('#', Items.STICK)
++                .unlockedBy("has_stick", has(Items.STICK))
++                .save(output)
++                ;
++
++            shaped(RecipeCategory.COMBAT, EpicFightItems.WOODEN_GREATSWORD.get())
++                .pattern(" XX")
++                .pattern("XXX")
++                .pattern("#X ")
++                .define('X', ItemTags.PLANKS)
++                .define('#', Items.STICK)
++                .unlockedBy("has_stick", has(Items.STICK))
++                .save(output)
++                ;
++
++            shaped(RecipeCategory.COMBAT, EpicFightItems.WOODEN_LONGSWORD.get())
++                .pattern("  X")
++                .pattern(" X ")
++                .pattern("#  ")
++                .define('X', ItemTags.PLANKS)
++                .define('#', Items.WOODEN_SWORD)
++                .unlockedBy("has_stick", has(Items.STICK))
++                .save(output)
++                ;
++
++            shaped(RecipeCategory.COMBAT, EpicFightItems.WOODEN_SPEAR.get())
++                .pattern("  X")
++                .pattern(" # ")
++                .pattern("#  ")
++                .define('X', Items.WOODEN_SWORD)
++                .define('#', Items.STICK)
++                .unlockedBy("has_stick", has(Items.STICK))
++                .save(output)
++                ;
++
++            shaped(RecipeCategory.COMBAT, EpicFightItems.WOODEN_TACHI.get())
++                .pattern(" X ")
++                .pattern(" X ")
++                .pattern("#  ")
++                .define('X', ItemTags.PLANKS)
++                .define('#', Items.WOODEN_SWORD)
++                .unlockedBy("has_stick", has(Items.STICK))
++                .save(output)
++                ;
++        }
++    }
+ }
+diff --git a/src/main/java/yesman/epicfight/epicskins/client/screen/AvatarEditScreen.java b/src/main/java/yesman/epicfight/epicskins/client/screen/AvatarEditScreen.java
+index ba310bd..e5610d5 100644
+--- a/src/main/java/yesman/epicfight/epicskins/client/screen/AvatarEditScreen.java
++++ b/src/main/java/yesman/epicfight/epicskins/client/screen/AvatarEditScreen.java
+@@ -1,5 +1,6 @@
+ package yesman.epicfight.epicskins.client.screen;
+ 
++import yesman.epicfight.client.online.SkinTextures;
+ import net.minecraft.client.renderer.RenderPipelines;
+ import com.google.common.collect.ImmutableList;
+ import com.google.gson.JsonElement;
+@@ -138,7 +139,7 @@ public class AvatarEditScreen extends Screen {
+ 		this.mainModelPreviewer.enableZoomingCamera(false);
+ 		this.mainModelPreviewer.enableCameraMove(false);
+ 		this.mainModelPreviewer.setCameraTransform(-3.0D, 28.0F, 160.0F, 0.0F, 0.0F);
+-		this.mainModelPreviewer.setFigureTexture(AuthenticationHelperImpl.getInstance().playerInfo().getSkin().texture());
++		this.mainModelPreviewer.setFigureTexture(AuthenticationHelperImpl.getInstance().playerInfo().getSkin().body().texturePath());
+ 		
+ 		if (PlayerSkin.Model.SLIM.equals(AuthenticationHelperImpl.getInstance().playerInfo().getSkin().model())) {
+ 			this.mainModelPreviewer.setMesh(Meshes.ALEX);
+@@ -223,7 +224,7 @@ public class AvatarEditScreen extends Screen {
+ 
+ 		Consumer<Boolean> responder = (val) -> {
+ 			if (this.capeList != null) {
+-				this.mainModelPreviewer.setCloakTexture(val ? AuthenticationHelperImpl.getInstance().playerInfo().getSkin().capeTexture() : this.capePopupBox._getValue().textureLocation());
++				this.mainModelPreviewer.setCloakTexture(val ? SkinTextures.cape(AuthenticationHelperImpl.getInstance().playerInfo().getSkin()) : this.capePopupBox._getValue().textureLocation());
+ 				this.mainModelPreviewer.setCloakColor(val || !this.capePopupBox._getValue().useIntParam1() ? 0xFFFFFFFF : this.brightnessSlider.getColor());
+ 			}
+ 		};
+@@ -237,7 +238,7 @@ public class AvatarEditScreen extends Screen {
+ 				this.mainModelPreviewer.initCloakInfo(
+ 					  (SoftBodyTranslatable)mesh
+ 					, cosmetic.useBoolParam1() && epicskinsInfo.useVanillaTexture()
+-						? AuthenticationHelperImpl.getInstance().playerInfo().getSkin().capeTexture() : cosmetic.textureLocation()
++						? SkinTextures.cape(AuthenticationHelperImpl.getInstance().playerInfo().getSkin()) : cosmetic.textureLocation()
+ 					, ClothSimulator.ClothObjectBuilder.create()
+ 						.parentJoint(Armatures.BIPED.get().torso)
+ 						.putAll(ClothColliderPresets.BIPED)
+@@ -282,7 +283,7 @@ public class AvatarEditScreen extends Screen {
+ 				this.capeOptions.addComponentCurrentRow(this.brightnessSlider.relocateX(this.getRectangle(), this.capeOptions.nextStart(96)));
+ 			}
+ 
+-			if (selectedCosmetic.useBoolParam1() && AuthenticationHelperImpl.getInstance().playerInfo().getSkin().capeTexture() != null) {
++			if (selectedCosmetic.useBoolParam1() && AuthenticationHelperImpl.getInstance().playerInfo().getSkin().cape() != null) {
+ 				this.capeOptions.newRow();
+ 				this.capeOptions.addComponentCurrentRow(new Static(this, this.capeOptions.nextStart(8), 80, 60, 15, HorizontalSizing.LEFT_WIDTH, null, "gui.epicskins.avatar.vanilla_texture"));
+ 				this.capeOptions.addComponentCurrentRow(this.useVanillTextureCheckBox.relocateX(this.getRectangle(), this.capeOptions.nextStart(8)));
+@@ -316,7 +317,7 @@ public class AvatarEditScreen extends Screen {
+ 
+ 		if (!this.initialized) {
+ 			if (this.capePopupBox._getValue() != null && this.capePopupBox._getValue().useBoolParam1() && this.useVanillTextureCheckBox._getValue()) {
+-				this.mainModelPreviewer.setCloakTexture(AuthenticationHelperImpl.getInstance().playerInfo().getSkin().capeTexture());
++				this.mainModelPreviewer.setCloakTexture(SkinTextures.cape(AuthenticationHelperImpl.getInstance().playerInfo().getSkin()));
+ 			}
+ 
+ 			this.initialized = true;
+@@ -819,7 +820,7 @@ public class AvatarEditScreen extends Screen {
+ 						
+ 						AvatarEditScreen.this.mainModelPreviewer.initCloakInfo(
+ 							  this.modelPreviewer.getCloakMesh()
+-							, useVanillaTexture ? AuthenticationHelperImpl.getInstance().playerInfo().getSkin().capeTexture() : this.modelPreviewer.getCloakTexture()
++							, useVanillaTexture ? SkinTextures.cape(AuthenticationHelperImpl.getInstance().playerInfo().getSkin()) : this.modelPreviewer.getCloakTexture()
+ 							, ClothSimulator.ClothObjectBuilder.create()
+ 								.parentJoint(Armatures.BIPED.get().torso)
+ 								.putAll(ClothColliderPresets.BIPED)
+diff --git a/src/main/java/yesman/epicfight/epicskins/user/AuthenticationHelperImpl.java b/src/main/java/yesman/epicfight/epicskins/user/AuthenticationHelperImpl.java
+index 0279cd5..6b80796 100644
+--- a/src/main/java/yesman/epicfight/epicskins/user/AuthenticationHelperImpl.java
++++ b/src/main/java/yesman/epicfight/epicskins/user/AuthenticationHelperImpl.java
+@@ -264,7 +264,7 @@ public class AuthenticationHelperImpl implements AuthenticationHelper {
+     public void loadPlayerSkin() {
+         this.playerInfo = new PlayerInfo(Minecraft.getInstance().getGameProfile(), false);
+         // Indirectly call registerTextures that loads the player's skin textures
+-        ResourceLocation rl = this.playerInfo.getSkin().texture();
++        ResourceLocation rl = this.playerInfo.getSkin().body().texturePath();
+     }
+ 
+ 	public void setStatus(Status status) {
+diff --git a/src/main/java/yesman/epicfight/epicskins/user/Cosmetic.java b/src/main/java/yesman/epicfight/epicskins/user/Cosmetic.java
+index feee818..6b3a515 100644
+--- a/src/main/java/yesman/epicfight/epicskins/user/Cosmetic.java
++++ b/src/main/java/yesman/epicfight/epicskins/user/Cosmetic.java
+@@ -30,7 +30,7 @@ public record Cosmetic(int seq, boolean unlocked, String title, String descripti
+ 	public AssetAccessor<? extends Mesh> getAsMesh(Consumer<Mesh> onDownloaded) {
+ 		if (this.slot == Slot.CAPE) {
+ 			if (this.seq == -1) {
+-				return AuthenticationHelperImpl.getInstance().playerInfo().getSkin().capeTexture() != null ? Meshes.CAPE_DEFAULT : null;
++				return AuthenticationHelperImpl.getInstance().playerInfo().getSkin().cape() != null ? Meshes.CAPE_DEFAULT : null;
+ 			} else {
+ 				return RemoteAssets.getInstance().getRemoteMesh(this.seq, this.resourceFile, onDownloaded);
+ 			}
+diff --git a/src/main/java/yesman/epicfight/gameasset/Armatures.java b/src/main/java/yesman/epicfight/gameasset/Armatures.java
+index 268ad20..ab59d44 100644
+--- a/src/main/java/yesman/epicfight/gameasset/Armatures.java
++++ b/src/main/java/yesman/epicfight/gameasset/Armatures.java
+@@ -112,7 +112,7 @@ public class Armatures {
+ 			yesman.epicfight.EpicFight.LOGGER.warn("No armature preset entity named {} — skipping", presetKey);
+ 			return;
+ 		}
+-		EntityType<?> presetEntityType = BuiltInRegistries.ENTITY_TYPE.get(presetKey);
++		EntityType<?> presetEntityType = BuiltInRegistries.ENTITY_TYPE.getValue(presetKey);
+ 		ENTITY_TYPE_ARMATURE_MAPPER.put(entityType, ENTITY_TYPE_ARMATURE_MAPPER.get(presetEntityType));
+ 	}
+ 	
+diff --git a/src/main/java/yesman/epicfight/registry/entries/EpicFightEntityTypes.java b/src/main/java/yesman/epicfight/registry/entries/EpicFightEntityTypes.java
+index 56b4107..7552125 100644
+--- a/src/main/java/yesman/epicfight/registry/entries/EpicFightEntityTypes.java
++++ b/src/main/java/yesman/epicfight/registry/entries/EpicFightEntityTypes.java
+@@ -2,6 +2,7 @@ package yesman.epicfight.registry.entries;
+ import yesman.epicfight.EpicFight;
+ 
+ import net.minecraft.core.registries.Registries;
++import net.minecraft.resources.ResourceKey;
+ import net.minecraft.world.entity.EntityType;
+ import net.minecraft.world.entity.MobCategory;
+ import net.minecraft.world.level.block.Blocks;
+@@ -22,32 +23,32 @@ public final class EpicFightEntityTypes {
+ 	
+ 	public static final DeferredHolderShim<EntityType<?>, EntityType<AreaEffectBreath>> AREA_EFFECT_BREATH = REGISTRY.register("area_effect_breath", () ->
+ 		EntityType.Builder.<AreaEffectBreath>of(AreaEffectBreath::new, MobCategory.MISC)
+-			.fireImmune().sized(6.0F, 0.5F).clientTrackingRange(10).updateInterval(Integer.MAX_VALUE).noSummon().build("area_effect_breath")
++			.fireImmune().sized(6.0F, 0.5F).clientTrackingRange(10).updateInterval(Integer.MAX_VALUE).noSummon().build(ResourceKey.create(Registries.ENTITY_TYPE, EpicFight.identifier("area_effect_breath")))
+ 		);
+ 	
+ 	public static final DeferredHolderShim<EntityType<?>, EntityType<DroppedNetherStar>> DROPPED_NETHER_STAR = REGISTRY.register("dropped_nether_star", () ->
+ 		EntityType.Builder.<DroppedNetherStar>of(DroppedNetherStar::new, MobCategory.MISC)
+-			.sized(0.25F, 0.25F).clientTrackingRange(6).updateInterval(20).noSummon().build("dropped_nether_star")
++			.sized(0.25F, 0.25F).clientTrackingRange(6).updateInterval(20).noSummon().build(ResourceKey.create(Registries.ENTITY_TYPE, EpicFight.identifier("dropped_nether_star")))
+ 		);
+ 	
+ 	public static final DeferredHolderShim<EntityType<?>, EntityType<WitherSkeletonMinion>> WITHER_SKELETON_MINION = REGISTRY.register("wither_skeleton_minion", () ->
+ 		EntityType.Builder.<WitherSkeletonMinion>of(WitherSkeletonMinion::new, MobCategory.MONSTER)
+-			.fireImmune().immuneTo(Blocks.WITHER_ROSE).sized(0.7F, 2.4F).clientTrackingRange(8).build("wither_skeleton_minion")
++			.fireImmune().immuneTo(Blocks.WITHER_ROSE).sized(0.7F, 2.4F).clientTrackingRange(8).build(ResourceKey.create(Registries.ENTITY_TYPE, EpicFight.identifier("wither_skeleton_minion")))
+ 		);
+ 	
+ 	public static final DeferredHolderShim<EntityType<?>, EntityType<WitherGhostClone>> WITHER_GHOST_CLONE = REGISTRY.register("wither_ghost", () -> 
+ 		EntityType.Builder.<WitherGhostClone>of(WitherGhostClone::new, MobCategory.MONSTER)
+-			.fireImmune().sized(0.9F, 3.5F).clientTrackingRange(10).build("wither_ghost")
++			.fireImmune().sized(0.9F, 3.5F).clientTrackingRange(10).build(ResourceKey.create(Registries.ENTITY_TYPE, EpicFight.identifier("wither_ghost")))
+ 		);
+ 	
+ 	public static final DeferredHolderShim<EntityType<?>, EntityType<DeathHarvestOrb>> DEATH_HARVEST_ORB = REGISTRY.register("death_harvest_orb", () ->
+ 		EntityType.Builder.<DeathHarvestOrb>of(DeathHarvestOrb::new, MobCategory.MISC)
+-			.sized(0.5F, 0.5F).clientTrackingRange(6).updateInterval(1).noSummon().noSave().build("death_harvest_orb")
++			.sized(0.5F, 0.5F).clientTrackingRange(6).updateInterval(1).noSummon().noSave().build(ResourceKey.create(Registries.ENTITY_TYPE, EpicFight.identifier("death_harvest_orb")))
+ 		);
+ 	
+ 	public static final DeferredHolderShim<EntityType<?>, EntityType<DodgeLocationIndicator>> DODGE_LOCATION_INDICATOR = REGISTRY.register("dodge_left", () ->
+ 		EntityType.Builder.<DodgeLocationIndicator>of(DodgeLocationIndicator::new, MobCategory.MISC)
+-			.sized(0.0F, 0.0F).clientTrackingRange(6).updateInterval(1).noSummon().noSave().build("dodge_left")
++			.sized(0.0F, 0.0F).clientTrackingRange(6).updateInterval(1).noSummon().noSave().build(ResourceKey.create(Registries.ENTITY_TYPE, EpicFight.identifier("dodge_left")))
+ 		);
+ 	
+ }
+\ No newline at end of file
+diff --git a/src/main/java/yesman/epicfight/skill/guard/GuardSkill.java b/src/main/java/yesman/epicfight/skill/guard/GuardSkill.java
+index 9f0af37..f18c07d 100644
+--- a/src/main/java/yesman/epicfight/skill/guard/GuardSkill.java
++++ b/src/main/java/yesman/epicfight/skill/guard/GuardSkill.java
+@@ -222,7 +222,7 @@ public class GuardSkill extends Skill implements HoldableSkill {
+ 		if (offender != null && this.isBlockableSource(damageSource, advanced)) {
+ 			playerPatch.playSound(EpicFightSounds.CLASH.get(), -0.05F, 0.1F);
+ 			ServerPlayer serverPlayer = playerPatch.getOriginal();
+-			EpicFightParticles.HIT_BLUNT.get().spawnParticleWithArgument(serverPlayer.serverLevel(), HitParticleType.FRONT_OF_EYES, HitParticleType.ZERO, serverPlayer, offender);
++			EpicFightParticles.HIT_BLUNT.get().spawnParticleWithArgument(serverPlayer.level(), HitParticleType.FRONT_OF_EYES, HitParticleType.ZERO, serverPlayer, offender);
+ 			
+ 			if (offender instanceof LivingEntity livingEntity) {
+ 				float modifiedKnockback = EnchantmentHelper.modifyKnockback((ServerLevel)livingEntity.level(), livingEntity.getItemInHand(livingEntity.getUsedItemHand()), livingEntity, damageSource, knockback);
+diff --git a/src/main/java/yesman/epicfight/skill/guard/ParryingSkill.java b/src/main/java/yesman/epicfight/skill/guard/ParryingSkill.java
+index a38cc46..068158e 100644
+--- a/src/main/java/yesman/epicfight/skill/guard/ParryingSkill.java
++++ b/src/main/java/yesman/epicfight/skill/guard/ParryingSkill.java
+@@ -101,7 +101,7 @@ public class ParryingSkill extends GuardSkill {
+ 				boolean successParrying = serverplayer.tickCount - container.getDataManager().getDataValue(EpicFightSkillDataKeys.LAST_ACTIVE) < this.parryWindow;
+ 				float penalty = container.getDataManager().getDataValue(EpicFightSkillDataKeys.PENALTY);
+ 				playerPatch.playSound(EpicFightSounds.CLASH.get(), -0.05F, 0.1F);
+-				EpicFightParticles.HIT_BLUNT.get().spawnParticleWithArgument(serverplayer.serverLevel(), HitParticleType.FRONT_OF_EYES, HitParticleType.ZERO, serverplayer, offender);
++				EpicFightParticles.HIT_BLUNT.get().spawnParticleWithArgument(serverplayer.level(), HitParticleType.FRONT_OF_EYES, HitParticleType.ZERO, serverplayer, offender);
+ 				
+ 				if (successParrying) {
+ 					event.setParried(true);
+@@ -116,7 +116,7 @@ public class ParryingSkill extends GuardSkill {
+ 				}
+ 				
+ 				if (offender instanceof LivingEntity livingentity) {
+-					float modifiedKnockback = EnchantmentHelper.modifyKnockback(serverplayer.serverLevel(), livingentity.getItemInHand(livingentity.getUsedItemHand()), livingentity, damageSource, knockback);
++					float modifiedKnockback = EnchantmentHelper.modifyKnockback(serverplayer.level(), livingentity.getItemInHand(livingentity.getUsedItemHand()), livingentity, damageSource, knockback);
+ 					knockback = (modifiedKnockback - knockback) * 0.1F;
+ 				}
+ 
+diff --git a/src/main/java/yesman/epicfight/skill/mover/DemolitionLeapSkill.java b/src/main/java/yesman/epicfight/skill/mover/DemolitionLeapSkill.java
+index 987dbfa..351bc2d 100644
+--- a/src/main/java/yesman/epicfight/skill/mover/DemolitionLeapSkill.java
++++ b/src/main/java/yesman/epicfight/skill/mover/DemolitionLeapSkill.java
+@@ -133,7 +133,7 @@ public class DemolitionLeapSkill extends Skill implements ChargeableSkill {
+ 
+ 			LevelUtil.circleSlamFracture(null, container.getExecutor().getOriginal().level(), container.getExecutor().getOriginal().position().subtract(0, 1, 0), accumulatedTicks * 0.05D, true, false, false);
+ 			Vec3 entityEyepos = container.getExecutor().getOriginal().getEyePosition();
+-			EpicFightParticles.AIR_BURST.get().spawnParticleWithArgument(container.getServerExecutor().getOriginal().serverLevel(), entityEyepos.x, entityEyepos.y, entityEyepos.z, 0.0D, 0.0D, 2 + 0.05D * container.getExecutor().getAccumulatedChargeTicks());
++			EpicFightParticles.AIR_BURST.get().spawnParticleWithArgument(container.getServerExecutor().getOriginal().level(), entityEyepos.x, entityEyepos.y, entityEyepos.z, 0.0D, 0.0D, 2 + 0.05D * container.getExecutor().getAccumulatedChargeTicks());
+ 
+ 			container.getExecutor().playAnimationSynchronized(this.shootAnimation, 0.0F);
+ 			feedback.arguments().putInt("rawChargingTicks", accumulatedTicks);
+diff --git a/src/main/java/yesman/epicfight/skill/passive/CatharsisSkill.java b/src/main/java/yesman/epicfight/skill/passive/CatharsisSkill.java
+index d1b28c8..c14fbc1 100644
+--- a/src/main/java/yesman/epicfight/skill/passive/CatharsisSkill.java
++++ b/src/main/java/yesman/epicfight/skill/passive/CatharsisSkill.java
+@@ -36,7 +36,7 @@ public class CatharsisSkill extends PassiveSkill {
+                 if (innateSkillContainer.getSkill() != null && innateSkillContainer.getStack() < innateSkillContainer.getSkill().getMaxStack()) {
+                     ServerPlayer serverplayer = container.getServerExecutor().getOriginal();
+                     container.getExecutor().playSound(EpicFightSounds.CATHARSIS.get(), 1.0F, 1.0F, 1.0F);
+-                    serverplayer.serverLevel().sendParticles(EpicFightParticles.CATHARSIS.get(), serverplayer.getX(), serverplayer.getEyeY(), serverplayer.getZ(), 0, 0.0D, 0.0D, 0.0D, 0.0D);
++                    serverplayer.level().sendParticles(EpicFightParticles.CATHARSIS.get(), serverplayer.getX(), serverplayer.getEyeY(), serverplayer.getZ(), 0, 0.0D, 0.0D, 0.0D, 0.0D);
+ 
+                     float damage = (float)serverplayer.getAttributeValue(Attributes.ATTACK_DAMAGE);
+                     innateSkillContainer.getSkill().setConsumptionSynchronize(innateSkillContainer, innateSkillContainer.getResource() + damage + this.consumption * this.regenBonus);
+diff --git a/src/main/java/yesman/epicfight/skill/passive/TechnicianSkill.java b/src/main/java/yesman/epicfight/skill/passive/TechnicianSkill.java
+index 34d227b..f8666a6 100644
+--- a/src/main/java/yesman/epicfight/skill/passive/TechnicianSkill.java
++++ b/src/main/java/yesman/epicfight/skill/passive/TechnicianSkill.java
+@@ -27,7 +27,7 @@ public class TechnicianSkill extends PassiveSkill {
+             EpicFightEventHooks.Entity.ON_DODGE,
+             event -> {
+                 skillContainer.getExecutor().playSound(EpicFightSounds.TECHNICIAN.get(), 1.0F, 1.0F, 1.0F);
+-                skillContainer.getServerExecutor().getOriginal().serverLevel().sendParticles(ParticleTypes.POOF, event.getLocation().x(), event.getLocation().y(), event.getLocation().z(), 4, 0.0D, 0.0D, 0.0D, 0.075D);
++                skillContainer.getServerExecutor().getOriginal().level().sendParticles(ParticleTypes.POOF, event.getLocation().x(), event.getLocation().y(), event.getLocation().z(), 4, 0.0D, 0.0D, 0.0D, 0.075D);
+                 float consumption = skillContainer.getExecutor().getModifiedStaminaConsume(skillContainer.getExecutor().getSkill(SkillSlots.DODGE).getSkill().getConsumption());
+                 skillContainer.getExecutor().setStamina(skillContainer.getExecutor().getStamina() + consumption);
+             },
+diff --git a/src/main/java/yesman/epicfight/skill/weaponinnate/LiechtenauerSkill.java b/src/main/java/yesman/epicfight/skill/weaponinnate/LiechtenauerSkill.java
+index fa147cd..84fedd1 100644
+--- a/src/main/java/yesman/epicfight/skill/weaponinnate/LiechtenauerSkill.java
++++ b/src/main/java/yesman/epicfight/skill/weaponinnate/LiechtenauerSkill.java
+@@ -84,7 +84,7 @@ public class LiechtenauerSkill extends WeaponInnateSkill {
+                     if (isFront) {
+                         skillContainer.getExecutor().playSound(EpicFightSounds.CLASH.get(), -0.05F, 0.1F);
+                         ServerPlayer playerentity = skillContainer.getServerExecutor().getOriginal();
+-                        EpicFightParticles.HIT_BLUNT.get().spawnParticleWithArgument(playerentity.serverLevel(), HitParticleType.FRONT_OF_EYES, HitParticleType.ZERO, playerentity, damageSource.getDirectEntity());
++                        EpicFightParticles.HIT_BLUNT.get().spawnParticleWithArgument(playerentity.level(), HitParticleType.FRONT_OF_EYES, HitParticleType.ZERO, playerentity, damageSource.getDirectEntity());
+ 
+                         float knockback = 0.25F;
+ 
+diff --git a/src/main/java/yesman/epicfight/world/capabilities/entitypatch/boss/enderdragon/EnderDragonPatch.java b/src/main/java/yesman/epicfight/world/capabilities/entitypatch/boss/enderdragon/EnderDragonPatch.java
+index 377b6e7..832b4dc 100644
+--- a/src/main/java/yesman/epicfight/world/capabilities/entitypatch/boss/enderdragon/EnderDragonPatch.java
++++ b/src/main/java/yesman/epicfight/world/capabilities/entitypatch/boss/enderdragon/EnderDragonPatch.java
+@@ -331,7 +331,7 @@ public class EnderDragonPatch extends MobPatch<EnderDragon> implements InverseKi
+ 				.build()
+ 				.apply(skillbook,
+ 					new LootContext.Builder(
+-						new LootParams.Builder(((ServerPlayer)player).serverLevel())
++						new LootParams.Builder(((ServerPlayer)player).level())
+ 							.withParameter(LootContextParams.THIS_ENTITY, this.original)
+ 							.withParameter(LootContextParams.ORIGIN, player.position())
+ 							.create(LootContextParamSets.ADVANCEMENT_ENTITY)
+diff --git a/src/main/java/yesman/epicfight/world/capabilities/item/WeaponTypeReloadListener.java b/src/main/java/yesman/epicfight/world/capabilities/item/WeaponTypeReloadListener.java
+index 1553e22..cdce690 100644
+--- a/src/main/java/yesman/epicfight/world/capabilities/item/WeaponTypeReloadListener.java
++++ b/src/main/java/yesman/epicfight/world/capabilities/item/WeaponTypeReloadListener.java
+@@ -140,7 +140,7 @@ public class WeaponTypeReloadListener extends SimpleJsonResourceReloadListener<J
+         builder.canBePlacedOffhand(!tag.contains("usable_in_offhand") || tag.getBooleanOr("usable_in_offhand", false));
+ 
+         if (tag.contains("hit_particle")) {
+-            Optional<Holder.Reference<ParticleType<?>>> particleType = BuiltInRegistries.PARTICLE_TYPE.getHolder(ResourceLocation.parse(tag.getStringOr("hit_particle", "")));
++            Optional<Holder.Reference<ParticleType<?>>> particleType = BuiltInRegistries.PARTICLE_TYPE.get(ResourceLocation.parse(tag.getStringOr("hit_particle", "")));
+             particleType.ifPresent( particleHolder -> {
+                 if (!(particleHolder.value() instanceof HitParticleType)) {
+                     EpicFight.LOGGER.warn("{} is not a hit particle type in {}", tag.getStringOr("hit_particle", ""), rl);
+@@ -152,13 +152,13 @@ public class WeaponTypeReloadListener extends SimpleJsonResourceReloadListener<J
+         }
+ 
+         if (tag.contains("swing_sound")) {
+-            Holder<SoundEvent> sound = BuiltInRegistries.SOUND_EVENT.getHolder(ResourceLocation.parse(tag.getStringOr("swing_sound", ""))).get();
++            Holder<SoundEvent> sound = BuiltInRegistries.SOUND_EVENT.get(ResourceLocation.parse(tag.getStringOr("swing_sound", ""))).get();
+ 
+             builder.swingSound(sound);
+         }
+ 
+         if (tag.contains("hit_sound")) {
+-            Holder<SoundEvent> sound = BuiltInRegistries.SOUND_EVENT.getHolder(ResourceLocation.parse(tag.getStringOr("hit_sound", ""))).get();
++            Holder<SoundEvent> sound = BuiltInRegistries.SOUND_EVENT.get(ResourceLocation.parse(tag.getStringOr("hit_sound", ""))).get();
+ 
+             builder.hitSound(sound);
+         }
+diff --git a/src/main/java/yesman/epicfight/world/capabilities/provider/CommonEntityPatchProvider.java b/src/main/java/yesman/epicfight/world/capabilities/provider/CommonEntityPatchProvider.java
+index 70c594a..398a59a 100644
+--- a/src/main/java/yesman/epicfight/world/capabilities/provider/CommonEntityPatchProvider.java
++++ b/src/main/java/yesman/epicfight/world/capabilities/provider/CommonEntityPatchProvider.java
+@@ -139,7 +139,7 @@ public final class CommonEntityPatchProvider {
+ 
+     public Function<Entity, EntityPatch<?>> get(String registryName) {
+         ResourceLocation rl = ResourceLocation.parse(registryName);
+-        EntityType<?> entityType = BuiltInRegistries.ENTITY_TYPE.get(rl);
++        EntityType<?> entityType = BuiltInRegistries.ENTITY_TYPE.getValue(rl);
+ 
+         return this.capabilities.get(entityType);
+     }

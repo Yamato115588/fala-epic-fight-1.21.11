@@ -58,6 +58,9 @@ final class ReplacementAssetTest {
         } catch (FileNotFoundException expected) { }
         JsonObject player = read("entity/biped");
         JsonArray joints = player.getAsJsonObject("armature").getAsJsonArray("joints");
+        String[] armorOrder = {"Root","Thigh_R","Leg_R","Knee_R","Thigh_L","Leg_L","Knee_L","Torso","Chest","Head",
+                "Shoulder_R","Arm_R","Hand_R","Tool_R","Elbow_R","Shoulder_L","Arm_L","Hand_L","Tool_L","Elbow_L"};
+        for (int i=0; i<armorOrder.length; i++) check(joints.get(i).getAsString().equals(armorOrder[i]),"armor joint " + i);
         Set<String> names = new HashSet<>();
         gather(player.getAsJsonObject("armature").getAsJsonArray("hierarchy").get(0).getAsJsonObject(),names);
         check(names.size()==joints.size() && names.containsAll(Set.of("Root","Tool_R","Tool_L","Head")), "skeleton hierarchy");
