@@ -1,0 +1,2096 @@
+diff --git a/src/main/java/yesman/epicfight/client/gui/datapack/screen/AttackAnimationPropertyScreen.java b/src/main/java/yesman/epicfight/client/gui/datapack/screen/AttackAnimationPropertyScreen.java
+index 65a2442..7d2dece 100644
+--- a/src/main/java/yesman/epicfight/client/gui/datapack/screen/AttackAnimationPropertyScreen.java
++++ b/src/main/java/yesman/epicfight/client/gui/datapack/screen/AttackAnimationPropertyScreen.java
+@@ -1,4 +1,5 @@
+ package yesman.epicfight.client.gui.datapack.screen;
++import net.minecraft.client.input.MouseButtonEvent;
+ import net.minecraft.client.Minecraft;
+ 
+ import java.util.List;
+@@ -295,12 +296,12 @@ public class AttackAnimationPropertyScreen extends Screen {
+ 	}
+ 	
+ 	@Override
+-	public boolean mouseDragged(double mouseX, double mouseY, int button, double dx, double dy) {
+-		if (this.inputComponentsList.mouseDragged(mouseX, mouseY, button, dx, dy)) {
++	public boolean mouseDragged(MouseButtonEvent event, double dx, double dy) {
++		if (this.inputComponentsList.mouseDragged(event, dx, dy)) {
+ 			return true;
+ 		}
+ 		
+-		return super.mouseDragged(mouseX, mouseY, button, dx, dy);
++		return super.mouseDragged(event, dx, dy);
+ 	}
+ 	
+ 	@Override
+diff --git a/src/main/java/yesman/epicfight/client/gui/datapack/screen/CombatBehaviorScreen.java b/src/main/java/yesman/epicfight/client/gui/datapack/screen/CombatBehaviorScreen.java
+index 15c9174..4625e0b 100644
+--- a/src/main/java/yesman/epicfight/client/gui/datapack/screen/CombatBehaviorScreen.java
++++ b/src/main/java/yesman/epicfight/client/gui/datapack/screen/CombatBehaviorScreen.java
+@@ -1,4 +1,5 @@
+ package yesman.epicfight.client.gui.datapack.screen;
++import net.minecraft.client.input.MouseButtonEvent;
+ import net.minecraft.client.Minecraft;
+ 
+ import java.util.List;
+@@ -481,16 +482,16 @@ public class CombatBehaviorScreen extends Screen {
+ 	}
+ 	
+ 	@Override
+-	public boolean mouseDragged(double mouseX, double mouseY, int button, double dx, double dy) {
+-		if (this.modelPreviewer.mouseDragged(mouseX, mouseY, button, dx, dy)) {
++	public boolean mouseDragged(MouseButtonEvent event, double dx, double dy) {
++		if (this.modelPreviewer.mouseDragged(event, dx, dy)) {
+ 			return true;
+ 		}
+ 		
+-		if (this.inputComponentsList.mouseDragged(mouseX, mouseY, button, dx, dy)) {
++		if (this.inputComponentsList.mouseDragged(event, dx, dy)) {
+ 			return true;
+ 		}
+ 		
+-		return super.mouseDragged(mouseX, mouseY, button, dx, dy);
++		return super.mouseDragged(event, dx, dy);
+ 	}
+ 	
+ 	@Override
+diff --git a/src/main/java/yesman/epicfight/client/gui/datapack/screen/DatapackEditScreen.java b/src/main/java/yesman/epicfight/client/gui/datapack/screen/DatapackEditScreen.java
+index aa29976..0450a7a 100644
+--- a/src/main/java/yesman/epicfight/client/gui/datapack/screen/DatapackEditScreen.java
++++ b/src/main/java/yesman/epicfight/client/gui/datapack/screen/DatapackEditScreen.java
+@@ -11,6 +11,8 @@ import com.google.gson.internal.Streams;
+ import com.google.gson.stream.JsonReader;
+ import com.mojang.brigadier.exceptions.CommandSyntaxException;
+ import io.netty.util.internal.StringUtil;
++import net.minecraft.client.input.KeyEvent;
++import net.minecraft.client.input.MouseButtonEvent;
+ import net.minecraft.SharedConstants;
+ import net.minecraft.Util;
+ import net.minecraft.client.Minecraft;
+@@ -520,21 +522,21 @@ public class DatapackEditScreen extends Screen implements ExtraEntryProvider {
+ 	}
+ 	
+ 	@Override
+-	public boolean mouseClicked(double x, double y, int button) {
+-		if (this.getFocused() != null && this.getFocused().mouseClicked(x, y, button)) {
++	public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
++		if (this.getFocused() != null && this.getFocused().mouseClicked(event, doubleClick)) {
+ 			return true;
+ 		}
+ 		
+-		return super.mouseClicked(x, y, button);
++		return super.mouseClicked(event, doubleClick);
+ 	}
+ 	
+ 	@Override
+-	public boolean keyPressed(int keycode, int p_100876_, int p_100877_) {
+-		if (this.tabNavigationBar.keyPressed(keycode)) {
++	public boolean keyPressed(KeyEvent event) {
++		if (this.tabNavigationBar.keyPressed(event)) {
+ 			return true;
+-		} else if (super.keyPressed(keycode, p_100876_, p_100877_)) {
++		} else if (super.keyPressed(event)) {
+ 			return true;
+-		} else if (keycode != 257 && keycode != 335) {
++		} else if (event.key() != 257 && event.key() != 335) {
+ 			return false;
+ 		} else {
+ 			return true;
+@@ -542,9 +544,9 @@ public class DatapackEditScreen extends Screen implements ExtraEntryProvider {
+ 	}
+ 	
+ 	@Override
+-	public boolean mouseDragged(double mouseX, double mouseY, int button, double dx, double dy) {
+-		return this.getChildAt(mouseX, mouseY).filter((listener) -> {
+-			return listener.mouseDragged(mouseX, mouseY, button, dx, dy);
++	public boolean mouseDragged(MouseButtonEvent event, double dx, double dy) {
++		return this.getChildAt(event.x(), event.y()).filter((listener) -> {
++			return listener.mouseDragged(event, dx, dy);
+ 		}).isPresent();
+ 	}
+ 	
+diff --git a/src/main/java/yesman/epicfight/client/gui/datapack/screen/HumanoidCombatBehaviorScreen.java b/src/main/java/yesman/epicfight/client/gui/datapack/screen/HumanoidCombatBehaviorScreen.java
+index 4b4b170..6147689 100644
+--- a/src/main/java/yesman/epicfight/client/gui/datapack/screen/HumanoidCombatBehaviorScreen.java
++++ b/src/main/java/yesman/epicfight/client/gui/datapack/screen/HumanoidCombatBehaviorScreen.java
+@@ -1,4 +1,5 @@
+ package yesman.epicfight.client.gui.datapack.screen;
++import net.minecraft.client.input.MouseButtonEvent;
+ import net.minecraft.client.Minecraft;
+ 
+ import java.util.ArrayList;
+@@ -232,12 +233,12 @@ public class HumanoidCombatBehaviorScreen extends Screen {
+ 	}
+ 	
+ 	@Override
+-	public boolean mouseDragged(double mouseX, double mouseY, int button, double dx, double dy) {
+-		if (this.inputComponentsList.mouseDragged(mouseX, mouseY, button, dx, dy)) {
++	public boolean mouseDragged(MouseButtonEvent event, double dx, double dy) {
++		if (this.inputComponentsList.mouseDragged(event, dx, dy)) {
+ 			return true;
+ 		}
+ 		
+-		return super.mouseDragged(mouseX, mouseY, button, dx, dy);
++		return super.mouseDragged(event, dx, dy);
+ 	}
+ 	
+ 	@Override
+diff --git a/src/main/java/yesman/epicfight/client/gui/datapack/screen/HumanoidWeaponMotionScreen.java b/src/main/java/yesman/epicfight/client/gui/datapack/screen/HumanoidWeaponMotionScreen.java
+index a64ef0c..428fc66 100644
+--- a/src/main/java/yesman/epicfight/client/gui/datapack/screen/HumanoidWeaponMotionScreen.java
++++ b/src/main/java/yesman/epicfight/client/gui/datapack/screen/HumanoidWeaponMotionScreen.java
+@@ -1,4 +1,5 @@
+ package yesman.epicfight.client.gui.datapack.screen;
++import net.minecraft.client.input.MouseButtonEvent;
+ import net.minecraft.client.Minecraft;
+ 
+ import java.util.ArrayList;
+@@ -271,12 +272,12 @@ public class HumanoidWeaponMotionScreen extends Screen {
+ 	}
+ 	
+ 	@Override
+-	public boolean mouseDragged(double mouseX, double mouseY, int button, double dx, double dy) {
+-		if (this.inputComponentsList.mouseDragged(mouseX, mouseY, button, dx, dy)) {
++	public boolean mouseDragged(MouseButtonEvent event, double dx, double dy) {
++		if (this.inputComponentsList.mouseDragged(event, dx, dy)) {
+ 			return true;
+ 		}
+ 		
+-		return super.mouseDragged(mouseX, mouseY, button, dx, dy);
++		return super.mouseDragged(event, dx, dy);
+ 	}
+ 	
+ 	@Override
+diff --git a/src/main/java/yesman/epicfight/client/gui/datapack/screen/ImportAnimationsScreen.java b/src/main/java/yesman/epicfight/client/gui/datapack/screen/ImportAnimationsScreen.java
+index 9efc6e6..3e9afcf 100644
+--- a/src/main/java/yesman/epicfight/client/gui/datapack/screen/ImportAnimationsScreen.java
++++ b/src/main/java/yesman/epicfight/client/gui/datapack/screen/ImportAnimationsScreen.java
+@@ -1,4 +1,5 @@
+ package yesman.epicfight.client.gui.datapack.screen;
++import net.minecraft.client.input.MouseButtonEvent;
+ import net.minecraft.client.Minecraft;
+ 
+ import com.google.common.collect.Lists;
+@@ -862,16 +863,16 @@ public class ImportAnimationsScreen extends Screen {
+ 	}
+ 	
+ 	@Override
+-	public boolean mouseDragged(double mouseX, double mouseY, int button, double dx, double dy) {
+-		if (this.modelPreviewer.mouseDragged(mouseX, mouseY, button, dx, dy)) {
++	public boolean mouseDragged(MouseButtonEvent event, double dx, double dy) {
++		if (this.modelPreviewer.mouseDragged(event, dx, dy)) {
+ 			return true;
+ 		}
+ 		
+-		if (this.inputComponentsList.mouseDragged(mouseX, mouseY, button, dx, dy)) {
++		if (this.inputComponentsList.mouseDragged(event, dx, dy)) {
+ 			return true;
+ 		}
+ 		
+-		return super.mouseDragged(mouseX, mouseY, button, dx, dy);
++		return super.mouseDragged(event, dx, dy);
+ 	}
+ 	
+ 	@Override
+diff --git a/src/main/java/yesman/epicfight/client/gui/datapack/screen/ImportModelScreen.java b/src/main/java/yesman/epicfight/client/gui/datapack/screen/ImportModelScreen.java
+index 62c61b1..ee3cf92 100644
+--- a/src/main/java/yesman/epicfight/client/gui/datapack/screen/ImportModelScreen.java
++++ b/src/main/java/yesman/epicfight/client/gui/datapack/screen/ImportModelScreen.java
+@@ -1,4 +1,5 @@
+ package yesman.epicfight.client.gui.datapack.screen;
++import net.minecraft.client.input.MouseButtonEvent;
+ import net.minecraft.client.Minecraft;
+ 
+ import java.io.File;
+@@ -194,12 +195,12 @@ public class ImportModelScreen extends Screen {
+ 	}
+ 	
+ 	@Override
+-	public boolean mouseDragged(double mouseX, double mouseY, int button, double dx, double dy) {
+-		if (this.modelPreviewer.mouseDragged(mouseX, mouseY, button, dx, dy)) {
++	public boolean mouseDragged(MouseButtonEvent event, double dx, double dy) {
++		if (this.modelPreviewer.mouseDragged(event, dx, dy)) {
+ 			return true;
+ 		}
+ 		
+-		return super.mouseDragged(mouseX, mouseY, button, dx, dy);
++		return super.mouseDragged(event, dx, dy);
+ 	}
+ 	
+ 	@Override
+diff --git a/src/main/java/yesman/epicfight/client/gui/datapack/screen/SelectAnimationScreen.java b/src/main/java/yesman/epicfight/client/gui/datapack/screen/SelectAnimationScreen.java
+index 6517332..95a7f62 100644
+--- a/src/main/java/yesman/epicfight/client/gui/datapack/screen/SelectAnimationScreen.java
++++ b/src/main/java/yesman/epicfight/client/gui/datapack/screen/SelectAnimationScreen.java
+@@ -5,6 +5,7 @@ import java.util.function.Predicate;
+ 
+ import javax.annotation.Nullable;
+ 
++import net.minecraft.client.input.MouseButtonEvent;
+ import net.minecraft.client.Minecraft;
+ import net.minecraft.client.gui.GuiGraphics;
+ import net.minecraft.client.gui.components.Button;
+@@ -106,12 +107,12 @@ public class SelectAnimationScreen extends Screen {
+ 	}
+ 	
+ 	@Override
+-	public boolean mouseDragged(double mouseX, double mouseY, int button, double dx, double dy) {
+-		if (this.modelPreviewer.mouseDragged(mouseX, mouseY, button, dx, dy)) {
++	public boolean mouseDragged(MouseButtonEvent event, double dx, double dy) {
++		if (this.modelPreviewer.mouseDragged(event, dx, dy)) {
+ 			return true;
+ 		}
+ 		
+-		return super.mouseDragged(mouseX, mouseY, button, dx, dy);
++		return super.mouseDragged(event, dx, dy);
+ 	}
+ 	
+ 	@Override
+@@ -190,8 +191,8 @@ public class SelectAnimationScreen extends Screen {
+ 			}
+ 			
+ 			@Override
+-			public boolean mouseClicked(double mouseX, double mouseY, int button) {
+-				if (button == 0) {
++			public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
++				if (event.button() == 0) {
+ 					if (AnimationList.this.getSelected() == this) {
+ 						SelectAnimationScreen.this.selectCallback.accept(this.animation);
+ 						SelectAnimationScreen.this.minecraft.setScreen(SelectAnimationScreen.this.parentScreen);
+diff --git a/src/main/java/yesman/epicfight/client/gui/datapack/screen/SelectFromRegistryScreen.java b/src/main/java/yesman/epicfight/client/gui/datapack/screen/SelectFromRegistryScreen.java
+index e816899..45a48e2 100644
+--- a/src/main/java/yesman/epicfight/client/gui/datapack/screen/SelectFromRegistryScreen.java
++++ b/src/main/java/yesman/epicfight/client/gui/datapack/screen/SelectFromRegistryScreen.java
+@@ -13,6 +13,7 @@ import org.apache.commons.lang3.StringUtils;
+ import com.google.common.collect.Maps;
+ import com.mojang.datafixers.util.Pair;
+ 
++import net.minecraft.client.input.MouseButtonEvent;
+ import net.minecraft.client.Minecraft;
+ import net.minecraft.client.gui.GuiGraphics;
+ import net.minecraft.client.gui.components.Button;
+@@ -183,8 +184,8 @@ public class SelectFromRegistryScreen<T> extends Screen {
+ 			}
+ 			
+ 			@Override
+-			public boolean mouseClicked(double mouseX, double mouseY, int button) {
+-				if (button == 0) {
++			public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
++				if (event.button() == 0) {
+ 					if (RegistryList.this.getSelected() == this) {
+ 						try {
+ 							SelectFromRegistryScreen.this.onAccept.accept(this.name, this.item);
+diff --git a/src/main/java/yesman/epicfight/client/gui/datapack/screen/SelectModelScreen.java b/src/main/java/yesman/epicfight/client/gui/datapack/screen/SelectModelScreen.java
+index 6626cdd..9ecd90a 100644
+--- a/src/main/java/yesman/epicfight/client/gui/datapack/screen/SelectModelScreen.java
++++ b/src/main/java/yesman/epicfight/client/gui/datapack/screen/SelectModelScreen.java
+@@ -7,6 +7,7 @@ import javax.annotation.Nullable;
+ 
+ import org.apache.commons.lang3.StringUtils;
+ 
++import net.minecraft.client.input.MouseButtonEvent;
+ import net.minecraft.client.Minecraft;
+ import net.minecraft.client.gui.GuiGraphics;
+ import net.minecraft.client.gui.components.Button;
+@@ -94,12 +95,12 @@ public class SelectModelScreen extends Screen {
+ 	}
+ 	
+ 	@Override
+-	public boolean mouseDragged(double mouseX, double mouseY, int button, double dx, double dy) {
+-		if (this.modelPreviewer.mouseDragged(mouseX, mouseY, button, dx, dy)) {
++	public boolean mouseDragged(MouseButtonEvent event, double dx, double dy) {
++		if (this.modelPreviewer.mouseDragged(event, dx, dy)) {
+ 			return true;
+ 		}
+ 		
+-		return super.mouseDragged(mouseX, mouseY, button, dx, dy);
++		return super.mouseDragged(event, dx, dy);
+ 	}
+ 	
+ 	@Override
+@@ -183,8 +184,8 @@ public class SelectModelScreen extends Screen {
+ 			}
+ 			
+ 			@Override
+-			public boolean mouseClicked(double mouseX, double mouseY, int button) {
+-				if (button == 0) {
++			public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
++				if (event.button() == 0) {
+ 					if (ModelList.this.getSelected() == this) {
+ 						try {
+ 							SelectModelScreen.this.selectCallback.accept(this.registryName, this.mesh);
+diff --git a/src/main/java/yesman/epicfight/client/gui/datapack/screen/StaticAnimationPropertyScreen.java b/src/main/java/yesman/epicfight/client/gui/datapack/screen/StaticAnimationPropertyScreen.java
+index ec45cfc..5fbbbfb 100644
+--- a/src/main/java/yesman/epicfight/client/gui/datapack/screen/StaticAnimationPropertyScreen.java
++++ b/src/main/java/yesman/epicfight/client/gui/datapack/screen/StaticAnimationPropertyScreen.java
+@@ -1,4 +1,5 @@
+ package yesman.epicfight.client.gui.datapack.screen;
++import net.minecraft.client.input.MouseButtonEvent;
+ import net.minecraft.client.Minecraft;
+ 
+ import java.util.List;
+@@ -437,12 +438,12 @@ public class StaticAnimationPropertyScreen extends Screen {
+ 	}
+ 	
+ 	@Override
+-	public boolean mouseDragged(double mouseX, double mouseY, int button, double dx, double dy) {
+-		if (this.inputComponentsList.mouseDragged(mouseX, mouseY, button, dx, dy)) {
++	public boolean mouseDragged(MouseButtonEvent event, double dx, double dy) {
++		if (this.inputComponentsList.mouseDragged(event, dx, dy)) {
+ 			return true;
+ 		}
+ 		
+-		return super.mouseDragged(mouseX, mouseY, button, dx, dy);
++		return super.mouseDragged(event, dx, dy);
+ 	}
+ 	
+ 	@Override
+diff --git a/src/main/java/yesman/epicfight/client/gui/datapack/screen/StylesScreen.java b/src/main/java/yesman/epicfight/client/gui/datapack/screen/StylesScreen.java
+index e6e7cad..7af3132 100644
+--- a/src/main/java/yesman/epicfight/client/gui/datapack/screen/StylesScreen.java
++++ b/src/main/java/yesman/epicfight/client/gui/datapack/screen/StylesScreen.java
+@@ -1,4 +1,5 @@
+ package yesman.epicfight.client.gui.datapack.screen;
++import net.minecraft.client.input.MouseButtonEvent;
+ import net.minecraft.client.Minecraft;
+ 
+ import java.util.ArrayList;
+@@ -329,10 +330,10 @@ public class StylesScreen extends Screen {
+ 	}
+ 	
+ 	@Override
+-	public boolean mouseClicked(double mouseX, double mouseY, int action) {
++	public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+ 		if (this.getFocused() != null) {
+-			if (this.getFocused().mouseClicked(mouseX, mouseY, action)) {
+-				if (action == 0) {
++			if (this.getFocused().mouseClicked(event, doubleClick)) {
++				if (event.button() == 0) {
+ 					this.setDragging(true);
+ 				}
+ 
+@@ -345,10 +346,10 @@ public class StylesScreen extends Screen {
+ 				continue;
+ 			}
+ 			
+-			if (guieventlistener.mouseClicked(mouseX, mouseY, action)) {
++			if (guieventlistener.mouseClicked(event, doubleClick)) {
+ 				this.setFocused(guieventlistener);
+ 				
+-				if (action == 0) {
++				if (event.button() == 0) {
+ 					this.setDragging(true);
+ 				}
+ 
+diff --git a/src/main/java/yesman/epicfight/client/gui/datapack/screen/WeaponComboScreen.java b/src/main/java/yesman/epicfight/client/gui/datapack/screen/WeaponComboScreen.java
+index 916b6d7..9655096 100644
+--- a/src/main/java/yesman/epicfight/client/gui/datapack/screen/WeaponComboScreen.java
++++ b/src/main/java/yesman/epicfight/client/gui/datapack/screen/WeaponComboScreen.java
+@@ -1,4 +1,5 @@
+ package yesman.epicfight.client.gui.datapack.screen;
++import net.minecraft.client.input.MouseButtonEvent;
+ import net.minecraft.client.Minecraft;
+ 
+ import java.util.List;
+@@ -332,16 +333,16 @@ public class WeaponComboScreen extends Screen {
+ 	}
+ 	
+ 	@Override
+-	public boolean mouseDragged(double mouseX, double mouseY, int button, double dx, double dy) {
+-		if (this.modelPreviewer.mouseDragged(mouseX, mouseY, button, dx, dy)) {
++	public boolean mouseDragged(MouseButtonEvent event, double dx, double dy) {
++		if (this.modelPreviewer.mouseDragged(event, dx, dy)) {
+ 			return true;
+ 		}
+ 		
+-		if (this.inputComponentsList.mouseDragged(mouseX, mouseY, button, dx, dy)) {
++		if (this.inputComponentsList.mouseDragged(event, dx, dy)) {
+ 			return true;
+ 		}
+ 		
+-		return super.mouseDragged(mouseX, mouseY, button, dx, dy);
++		return super.mouseDragged(event, dx, dy);
+ 	}
+ 	
+ 	@Override
+diff --git a/src/main/java/yesman/epicfight/client/gui/datapack/widgets/CheckBox.java b/src/main/java/yesman/epicfight/client/gui/datapack/widgets/CheckBox.java
+index 246ab01..3d9095b 100644
+--- a/src/main/java/yesman/epicfight/client/gui/datapack/widgets/CheckBox.java
++++ b/src/main/java/yesman/epicfight/client/gui/datapack/widgets/CheckBox.java
+@@ -1,5 +1,6 @@
+ package yesman.epicfight.client.gui.datapack.widgets;
+ 
++import net.minecraft.client.input.MouseButtonEvent;
+ import net.minecraft.client.gui.Font;
+ import net.minecraft.client.gui.GuiGraphics;
+ import net.minecraft.client.gui.components.AbstractWidget;
+@@ -39,13 +40,13 @@ public class CheckBox extends AbstractWidget implements DataBindingComponent<Boo
+ 	}
+ 	
+ 	@Override
+-	public boolean mouseClicked(double x, double y, int button) {
++	public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+ 		if (this.active && this.visible) {
+-			if (this.isValidClickButton(button)) {
+-				boolean flag = this.clicked(x, y);
++			if (this.isValidClickButton(event.buttonInfo())) {
++				boolean flag = this.isWithinButton(event.x(), event.y());
+ 				
+ 				if (flag) {
+-					this.onClick(x, y);
++					this.onClick(event, doubleClick);
+ 					return true;
+ 				}
+ 			}
+@@ -54,13 +55,12 @@ public class CheckBox extends AbstractWidget implements DataBindingComponent<Boo
+ 		return false;
+ 	}
+ 	
+-	@Override
+-	protected boolean clicked(double x, double y) {
++	private boolean isWithinButton(double x, double y) {
+ 		return this.active && this.visible && x >= (double)this._getX() && y >= (double) this._getY() && x < (double) (this._getX() + this.width) && y < (double) (this._getY() + this.height);
+ 	}
+ 	
+ 	@Override
+-	public void onClick(double x, double y) {
++	public void onClick(MouseButtonEvent event, boolean doubleClick) {
+ 		this._setValue(this.value == null ? !this.defaultVal : !this.value.booleanValue());
+ 	}
+ 	
+diff --git a/src/main/java/yesman/epicfight/client/gui/datapack/widgets/ComboBox.java b/src/main/java/yesman/epicfight/client/gui/datapack/widgets/ComboBox.java
+index 1fd9f95..f8a67a5 100644
+--- a/src/main/java/yesman/epicfight/client/gui/datapack/widgets/ComboBox.java
++++ b/src/main/java/yesman/epicfight/client/gui/datapack/widgets/ComboBox.java
+@@ -7,6 +7,7 @@ import java.util.function.Function;
+ 
+ import com.google.common.collect.Maps;
+ 
++import net.minecraft.client.input.MouseButtonEvent;
+ import net.minecraft.client.Minecraft;
+ import net.minecraft.client.gui.Font;
+ import net.minecraft.client.gui.GuiGraphics;
+@@ -55,10 +56,11 @@ public class ComboBox<T> extends AbstractWidget implements DataBindingComponent<
+ 	}
+ 	
+ 	@Override
+-	public boolean mouseClicked(double x, double y, int button) {
++	public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
++		double x = event.x();
+ 		if (this.active && this.visible) {
+ 			
+-			if (this.listOpened && this.comboItemList.mouseClicked(x, y, button)) {
++			if (this.listOpened && this.comboItemList.mouseClicked(event, doubleClick)) {
+ 				if (x < this.comboItemList.scrollBarX() || x > this.comboItemList.scrollBarX() + 6) {
+ 					this.listOpened = false;
+ 				}
+@@ -67,11 +69,11 @@ public class ComboBox<T> extends AbstractWidget implements DataBindingComponent<
+ 				
+ 				return true;
+ 			} else {
+-				if (this.isValidClickButton(button)) {
+-					boolean flag = this.clicked(x, y);
++				if (this.isValidClickButton(event.buttonInfo())) {
++					boolean flag = this.isWithinButton(x, event.y());
+ 					
+ 					if (flag) {
+-						this.onClick(x, y);
++						this.onClick(event, doubleClick);
+ 						return true;
+ 					}
+ 				}
+@@ -93,16 +95,15 @@ public class ComboBox<T> extends AbstractWidget implements DataBindingComponent<
+ 	}
+ 	
+ 	@Override
+-	public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
++	public boolean mouseDragged(MouseButtonEvent event, double deltaX, double deltaY) {
+ 		if (this.listOpened) {
+-			return this.comboItemList.mouseDragged(mouseX, mouseY, button, deltaX, deltaY);
++			return this.comboItemList.mouseDragged(event, deltaX, deltaY);
+ 		}
+ 		
+ 		return false;
+ 	}
+ 
+-	@Override
+-	protected boolean clicked(double x, double y) {
++	private boolean isWithinButton(double x, double y) {
+ 		return this.active && this.visible && x >= (double)this._getX() && y >= (double) this._getY() && x < (double) (this._getX() + this.width) && y < (double) (this._getY() + this.height);
+ 	}
+ 	
+@@ -155,8 +156,8 @@ public class ComboBox<T> extends AbstractWidget implements DataBindingComponent<
+ 	}
+ 	
+ 	@Override
+-	public void onClick(double x, double y) {
+-		if (this.arrowClicked(x, y)) {
++	public void onClick(MouseButtonEvent event, boolean doubleClick) {
++		if (this.arrowClicked(event.x(), event.y())) {
+ 			this.playDownSound(Minecraft.getInstance().getSoundManager());
+ 			this.listOpened = !this.listOpened;
+ 		} else {
+@@ -278,8 +279,8 @@ public class ComboBox<T> extends AbstractWidget implements DataBindingComponent<
+ 			}
+ 			
+ 			@Override
+-			public boolean mouseClicked(double mouseX, double mouseY, int button) {
+-				if (button == 0) {
++			public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
++				if (event.button() == 0) {
+ 					ComboItemList.this.setSelected(this);
+ 					
+ 					if (ComboBox.this.responder != null) {
+diff --git a/src/main/java/yesman/epicfight/client/gui/datapack/widgets/Grid.java b/src/main/java/yesman/epicfight/client/gui/datapack/widgets/Grid.java
+index c6bc25f..b588c0a 100644
+--- a/src/main/java/yesman/epicfight/client/gui/datapack/widgets/Grid.java
++++ b/src/main/java/yesman/epicfight/client/gui/datapack/widgets/Grid.java
+@@ -18,6 +18,9 @@ import com.google.common.collect.Lists;
+ import com.google.common.collect.Maps;
+ import com.mojang.blaze3d.systems.RenderSystem;
+ 
++import net.minecraft.client.input.CharacterEvent;
++import net.minecraft.client.input.KeyEvent;
++import net.minecraft.client.input.MouseButtonEvent;
+ import net.minecraft.client.Minecraft;
+ import net.minecraft.client.gui.Font;
+ import net.minecraft.client.gui.GuiGraphics;
+@@ -482,28 +485,28 @@ public class Grid extends ObjectSelectionList<Grid.Row> implements DataBindingCo
+ 	}
+ 	
+ 	@Override
+-	public boolean mouseClicked(double x, double y, int button) {
++	public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+ 		if (!this.isActive()) {
+ 			return false;
+ 		}
+ 		
+ 		for (Button editButton : this.rowEditButtons) {
+-			if (editButton.mouseClicked(x, y, button)) {
++			if (editButton.mouseClicked(event, doubleClick)) {
+ 				return true;
+ 			}
+ 		}
+ 		
+ 		if (this.editingWidget != null) {
+-			if (this.editingWidget.mouseClicked(x, y, button)) {
++			if (this.editingWidget.mouseClicked(event, doubleClick)) {
+ 				return true;
+ 			}
+ 		}
+ 		
+-		if (!this.isMouseOver(x, y)) {
++		if (!this.isMouseOver(event.x(), event.y())) {
+ 			return false;
+ 		}
+ 		
+-		if (super.mouseClicked(x, y, button)) {
++		if (super.mouseClicked(event, doubleClick)) {
+ 			return true;
+ 		}
+ 		
+@@ -527,29 +530,29 @@ public class Grid extends ObjectSelectionList<Grid.Row> implements DataBindingCo
+     }
+ 	
+ 	@Override
+-	public boolean keyPressed(int keycode, int p_100876_, int p_100877_) {
++	public boolean keyPressed(KeyEvent event) {
+ 		if (!this.isActive()) {
+ 			return false;
+ 		}
+ 		
+ 		if (this.editingWidget != null) {
+-			return this.editingWidget.keyPressed(keycode, p_100876_, p_100877_);
++			return this.editingWidget.keyPressed(event);
+ 		}
+ 		
+-		return super.keyPressed(keycode, p_100876_, p_100877_);
++		return super.keyPressed(event);
+ 	}
+ 	
+ 	@Override
+-	public boolean charTyped(char c, int i) {
++	public boolean charTyped(CharacterEvent event) {
+ 		if (!this.isActive()) {
+ 			return false;
+ 		}
+ 		
+ 		if (this.editingWidget != null) {
+-			return this.editingWidget.charTyped(c, i);
++			return this.editingWidget.charTyped(event);
+ 		}
+ 		
+-		return super.charTyped(c, i);
++		return super.charTyped(event);
+ 	}
+ 
+ 	@Override
+@@ -638,8 +641,9 @@ public class Grid extends ObjectSelectionList<Grid.Row> implements DataBindingCo
+ 		}
+ 		
+ 		@Override
+-		public boolean mouseClicked(double mouseX, double mouseY, int button) {
+-			if (button == 0) {
++		public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
++			double mouseX = event.x();
++			if (event.button() == 0) {
+ 				int rowposition = Grid.this.children().indexOf(this);
+ 				
+ 				if (Grid.this.getSelected() == this) {
+diff --git a/src/main/java/yesman/epicfight/client/gui/datapack/widgets/InputComponentList.java b/src/main/java/yesman/epicfight/client/gui/datapack/widgets/InputComponentList.java
+index 8e37779..34e2ea8 100644
+--- a/src/main/java/yesman/epicfight/client/gui/datapack/widgets/InputComponentList.java
++++ b/src/main/java/yesman/epicfight/client/gui/datapack/widgets/InputComponentList.java
+@@ -1,4 +1,5 @@
+ package yesman.epicfight.client.gui.datapack.widgets;
++import net.minecraft.client.input.MouseButtonEvent;
+ import net.minecraft.client.Minecraft;
+ 
+ import com.google.common.collect.Lists;
+@@ -145,12 +146,14 @@ public abstract class InputComponentList<T> extends ContainerObjectSelectionList
+ 	}
+ 	
+ 	@Override
+-	public boolean mouseClicked(double x, double y, int button) {
+-		if (!this.isMouseOver(x, y)) {
++	public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
++		if (!this.isMouseOver(event.x(), event.y())) {
+ 			return false;
+ 		}
+ 		
+-		this.updateScrollingState(x, y, button);
++		if (this.updateScrolling(event)) {
++			return true;
++		}
+ 		
+ 		if (this.focusingEntry != null) {
+ 			int i = this.children().indexOf(this.focusingEntry);
+@@ -161,7 +164,7 @@ public abstract class InputComponentList<T> extends ContainerObjectSelectionList
+ 				boolean pressed = false;
+ 				
+ 				for (GuiEventListener guiEventListener : this.focusingEntry.children()) {
+-					boolean mouseClicked = guiEventListener.mouseClicked(x, y, button);
++					boolean mouseClicked = guiEventListener.mouseClicked(event, doubleClick);
+ 					pressed |= mouseClicked;
+ 					
+ 					if (mouseClicked) {
+@@ -189,7 +192,7 @@ public abstract class InputComponentList<T> extends ContainerObjectSelectionList
+ 				boolean pressed = false;
+ 				
+ 				for (GuiEventListener guiEventListener : entry.children()) {
+-					boolean mouseClicked = guiEventListener.mouseClicked(x, y, button);
++					boolean mouseClicked = guiEventListener.mouseClicked(event, doubleClick);
+ 					pressed |= mouseClicked;
+ 					
+ 					if (mouseClicked) {
+@@ -225,20 +228,20 @@ public abstract class InputComponentList<T> extends ContainerObjectSelectionList
+ 	}
+ 	
+ 	@Override
+-	public boolean mouseDragged(double mouseX, double mouseY, int button, double dx, double dy) {
++	public boolean mouseDragged(MouseButtonEvent event, double dx, double dy) {
+ 		for (int i = 0; i < this.children().size(); i++) {
+ 			InputComponentEntry entry = this.children().get(i);
+ 			int j1 = this.getRowTop(i);
+ 			int k1 = this.getRowBottom(i);
+ 			
+ 			if (k1 >= this.getY() && j1 <= this.getBottom()) {
+-				if (entry.getChildAt(mouseX, mouseY).filter((component) -> component.mouseDragged(mouseX, mouseY, button, dx, dy)).isPresent()) {
++				if (entry.getChildAt(event.x(), event.y()).filter((component) -> component.mouseDragged(event, dx, dy)).isPresent()) {
+ 					return true;
+ 				}
+ 			}
+ 		}
+ 		
+-		return super.mouseDragged(mouseX, mouseY, button, dx, dy);
++		return super.mouseDragged(event, dx, dy);
+ 	}
+ 	
+ 	public class InputComponentEntry extends ContainerObjectSelectionList.Entry<InputComponentList<T>.InputComponentEntry> {
+diff --git a/src/main/java/yesman/epicfight/client/gui/datapack/widgets/ModelPreviewer.java b/src/main/java/yesman/epicfight/client/gui/datapack/widgets/ModelPreviewer.java
+index 1033aa0..729dbdb 100644
+--- a/src/main/java/yesman/epicfight/client/gui/datapack/widgets/ModelPreviewer.java
++++ b/src/main/java/yesman/epicfight/client/gui/datapack/widgets/ModelPreviewer.java
+@@ -4,6 +4,7 @@ import com.google.common.collect.Lists;
+ import com.mojang.blaze3d.platform.Window;
+ import com.mojang.blaze3d.vertex.*;
+ import com.mojang.math.Axis;
++import net.minecraft.client.input.MouseButtonEvent;
+ import net.minecraft.client.Camera;
+ import net.minecraft.client.DeltaTracker;
+ import net.minecraft.client.Minecraft;
+@@ -319,28 +320,28 @@ public class ModelPreviewer extends AbstractWidget implements ResizableComponent
+ 	}
+ 	
+ 	@Override
+-	public boolean mouseClicked(double x, double y, int button) {
++	public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+ 		if (this.active && this.visible) {
+-			if (this.isValidClickButton(button)) {
+-				boolean flag = this.clicked(x, y);
++			if (this.isValidClickButton(event.buttonInfo())) {
++				boolean flag = this.isMouseOver(event.x(), event.y());
+ 				
+ 				if (flag) {
+ 					this.playDownSound(Minecraft.getInstance().getSoundManager());
+ 					
+ 					if (this.item != null) {
+-						if (this.showItemCheckbox.mouseClicked(x, y, button)) {
++						if (this.showItemCheckbox.mouseClicked(event, doubleClick)) {
+ 							return true;
+ 						}
+ 					}
+ 					
+ 					if (!this.trailInfoList.isEmpty()) {
+-						if (this.showTrailCheckbox.mouseClicked(x, y, button)) {
++						if (this.showTrailCheckbox.mouseClicked(event, doubleClick)) {
+ 							return true;
+ 						}
+ 					}
+ 					
+ 					if (this.collider != null) {
+-						if (this.showColliderCheckbox.mouseClicked(x, y, button)) {
++						if (this.showColliderCheckbox.mouseClicked(event, doubleClick)) {
+ 							return true;
+ 						}
+ 					}
+@@ -354,14 +355,14 @@ public class ModelPreviewer extends AbstractWidget implements ResizableComponent
+ 	}
+ 	
+ 	@Override
+-	public boolean mouseDragged(double mouseX, double mouseY, int button, double dx, double dy) {
+-		if (this.isMouseOver(mouseX, mouseY)) {
+-			if (button == 0) {
++	public boolean mouseDragged(MouseButtonEvent event, double dx, double dy) {
++		if (this.isMouseOver(event.x(), event.y())) {
++			if (event.button() == 0) {
+ 				if (this.cameraRotationEnabled) {
+ 					this.xRot = (float)Mth.clamp(this.xRot + dy * 2.5D, -30.0D, 45.0D);
+ 					this.yRot += dx * 2.5D;
+ 				}
+-			} else if (button == 2) {
++			} else if (event.button() == 2) {
+ 				if (this.cameraMoveEnabled) {
+ 					this.xMove += (float)dx * 0.015F * -this.zoom;
+ 					this.yMove += -(float)dy * 0.015F * -this.zoom;
+diff --git a/src/main/java/yesman/epicfight/client/gui/datapack/widgets/PopupBox.java b/src/main/java/yesman/epicfight/client/gui/datapack/widgets/PopupBox.java
+index eade9e2..11ca911 100644
+--- a/src/main/java/yesman/epicfight/client/gui/datapack/widgets/PopupBox.java
++++ b/src/main/java/yesman/epicfight/client/gui/datapack/widgets/PopupBox.java
+@@ -3,6 +3,7 @@ package yesman.epicfight.client.gui.datapack.widgets;
+ import com.google.common.collect.Sets;
+ import com.mojang.blaze3d.systems.RenderSystem;
+ import com.mojang.datafixers.util.Pair;
++import net.minecraft.client.input.MouseButtonEvent;
+ import net.minecraft.client.Minecraft;
+ import net.minecraft.client.gui.Font;
+ import net.minecraft.client.gui.GuiGraphics;
+@@ -86,8 +87,7 @@ public abstract class PopupBox<T> extends AbstractWidget implements DataBindingC
+ 		return this;
+ 	}
+ 	
+-	@Override
+-	protected boolean clicked(double x, double y) {
++	private boolean isWithinButton(double x, double y) {
+ 		return this.active && this.visible && x >= (double)this._getX() && y >= (double) this._getY() && x < (double) (this._getX() + this.width) && y < (double) (this._getY() + this.height);
+ 	}
+ 	
+@@ -96,15 +96,15 @@ public abstract class PopupBox<T> extends AbstractWidget implements DataBindingC
+ 	}
+ 	
+ 	@Override
+-	public abstract void onClick(double x, double y);
++	public abstract void onClick(MouseButtonEvent event, boolean doubleClick);
+ 	
+ 	@Override
+-	public boolean mouseClicked(double x, double y, int button) {
++	public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+ 		if (this.active && this.visible) {
+-			if (this.isValidClickButton(button)) {
+-				if (this.clicked(x, y)) {
++			if (this.isValidClickButton(event.buttonInfo())) {
++				if (this.isWithinButton(event.x(), event.y())) {
+ 					this.playDownSound(Minecraft.getInstance().getSoundManager());
+-					this.onClick(x, y);
++					this.onClick(event, doubleClick);
+ 					return true;
+ 				}
+ 			}
+@@ -164,8 +164,8 @@ public abstract class PopupBox<T> extends AbstractWidget implements DataBindingC
+ 		}
+ 		
+ 		@Override
+-		public void onClick(double x, double y) {
+-			if (this.clickedPopupButton(x, y)) {
++		public void onClick(MouseButtonEvent event, boolean doubleClick) {
++			if (this.clickedPopupButton(event.x(), event.y())) {
+ 				Minecraft.getInstance().setScreen(new SelectFromRegistryScreen<>(this.owner, this.registry, (name, item) -> this._setValue(item), (name, item) -> this._setValue(item), this.onPressRow, this.getFilter()));
+ 			}
+ 		}
+@@ -193,8 +193,8 @@ public abstract class PopupBox<T> extends AbstractWidget implements DataBindingC
+ 		}
+ 		
+ 		@Override
+-		public void onClick(double x, double y) {
+-			if (this.clickedPopupButton(x, y)) {
++		public void onClick(MouseButtonEvent event, boolean doubleClick) {
++			if (this.clickedPopupButton(event.x(), event.y())) {
+ 				if (this.armature == null || this.armature.get() == null || this.mesh == null || this.mesh.get() == null) {
+ 					Minecraft.getInstance().setScreen(new MessageScreen<>("", "Define model and armature first.", this.owner, (button2) -> Minecraft.getInstance().setScreen(this.owner), 180, 60));
+ 				} else {
+@@ -210,8 +210,8 @@ public abstract class PopupBox<T> extends AbstractWidget implements DataBindingC
+ 		}
+ 		
+ 		@Override
+-		public void onClick(double x, double y) {
+-			if (this.clickedPopupButton(x, y)) {
++		public void onClick(MouseButtonEvent event, boolean doubleClick) {
++			if (this.clickedPopupButton(event.x(), event.y())) {
+ 				Minecraft.getInstance().setScreen(new SelectFromRegistryScreen<>(this.owner, ParseUtil.mapEntryToPair(ColliderPreset.entries()), "Collider", (name, item) -> this._setValue(item), (name, item) -> this._setValue(item), (c) -> {}, this.getFilter()));
+ 			}
+ 		}
+@@ -230,8 +230,8 @@ public abstract class PopupBox<T> extends AbstractWidget implements DataBindingC
+ 		}
+ 		
+ 		@Override
+-		public void onClick(double x, double y) {
+-			if (this.clickedPopupButton(x, y)) {
++		public void onClick(MouseButtonEvent event, boolean doubleClick) {
++			if (this.clickedPopupButton(event.x(), event.y())) {
+ 				Set<Map.Entry<ResourceLocation, Function<Item, ? extends CapabilityItem.Builder<?>>>> weaponTypeEntry = Sets.newHashSet();
+ 				weaponTypeEntry.addAll(WeaponTypeReloadListener.entries());
+ 				weaponTypeEntry.addAll(DatapackEditScreen.getSerializableWeaponTypes());
+@@ -283,8 +283,8 @@ public abstract class PopupBox<T> extends AbstractWidget implements DataBindingC
+ 		}
+ 		
+ 		@Override
+-		public void onClick(double x, double y) {
+-			if (this.clickedPopupButton(x, y)) {
++		public void onClick(MouseButtonEvent event, boolean doubleClick) {
++			if (this.clickedPopupButton(event.x(), event.y())) {
+ 				Minecraft.getInstance().setScreen(new SelectFromRegistryScreen<>(this.owner, ParseUtil.mapEntryToPair(JointMaskReloadListener.entries()), "Joint Mask", (name, item) -> this._setValue(item), (name, item) -> this._setValue(item), (c) -> {}, this.getFilter()));
+ 			}
+ 		}
+@@ -296,8 +296,8 @@ public abstract class PopupBox<T> extends AbstractWidget implements DataBindingC
+ 		}
+ 		
+ 		@Override
+-		public void onClick(double x, double y) {
+-			if (this.clickedPopupButton(x, y)) {
++		public void onClick(MouseButtonEvent event, boolean doubleClick) {
++			if (this.clickedPopupButton(event.x(), event.y())) {
+ 				Set<Pair<ResourceLocation, EntityType<?>>> set = Sets.newHashSet();
+ 				EpicFightCapabilities.ENTITY_PATCH_PROVIDER.getPatchedEntities().forEach(entityType -> set.add(Pair.of(EntityType.getKey(entityType), entityType)));
+ 				Minecraft.getInstance().setScreen(new SelectFromRegistryScreen<>(this.owner, set, "Preset", (name, item) -> this._setValue(item), (name, item) -> this._setValue(item), (c) -> {}, this.getFilter()));
+@@ -311,8 +311,8 @@ public abstract class PopupBox<T> extends AbstractWidget implements DataBindingC
+ 		}
+ 		
+ 		@Override
+-		public void onClick(double x, double y) {
+-			if (this.clickedPopupButton(x, y)) {
++		public void onClick(MouseButtonEvent event, boolean doubleClick) {
++			if (this.clickedPopupButton(event.x(), event.y())) {
+ 				Minecraft.getInstance().setScreen(new SelectModelScreen(this.owner, (name, item) -> {
+ 					this._setValue(item);
+ 					this.setDisplayText(name);
+@@ -331,8 +331,8 @@ public abstract class PopupBox<T> extends AbstractWidget implements DataBindingC
+ 		
+ 		@SuppressWarnings("unchecked")
+ 		@Override
+-		public void onClick(double x, double y) {
+-			if (this.clickedPopupButton(x, y)) {
++		public void onClick(MouseButtonEvent event, boolean doubleClick) {
++			if (this.clickedPopupButton(event.x(), event.y())) {
+ 				Set<Pair<ResourceLocation, AssetAccessor<Armature>>> entries = Armatures.entry();
+ 				DatapackEditScreen.getCurrentScreen().getUserArmatures().entrySet().forEach((entry) -> entries.add(Pair.of(entry.getKey(), (AssetAccessor<Armature>)entry.getValue())));
+ 				
+@@ -353,8 +353,8 @@ public abstract class PopupBox<T> extends AbstractWidget implements DataBindingC
+ 		}
+ 		
+ 		@Override
+-		public void onClick(double x, double y) {
+-			if (this.clickedPopupButton(x, y)) {
++		public void onClick(MouseButtonEvent event, boolean doubleClick) {
++			if (this.clickedPopupButton(event.x(), event.y())) {
+ 				Set<Pair<ResourceLocation, ResourceLocation>> set = Sets.newHashSet();
+ 				RenderEngine.getInstance().getRendererEntries().forEach((rl) -> set.add(Pair.of(rl, rl)));
+ 				
+diff --git a/src/main/java/yesman/epicfight/client/gui/datapack/widgets/RowSpliter.java b/src/main/java/yesman/epicfight/client/gui/datapack/widgets/RowSpliter.java
+index 7172b6e..1cc2748 100644
+--- a/src/main/java/yesman/epicfight/client/gui/datapack/widgets/RowSpliter.java
++++ b/src/main/java/yesman/epicfight/client/gui/datapack/widgets/RowSpliter.java
+@@ -1,5 +1,6 @@
+ package yesman.epicfight.client.gui.datapack.widgets;
+ 
++import net.minecraft.client.input.MouseButtonEvent;
+ import net.minecraft.client.gui.GuiGraphics;
+ import net.minecraft.client.gui.narration.NarrationElementOutput;
+ import net.minecraft.client.gui.navigation.ScreenRectangle;
+@@ -44,16 +45,16 @@ public class RowSpliter implements ResizableComponent {
+ 	}
+ 	
+ 	@Override
+-	public boolean mouseClicked(double p_93641_, double p_93642_, int p_93643_) {
++	public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+ 		return false;
+ 	}
+ 	
+ 	@Override
+-	public boolean mouseReleased(double p_93684_, double p_93685_, int p_93686_) {
++	public boolean mouseReleased(MouseButtonEvent event) {
+ 		return false;
+ 	}
+ 	
+-	public boolean mouseDragged(double p_93645_, double p_93646_, int p_93647_, double p_93648_, double p_93649_) {
++	public boolean mouseDragged(MouseButtonEvent event, double p_93648_, double p_93649_) {
+ 		return false;
+ 	}
+ 	
+diff --git a/src/main/java/yesman/epicfight/client/gui/datapack/widgets/Static.java b/src/main/java/yesman/epicfight/client/gui/datapack/widgets/Static.java
+index 15c47c5..3103b62 100644
+--- a/src/main/java/yesman/epicfight/client/gui/datapack/widgets/Static.java
++++ b/src/main/java/yesman/epicfight/client/gui/datapack/widgets/Static.java
+@@ -1,4 +1,5 @@
+ package yesman.epicfight.client.gui.datapack.widgets;
++import net.minecraft.client.input.MouseButtonEvent;
+ import net.minecraft.client.Minecraft;
+ 
+ import javax.annotation.Nullable;
+@@ -63,16 +64,16 @@ public class Static extends AbstractWidget implements ResizableComponent {
+ 	}
+ 	
+ 	@Override
+-	public boolean mouseClicked(double mouseX, double mouseY, int action) {
++	public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+ 		return false;
+ 	}
+ 	
+ 	@Override
+-	public boolean mouseReleased(double mouseX, double mouseY, int action) {
++	public boolean mouseReleased(MouseButtonEvent event) {
+ 		return false;
+ 	}
+ 	
+-	public boolean mouseDragged(double mouseX, double mouseY, int action, double p_93648_, double p_93649_) {
++	public boolean mouseDragged(MouseButtonEvent event, double p_93648_, double p_93649_) {
+ 		return false;
+ 	}
+ 	
+diff --git a/src/main/java/yesman/epicfight/client/gui/datapack/widgets/SubScreenOpenButton.java b/src/main/java/yesman/epicfight/client/gui/datapack/widgets/SubScreenOpenButton.java
+index 9bb53b4..3a2845c 100644
+--- a/src/main/java/yesman/epicfight/client/gui/datapack/widgets/SubScreenOpenButton.java
++++ b/src/main/java/yesman/epicfight/client/gui/datapack/widgets/SubScreenOpenButton.java
+@@ -1,5 +1,6 @@
+ package yesman.epicfight.client.gui.datapack.widgets;
+ 
++import net.minecraft.client.input.InputWithModifiers;
+ import net.minecraft.client.Minecraft;
+ import net.minecraft.client.gui.screens.Screen;
+ import net.minecraft.network.chat.CommonComponents;
+@@ -18,7 +19,7 @@ public class SubScreenOpenButton extends ResizableButton {
+ 	}
+ 	
+ 	@Override
+-	public void onPress() {
++	public void onPress(InputWithModifiers input) {
+ 		Minecraft.getInstance().setScreen(this.subScreenProvider.get());
+ 	}
+ 	
+diff --git a/src/main/java/yesman/epicfight/client/gui/screen/EmoteEditScreen.java b/src/main/java/yesman/epicfight/client/gui/screen/EmoteEditScreen.java
+index a3bcfa0..1ad27b7 100644
+--- a/src/main/java/yesman/epicfight/client/gui/screen/EmoteEditScreen.java
++++ b/src/main/java/yesman/epicfight/client/gui/screen/EmoteEditScreen.java
+@@ -1,10 +1,11 @@
+ package yesman.epicfight.client.gui.screen;
+ 
++import net.minecraft.client.input.KeyEvent;
++import net.minecraft.client.input.MouseButtonEvent;
+ import net.minecraft.client.Minecraft;
+ import net.minecraft.client.gui.GuiGraphics;
+ import net.minecraft.client.gui.components.AbstractWidget;
+ import net.minecraft.client.gui.components.ObjectSelectionList;
+-import net.minecraft.client.gui.navigation.CommonInputs;
+ import net.minecraft.client.gui.navigation.ScreenRectangle;
+ import net.minecraft.client.gui.screens.Screen;
+ import net.minecraft.client.resources.PlayerSkin;
+@@ -268,13 +269,13 @@ public class EmoteEditScreen extends Screen {
+                 this.emote = emote;
+             }
+ 
+-            public boolean mouseClicked(double mouseX, double mouseY, int button) {
++            public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+                 this.onPressed();
+                 return true;
+             }
+ 
+-            public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+-                if (CommonInputs.selected(keyCode)) {
++            public boolean keyPressed(KeyEvent event) {
++                if (event.isSelection()) {
+                     this.onPressed();
+                     return true;
+                 } else {
+diff --git a/src/main/java/yesman/epicfight/client/gui/screen/EmoteWheelScreen.java b/src/main/java/yesman/epicfight/client/gui/screen/EmoteWheelScreen.java
+index a894e82..8607a91 100644
+--- a/src/main/java/yesman/epicfight/client/gui/screen/EmoteWheelScreen.java
++++ b/src/main/java/yesman/epicfight/client/gui/screen/EmoteWheelScreen.java
+@@ -103,9 +103,9 @@ public class EmoteWheelScreen extends Screen {
+         // event which is one-shot.
+         if (this.shouldHoldToPresist && !InputManager.isActionPhysicallyActive(EpicFightInputAction.OPEN_EMOTE_WHEEL_SCREEN)) {
+             if (this.emoteWheelTab.isHoveringValidEmoteButton()) {
+-                this.emoteWheelTab.getHoveringWheel().onPress();
++                this.emoteWheelTab.getHoveringWheel().activateEmote();
+             } else if (this.emoteWheelTab.getFocused() instanceof EmoteWheelTab.WheelPage wheelTab && wheelTab.getFocusedWheelButton() != null) {
+-                wheelTab.getFocusedWheelButton().onPress();
++                wheelTab.getFocusedWheelButton().activateEmote();
+             }
+ 
+             this.onClose();
+diff --git a/src/main/java/yesman/epicfight/client/gui/screen/SideBarScreen.java b/src/main/java/yesman/epicfight/client/gui/screen/SideBarScreen.java
+index 643c440..53f383d 100644
+--- a/src/main/java/yesman/epicfight/client/gui/screen/SideBarScreen.java
++++ b/src/main/java/yesman/epicfight/client/gui/screen/SideBarScreen.java
+@@ -1,6 +1,9 @@
+ package yesman.epicfight.client.gui.screen;
+ 
+ import com.mojang.math.Axis;
++import net.minecraft.client.input.InputWithModifiers;
++import net.minecraft.client.input.KeyEvent;
++import net.minecraft.client.input.MouseButtonEvent;
+ import net.minecraft.ChatFormatting;
+ import net.minecraft.client.Minecraft;
+ import net.minecraft.client.gui.Font;
+@@ -9,7 +12,6 @@ import net.minecraft.client.gui.components.AbstractButton;
+ import net.minecraft.client.gui.components.ObjectSelectionList;
+ import net.minecraft.client.gui.components.Renderable;
+ import net.minecraft.client.gui.narration.NarrationElementOutput;
+-import net.minecraft.client.gui.navigation.CommonInputs;
+ import net.minecraft.client.gui.screens.Screen;
+ import net.minecraft.client.resources.sounds.SimpleSoundInstance;
+ import net.minecraft.network.chat.Component;
+@@ -124,7 +126,7 @@ public class SideBarScreen extends Screen {
+         }
+ 
+         @Override
+-        public void onPress() {
++        public void onPress(InputWithModifiers input) {
+             onClose();
+         }
+ 
+@@ -237,9 +239,9 @@ public class SideBarScreen extends Screen {
+         }
+ 
+         @Override
+-        public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
++        public boolean keyPressed(KeyEvent event) {
+             if (this.active && this.visible && this.getSelected() != null) {
+-                return this.getSelected().keyPressed(keyCode, scanCode, modifiers);
++                return this.getSelected().keyPressed(event);
+             } else {
+                 return false;
+             }
+@@ -257,14 +259,14 @@ public class SideBarScreen extends Screen {
+             }
+ 
+             @Override
+-            public boolean mouseClicked(double mouseX, double mouseY, int button) {
++            public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+                 this.onPressed();
+                 return true;
+             }
+ 
+             @Override
+-            public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+-                if (CommonInputs.selected(keyCode)) {
++            public boolean keyPressed(KeyEvent event) {
++                if (event.isSelection()) {
+                     this.onPressed();
+                     return true;
+                 } else {
+diff --git a/src/main/java/yesman/epicfight/client/gui/screen/SkillBookScreen.java b/src/main/java/yesman/epicfight/client/gui/screen/SkillBookScreen.java
+index 2278a18..60055e2 100644
+--- a/src/main/java/yesman/epicfight/client/gui/screen/SkillBookScreen.java
++++ b/src/main/java/yesman/epicfight/client/gui/screen/SkillBookScreen.java
+@@ -3,6 +3,7 @@ package yesman.epicfight.client.gui.screen;
+ import com.mojang.blaze3d.platform.Window;
+ import com.mojang.blaze3d.systems.RenderSystem;
+ import com.mojang.blaze3d.vertex.VertexSorting;
++import net.minecraft.client.input.MouseButtonEvent;
+ import net.minecraft.client.Minecraft;
+ import net.minecraft.client.gui.GuiGraphics;
+ import net.minecraft.client.gui.components.*;
+@@ -105,7 +106,13 @@ public class SkillBookScreen extends Screen {
+     /// a zero scale (that produces an infinite ortho projection → invisible GUI
+     /// with only the background blur visible).
+     private double customScale = -1.0D;
+-    private Button learnButton;
++    private LearnButton learnButton;
++
++    public void pressLearnButton() {
++        if (this.learnButton != null && this.learnButton.isActive()) {
++            this.learnButton.activate();
++        }
++    }
+ 
+     public Button getLearnButton() {
+         return learnButton;
+@@ -301,22 +308,24 @@ public class SkillBookScreen extends Screen {
+         return window.getGuiScale() / (this.customScale > 0.0D ? this.customScale : window.getGuiScale());
+     }
+ 
++    private static MouseButtonEvent scaleMouseEvent(MouseButtonEvent event, double scale) {
++        return new MouseButtonEvent(event.x() * scale, event.y() * scale, event.buttonInfo());
++    }
++
+     @Override
+-    public boolean mouseClicked(double x, double y, int button) {
+-        double scale = this.mouseScale();
+-        return super.mouseClicked((int)(x * scale), (int)(y * scale), button);
++    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
++        return super.mouseClicked(scaleMouseEvent(event, this.mouseScale()), doubleClick);
+     }
+ 
+     @Override
+-    public boolean mouseReleased(double x, double y, int button) {
+-        double scale = this.mouseScale();
+-        return super.mouseReleased((int)(x * scale), (int)(y * scale), button);
++    public boolean mouseReleased(MouseButtonEvent event) {
++        return super.mouseReleased(scaleMouseEvent(event, this.mouseScale()));
+     }
+ 
+     @Override
+-    public boolean mouseDragged(double mouseX, double mouseY, int button, double dx, double dy) {
++    public boolean mouseDragged(MouseButtonEvent event, double dx, double dy) {
+         double scale = this.mouseScale();
+-        return super.mouseDragged((int)(mouseX * scale), (int)(mouseY * scale), button, dx * scale, dy * scale);
++        return super.mouseDragged(scaleMouseEvent(event, scale), dx * scale, dy * scale);
+     }
+ 
+     @Override
+@@ -694,6 +703,10 @@ public class SkillBookScreen extends Screen {
+             EpicFight.identifier("widget/skillbook_button_highlighted")
+         );
+ 
++        private void activate() {
++            this.onPress.onPress(this);
++        }
++
+         protected LearnButton(Builder builder) {
+             super(builder.x, builder.y, builder.width, builder.height, builder.message, builder.onPress, Button.DEFAULT_NARRATION);
+         }
+diff --git a/src/main/java/yesman/epicfight/client/gui/screen/SkillEditScreen.java b/src/main/java/yesman/epicfight/client/gui/screen/SkillEditScreen.java
+index a0d0993..b772b7f 100644
+--- a/src/main/java/yesman/epicfight/client/gui/screen/SkillEditScreen.java
++++ b/src/main/java/yesman/epicfight/client/gui/screen/SkillEditScreen.java
+@@ -1,6 +1,7 @@
+ package yesman.epicfight.client.gui.screen;
+ 
+ import com.mojang.blaze3d.systems.RenderSystem;
++import net.minecraft.client.input.MouseButtonEvent;
+ import net.minecraft.client.Minecraft;
+ import net.minecraft.client.gui.GuiGraphics;
+ import net.minecraft.client.gui.components.Button;
+@@ -182,7 +183,7 @@ public class SkillEditScreen extends Screen {
+ 
+         if (this.selectedSlotButton != null) {
+             this.selectedSlotButton = this.slotButtons.get(this.selectedSlotButton.skillContainer.getSlot());
+-            this.selectedSlotButton.onPress();
++            this.selectedSlotButton.restoreSelection();
+         }
+     }
+ 
+@@ -441,6 +442,10 @@ public class SkillEditScreen extends Screen {
+         private final SkillContainer skillContainer;
+         private final Component slotExplanation;
+ 
++        private void restoreSelection() {
++            this.onPress.onPress(this);
++        }
++
+         public SlotButton(int x, int y, SkillContainer skillContainer, OnPress pressedAction, Component tooltipMessage) {
+             super(x, y, SIZE, SIZE, Component.empty(), pressedAction, Button.DEFAULT_NARRATION);
+ 
+@@ -569,8 +574,8 @@ public class SkillEditScreen extends Screen {
+         }
+ 
+         @Override
+-        protected boolean clicked(double mouseX, double mouseY) {
+-            return super.clicked(mouseX, mouseY) && (this.up && scroll != 0 || !this.up && scroll != maxScroll);
++        public boolean isMouseOver(double mouseX, double mouseY) {
++            return super.isMouseOver(mouseX, mouseY) && (this.up && scroll != 0 || !this.up && scroll != maxScroll);
+         }
+     }
+ 
+@@ -620,14 +625,14 @@ public class SkillEditScreen extends Screen {
+         }
+ 
+         @Override
+-        public boolean mouseClicked(double x, double y, int pressType) {
+-            if (this.visible && pressType == 0 && !this.active && this.isMouseOverDeequip(x, y)) {
++        public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
++            if (this.visible && event.button() == 0 && !this.active && this.isMouseOverDeequip(event.x(), event.y())) {
+                 this.deequipSkill();
+                 return true;
+             }
+ 
+-            if (this.visible && pressType == 1) {
+-                boolean flag = this.clickedNoCountActive(x, y);
++            if (this.visible && event.button() == 1) {
++                boolean flag = this.clickedNoCountActive(event.x(), event.y());
+ 
+                 if (flag) {
+                     openSkillInfoScreen();
+@@ -635,7 +640,7 @@ public class SkillEditScreen extends Screen {
+                 }
+             }
+ 
+-            return super.mouseClicked(x, y, pressType);
++            return super.mouseClicked(event, doubleClick);
+         }
+ 
+         private int getDeequipButtonX() {
+@@ -663,7 +668,7 @@ public class SkillEditScreen extends Screen {
+             container.setSkill(null);
+             EpicFightNetworkManager.sendToServer(new CPChangeSkill(container.getSlot(), null, -1));
+ 
+-            // In-place refresh: see comment on the equip path for why we don't call selectedSlotButton.onPress().
++            // In-place refresh: see comment on the equip path for why we don't call selectedSlotButton.restoreSelection().
+             SkillEditScreen.this.refreshEquipSkillButtonStates();
+         }
+ 
+diff --git a/src/main/java/yesman/epicfight/client/gui/screen/SlotSelectScreen.java b/src/main/java/yesman/epicfight/client/gui/screen/SlotSelectScreen.java
+index b46db6c..e98d20c 100644
+--- a/src/main/java/yesman/epicfight/client/gui/screen/SlotSelectScreen.java
++++ b/src/main/java/yesman/epicfight/client/gui/screen/SlotSelectScreen.java
+@@ -207,8 +207,8 @@ public class SlotSelectScreen extends Screen {
+         }
+ 
+         @Override
+-        protected boolean clicked(double mouseX, double mouseY) {
+-            return super.clicked(mouseX, mouseY) && (this.up && scroll != 0 || !this.up && scroll != maxScroll);
++        public boolean isMouseOver(double mouseX, double mouseY) {
++            return super.isMouseOver(mouseX, mouseY) && (this.up && scroll != 0 || !this.up && scroll != maxScroll);
+         }
+     }
+ 
+diff --git a/src/main/java/yesman/epicfight/client/gui/screen/config/HUDLocationsScreen.java b/src/main/java/yesman/epicfight/client/gui/screen/config/HUDLocationsScreen.java
+index 2c5e24f..0a60d2a 100644
+--- a/src/main/java/yesman/epicfight/client/gui/screen/config/HUDLocationsScreen.java
++++ b/src/main/java/yesman/epicfight/client/gui/screen/config/HUDLocationsScreen.java
+@@ -2,6 +2,7 @@ package yesman.epicfight.client.gui.screen.config;
+ 
+ import com.mojang.blaze3d.systems.RenderSystem;
+ import com.mojang.blaze3d.vertex.*;
++import net.minecraft.client.input.MouseButtonEvent;
+ import net.minecraft.client.Minecraft;
+ import net.minecraft.client.gui.GuiGraphics;
+ import net.minecraft.client.gui.components.AbstractWidget;
+@@ -112,13 +113,13 @@ public class HUDLocationsScreen extends Screen {
+ 	}
+ 
+ 	@Override
+-	public boolean mouseClicked(double x, double y, int pressType) {
++	public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+ 		for (GuiEventListener guieventlistener : this.children()) {
+ 			if (guieventlistener instanceof HUDComponent HUDComponent) {
+-				if (HUDComponent.popupScreen.isOpen() && HUDComponent.popupScreen.mouseClicked(x, y, pressType)) {
++				if (HUDComponent.popupScreen.isOpen() && HUDComponent.popupScreen.mouseClicked(event, doubleClick)) {
+ 					this.setFocused(guieventlistener);
+ 
+-					if (pressType == 0) {
++					if (event.button() == 0) {
+ 						this.setDragging(true);
+ 					}
+ 
+@@ -126,10 +127,10 @@ public class HUDLocationsScreen extends Screen {
+ 				}
+ 			}
+ 
+-			if (guieventlistener.mouseClicked(x, y, pressType)) {
++			if (guieventlistener.mouseClicked(event, doubleClick)) {
+ 				this.setFocused(guieventlistener);
+ 
+-				if (pressType == 0) {
++				if (event.button() == 0) {
+ 					this.setDragging(true);
+ 				}
+ 
+@@ -229,15 +230,15 @@ public class HUDLocationsScreen extends Screen {
+         }
+ 
+         @Override
+-        public boolean mouseClicked(double mouseX, double mouseY, int button) {
++        public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+             if (this.active && this.visible) {
+-                if (this.isValidClickButton(button)) {
++                if (this.isValidClickButton(event.buttonInfo())) {
+                     this.draggingTime = 0;
+ 
+-                    if (this.clicked(mouseX, mouseY)) {
++                    if (this.isMouseOver(event.x(), event.y())) {
+                         this.parentScreen.beginToDrag(this);
+-                        this.pressX = mouseX - this.getX();
+-                        this.pressY = mouseY - this.getY();
++                        this.pressX = event.x() - this.getX();
++                        this.pressY = event.y() - this.getY();
+                         this.playDownSound(Minecraft.getInstance().getSoundManager());
+ 
+                         if (!this.popupScreen.isHoverd(getX(), getY())) {
+@@ -255,18 +256,18 @@ public class HUDLocationsScreen extends Screen {
+         }
+ 
+         @Override
+-        protected void onDrag(double x, double y, double dx, double dy) {
++        protected void onDrag(MouseButtonEvent event, double dx, double dy) {
+             if (this.parentScreen.isDraggingComponent(this)) {
+-                this.setX((int)(x - this.pressX));
+-                this.setY((int)(y - this.pressY));
++                this.setX((int)(event.x() - this.pressX));
++                this.setY((int)(event.y() - this.pressY));
+                 this.draggingTime++;
+             }
+         }
+ 
+         @Override
+-        public boolean mouseReleased(double mouseX, double mouseY, int button) {
+-            if (this.isValidClickButton(button)) {
+-                this.onRelease(mouseX, mouseY);
++        public boolean mouseReleased(MouseButtonEvent event) {
++            if (this.isValidClickButton(event.buttonInfo())) {
++                this.onRelease(event);
+                 this.parentScreen.endDragging();
+ 
+                 int xCoord = this.horizontalBasis.getValue().saveCoordGetter.apply(this.parentScreen.width, getX());
+@@ -282,7 +283,9 @@ public class HUDLocationsScreen extends Screen {
+         }
+ 
+         @Override
+-        public void onRelease(double x, double y) {
++        public void onRelease(MouseButtonEvent event) {
++            double x = event.x();
++            double y = event.y();
+             if (!this.popupScreen.isOpen() && this.draggingTime < 2) {
+                 if (x + this.popupScreen.width > this.parentScreen.width) {
+                     this.popupScreen.x = (int)x - this.popupScreen.width;
+@@ -487,12 +490,12 @@ public class HUDLocationsScreen extends Screen {
+         }
+ 
+         @Override
+-        public boolean mouseClicked(double x, double y, int pressType) {
++        public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+             if (this.enable) {
+                 boolean clicked = false;
+ 
+                 for (GuiEventListener listener : this.children()) {
+-                    clicked |= listener.mouseClicked(x, y, pressType);
++                    clicked |= listener.mouseClicked(event, doubleClick);
+                 }
+ 
+                 return clicked;
+diff --git a/src/main/java/yesman/epicfight/client/gui/screen/config/ItemsPreferenceScreen.java b/src/main/java/yesman/epicfight/client/gui/screen/config/ItemsPreferenceScreen.java
+index b635ef4..8a305ba 100644
+--- a/src/main/java/yesman/epicfight/client/gui/screen/config/ItemsPreferenceScreen.java
++++ b/src/main/java/yesman/epicfight/client/gui/screen/config/ItemsPreferenceScreen.java
+@@ -1,4 +1,5 @@
+ package yesman.epicfight.client.gui.screen.config;
++import net.minecraft.client.input.MouseButtonEvent;
+ import net.minecraft.client.Minecraft;
+ 
+ import com.google.common.collect.Sets;
+@@ -445,11 +446,11 @@ public class ItemsPreferenceScreen extends Screen {
+ 			}
+ 			
+ 			@Override
+-			public boolean mouseClicked(double mouseX, double mouseY, int button) {
+-				if (button == 0) {
+-					if (this.switchButton.isMouseOver(mouseX, mouseY)) {
++			public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
++				if (event.button() == 0) {
++					if (this.switchButton.isMouseOver(event.x(), event.y())) {
+ 						this.switchButton.playDownSound(ItemsPreferenceScreen.this.minecraft.getSoundManager());
+-						this.switchButton.onPress();
++						this.switchButton.onPress(event);
+ 					}
+ 					
+ 					ItemList.this.setSelected(this);
+diff --git a/src/main/java/yesman/epicfight/client/gui/screen/config/TPSSettingScreen.java b/src/main/java/yesman/epicfight/client/gui/screen/config/TPSSettingScreen.java
+index 3e1862b..8b7a790 100644
+--- a/src/main/java/yesman/epicfight/client/gui/screen/config/TPSSettingScreen.java
++++ b/src/main/java/yesman/epicfight/client/gui/screen/config/TPSSettingScreen.java
+@@ -2,6 +2,7 @@ package yesman.epicfight.client.gui.screen.config;
+ 
+ import com.mojang.blaze3d.systems.RenderSystem;
+ import com.mojang.math.Axis;
++import net.minecraft.client.input.MouseButtonEvent;
+ import net.minecraft.client.CameraType;
+ import net.minecraft.client.gui.GuiGraphics;
+ import net.minecraft.client.gui.components.AbstractWidget;
+@@ -166,13 +167,13 @@ public class TPSSettingScreen extends Screen {
+     }
+ 
+     @Override
+-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+-        if (mouseX > this.width - 24 && mouseY < 16) {
++    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
++        if (event.x() > this.width - 24 && event.y() < 16) {
+             this.minecraft.setScreen(null);
+             return true;
+         }
+ 
+-        return super.mouseClicked(mouseX, mouseY, button);
++        return super.mouseClicked(event, doubleClick);
+     }
+ 
+     @Override
+@@ -247,15 +248,17 @@ public class TPSSettingScreen extends Screen {
+         }
+ 
+         @Override
+-        public void onClick(double mouseX, double mouseY) {
+-            if (this.getX() + 3 <= mouseX && mouseX <= this.getX() + 9 && this.getY() + 1 <= mouseY && mouseY <= this.getY() + 63) {
++        public void onClick(MouseButtonEvent event, boolean doubleClick) {
++            double mouseY = event.y();
++            if (this.getX() + 3 <= event.x() && event.x() <= this.getX() + 9 && this.getY() + 1 <= mouseY && mouseY <= this.getY() + 63) {
+                 this.setScrollBaseOnYPressed(mouseY);
+             }
+         }
+ 
+         @Override
+-        protected void onDrag(double mouseX, double mouseY, double dragX, double dragY) {
+-            if (this.getX() + 3 <= mouseX && mouseX <= this.getX() + 9 && this.getY() + 1 <= mouseY + dragY && mouseY + dragY <= this.getY() + 63) {
++        protected void onDrag(MouseButtonEvent event, double dragX, double dragY) {
++            double mouseY = event.y();
++            if (this.getX() + 3 <= event.x() && event.x() <= this.getX() + 9 && this.getY() + 1 <= mouseY + dragY && mouseY + dragY <= this.getY() + 63) {
+                 this.setScrollBaseOnYPressed(mouseY + dragY);
+             }
+         }
+diff --git a/src/main/java/yesman/epicfight/client/gui/widgets/AnchoredButton.java b/src/main/java/yesman/epicfight/client/gui/widgets/AnchoredButton.java
+index 1540931..0f19e42 100644
+--- a/src/main/java/yesman/epicfight/client/gui/widgets/AnchoredButton.java
++++ b/src/main/java/yesman/epicfight/client/gui/widgets/AnchoredButton.java
+@@ -49,6 +49,12 @@ public class AnchoredButton extends Button implements AnchoredWidget, ThemeAppli
+         this.highlightWhen = highlightWhen;
+     }
+ 
++    public void activateFromController() {
++        if (this.isActive()) {
++            this.onPress.onPress(this);
++        }
++    }
++
+     protected AnchoredButton(AnchoredButton.Builder builder) {
+         this(
+             builder.x1,
+diff --git a/src/main/java/yesman/epicfight/client/gui/widgets/CheckBox.java b/src/main/java/yesman/epicfight/client/gui/widgets/CheckBox.java
+index 613dc41..ed5de93 100644
+--- a/src/main/java/yesman/epicfight/client/gui/widgets/CheckBox.java
++++ b/src/main/java/yesman/epicfight/client/gui/widgets/CheckBox.java
+@@ -1,10 +1,11 @@
+ package yesman.epicfight.client.gui.widgets;
+ 
++import net.minecraft.client.input.KeyEvent;
++import net.minecraft.client.input.MouseButtonEvent;
+ import net.minecraft.client.gui.Font;
+ import net.minecraft.client.gui.GuiGraphics;
+ import net.minecraft.client.gui.components.AbstractWidget;
+ import net.minecraft.client.gui.narration.NarrationElementOutput;
+-import net.minecraft.client.gui.navigation.CommonInputs;
+ import net.minecraft.network.chat.Component;
+ import yesman.epicfight.client.gui.widgets.common.AnchoredWidget;
+ import yesman.epicfight.client.gui.widgets.common.DataBoundWidget;
+@@ -46,10 +47,10 @@ public class CheckBox extends AbstractWidget implements AnchoredWidget, DataBoun
+     }
+ 
+     @Override
+-    public boolean mouseClicked(double x, double y, int button) {
++    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+         if (this.active && this.visible) {
+-            if (this.isValidClickButton(button)) {
+-                boolean flag = this.clicked(x, y);
++            if (this.isValidClickButton(event.buttonInfo())) {
++                boolean flag = this.isWithinButton(event.x(), event.y());
+ 
+                 if (flag) {
+                     // No play sound
+@@ -63,9 +64,9 @@ public class CheckBox extends AbstractWidget implements AnchoredWidget, DataBoun
+     }
+ 
+     @Override
+-    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
++    public boolean keyPressed(KeyEvent event) {
+         if (this.active && this.visible) {
+-            if (CommonInputs.selected(keyCode)) {
++            if (event.isSelection()) {
+                 this.onPressed();
+                 return true;
+             } else {
+@@ -76,8 +77,7 @@ public class CheckBox extends AbstractWidget implements AnchoredWidget, DataBoun
+         }
+     }
+ 
+-    @Override
+-    protected boolean clicked(double x, double y) {
++    private boolean isWithinButton(double x, double y) {
+         return this.active && this.visible && x >= (double)this.getX() && y >= (double) this.getY() && x < (double) (this.getX() + this.width) && y < (double) (this.getY() + this.height);
+     }
+ 
+diff --git a/src/main/java/yesman/epicfight/client/gui/widgets/ClampedNumberBox.java b/src/main/java/yesman/epicfight/client/gui/widgets/ClampedNumberBox.java
+index ab599cc..32bc00c 100644
+--- a/src/main/java/yesman/epicfight/client/gui/widgets/ClampedNumberBox.java
++++ b/src/main/java/yesman/epicfight/client/gui/widgets/ClampedNumberBox.java
+@@ -1,5 +1,6 @@
+ package yesman.epicfight.client.gui.widgets;
+ 
++import net.minecraft.client.input.MouseButtonEvent;
+ import net.minecraft.client.gui.ComponentPath;
+ import net.minecraft.client.gui.Font;
+ import net.minecraft.client.gui.GuiGraphics;
+@@ -226,14 +227,14 @@ public class ClampedNumberBox<T extends Number> extends AbstractContainerWidget
+     }
+ 
+     @Override
+-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
++    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+         this.focusIndex = 0;
+ 
+         for (GuiEventListener guieventlistener : this.children()) {
+-            if (guieventlistener.mouseClicked(mouseX, mouseY, button)) {
++            if (guieventlistener.mouseClicked(event, doubleClick)) {
+                 this.setFocused(guieventlistener);
+ 
+-                if (button == 0) {
++                if (event.button() == 0) {
+                     this.setDragging(true);
+                 }
+ 
+diff --git a/src/main/java/yesman/epicfight/client/gui/widgets/ComboBox.java b/src/main/java/yesman/epicfight/client/gui/widgets/ComboBox.java
+index 2580c45..05d7c98 100644
+--- a/src/main/java/yesman/epicfight/client/gui/widgets/ComboBox.java
++++ b/src/main/java/yesman/epicfight/client/gui/widgets/ComboBox.java
+@@ -1,5 +1,7 @@
+ package yesman.epicfight.client.gui.widgets;
+ 
++import net.minecraft.client.input.KeyEvent;
++import net.minecraft.client.input.MouseButtonEvent;
+ import net.minecraft.client.Minecraft;
+ import net.minecraft.client.gui.Font;
+ import net.minecraft.client.gui.GuiGraphics;
+@@ -7,7 +9,6 @@ import net.minecraft.client.gui.components.AbstractWidget;
+ import net.minecraft.client.gui.components.ObjectSelectionList;
+ import net.minecraft.client.gui.narration.NarratedElementType;
+ import net.minecraft.client.gui.narration.NarrationElementOutput;
+-import net.minecraft.client.gui.navigation.CommonInputs;
+ import net.minecraft.client.gui.navigation.ScreenRectangle;
+ import net.minecraft.client.gui.screens.Screen;
+ import net.minecraft.network.chat.Component;
+@@ -71,9 +72,10 @@ public class ComboBox<T> extends AbstractWidget implements AnchoredWidget, DataB
+     }
+ 
+     @Override
+-    public boolean mouseClicked(double x, double y, int button) {
++    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
++        double x = event.x();
+         if (this.active && this.visible) {
+-            if (this.comboItemList.isActive() && this.comboItemList.mouseClicked(x, y, button)) {
++            if (this.comboItemList.isActive() && this.comboItemList.mouseClicked(event, doubleClick)) {
+                 if (x < this.comboItemList.scrollBarX() || x > this.comboItemList.scrollBarX() + 6) {
+                     this.comboItemList.active = false;
+                     this.comboItemList.visible = false;
+@@ -83,11 +85,11 @@ public class ComboBox<T> extends AbstractWidget implements AnchoredWidget, DataB
+ 
+                 return true;
+             } else {
+-                if (this.isValidClickButton(button)) {
+-                    boolean flag = this.clicked(x, y);
++                if (this.isValidClickButton(event.buttonInfo())) {
++                    boolean flag = this.isWithinButton(x, event.y());
+ 
+                     if (flag) {
+-                        if (this.arrowClicked(x, y)) {
++                        if (this.arrowClicked(x, event.y())) {
+                             this.onPressed();
+                         } else {
+                             this.closeSelectionListIfActive();
+@@ -114,22 +116,22 @@ public class ComboBox<T> extends AbstractWidget implements AnchoredWidget, DataB
+     }
+ 
+     @Override
+-    public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
++    public boolean mouseDragged(MouseButtonEvent event, double deltaX, double deltaY) {
+         if (this.comboItemList.isActive()) {
+-            return this.comboItemList.mouseDragged(mouseX, mouseY, button, deltaX, deltaY);
++            return this.comboItemList.mouseDragged(event, deltaX, deltaY);
+         }
+ 
+         return false;
+     }
+ 
+     @Override
+-    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
++    public boolean keyPressed(KeyEvent event) {
+         if (this.active && this.visible) {
+-            if (CommonInputs.selected(keyCode)) {
++            if (event.isSelection()) {
+                 this.onPressed();
+                 return true;
+             } else if (this.isSelectionListVisible()) {
+-                switch (keyCode) {
++                switch (event.key()) {
+                     case 264 -> {
+                         int i = Math.min(this.comboItemList.children().size() - 1, this.comboItemList.children().indexOf(this.comboItemList.getSelected()) + 1);
+                         this.comboItemList.setSelected(this.comboItemList.children().get(i));
+@@ -160,8 +162,7 @@ public class ComboBox<T> extends AbstractWidget implements AnchoredWidget, DataB
+         this.comboItemList.visible = flag;
+     }
+ 
+-    @Override
+-    protected boolean clicked(double x, double y) {
++    private boolean isWithinButton(double x, double y) {
+         return this.active && this.visible && x >= (double)this.getX() && y >= (double) this.getY() && x < (double) (this.getX() + this.width) && y < (double) (this.getY() + this.height);
+     }
+ 
+@@ -339,8 +340,8 @@ public class ComboBox<T> extends AbstractWidget implements AnchoredWidget, DataB
+             }
+ 
+             @Override
+-            public boolean mouseClicked(double mouseX, double mouseY, int button) {
+-                if (button == 0) {
++            public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
++                if (event.button() == 0) {
+                     setSelected(this);
+                     ComboBox.this.setValue(this.item);
+                     return true;
+diff --git a/src/main/java/yesman/epicfight/client/gui/widgets/EmoteWheelTab.java b/src/main/java/yesman/epicfight/client/gui/widgets/EmoteWheelTab.java
+index 6e80941..9148ed0 100644
+--- a/src/main/java/yesman/epicfight/client/gui/widgets/EmoteWheelTab.java
++++ b/src/main/java/yesman/epicfight/client/gui/widgets/EmoteWheelTab.java
+@@ -2,6 +2,8 @@ package yesman.epicfight.client.gui.widgets;
+ 
+ import com.mojang.blaze3d.platform.InputConstants;
+ import com.mojang.blaze3d.vertex.PoseStack;
++import net.minecraft.client.input.InputWithModifiers;
++import net.minecraft.client.input.KeyEvent;
+ import net.minecraft.client.Minecraft;
+ import net.minecraft.client.gui.Font;
+ import net.minecraft.client.gui.GuiGraphics;
+@@ -10,7 +12,6 @@ import net.minecraft.client.gui.components.AbstractWidget;
+ import net.minecraft.client.gui.components.Button;
+ import net.minecraft.client.gui.components.events.GuiEventListener;
+ import net.minecraft.client.gui.narration.NarrationElementOutput;
+-import net.minecraft.client.gui.navigation.CommonInputs;
+ import net.minecraft.client.gui.navigation.ScreenRectangle;
+ import net.minecraft.client.resources.PlayerSkin;
+ import net.minecraft.client.resources.sounds.SimpleSoundInstance;
+@@ -542,19 +543,23 @@ public class EmoteWheelTab extends AbstractContainerWidget implements AnchoredWi
+         }
+ 
+         @Override
+-        public void onPress() {
++        public void onPress(InputWithModifiers input) {
++            this.activateEmote();
++        }
++
++        public void activateEmote() {
+             onPressWheelButton.accept(this.emote);
+             lastPressedWheel = this;
+         }
+ 
+         @Override
+-        public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
++        public boolean keyPressed(KeyEvent event) {
+             if (this.active && this.visible) {
+-                if (CommonInputs.selected(keyCode)) {
++                if (event.isSelection()) {
+                     this.playDownSound(Minecraft.getInstance().getSoundManager());
+-                    this.onPress();
++                    this.onPress(event);
+                     return true;
+-                } else if (keyCode == InputConstants.KEY_DELETE && this.emote != null) {
++                } else if (event.key() == InputConstants.KEY_DELETE && this.emote != null) {
+                     this.setEmote(null);
+                     return true;
+                 } else {
+diff --git a/src/main/java/yesman/epicfight/client/gui/widgets/ModelPreviewer.java b/src/main/java/yesman/epicfight/client/gui/widgets/ModelPreviewer.java
+index ac921bc..02df300 100644
+--- a/src/main/java/yesman/epicfight/client/gui/widgets/ModelPreviewer.java
++++ b/src/main/java/yesman/epicfight/client/gui/widgets/ModelPreviewer.java
+@@ -4,6 +4,7 @@ import com.google.common.collect.Lists;
+ import com.mojang.blaze3d.platform.Window;
+ import com.mojang.blaze3d.vertex.*;
+ import com.mojang.math.Axis;
++import net.minecraft.client.input.MouseButtonEvent;
+ import net.minecraft.client.Camera;
+ import net.minecraft.client.DeltaTracker;
+ import net.minecraft.client.Minecraft;
+@@ -391,28 +392,28 @@ public class ModelPreviewer extends AbstractContainerWidget implements AnchoredW
+     }
+ 
+     @Override
+-	public boolean mouseClicked(double x, double y, int button) {
++	public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+ 		if (this.active && this.visible) {
+-			if (this.isValidClickButton(button)) {
+-				boolean flag = this.clicked(x, y);
++			if (this.isValidClickButton(event.buttonInfo())) {
++				boolean flag = this.isMouseOver(event.x(), event.y());
+ 				
+ 				if (flag) {
+ 					this.playDownSound(Minecraft.getInstance().getSoundManager());
+ 					
+ 					if (this.item != null) {
+-						if (this.showItemCheckbox.mouseClicked(x, y, button)) {
++						if (this.showItemCheckbox.mouseClicked(event, doubleClick)) {
+ 							return true;
+ 						}
+ 					}
+ 					
+ 					if (!this.trailInfoList.isEmpty()) {
+-						if (this.showTrailCheckbox.mouseClicked(x, y, button)) {
++						if (this.showTrailCheckbox.mouseClicked(event, doubleClick)) {
+ 							return true;
+ 						}
+ 					}
+ 					
+ 					if (this.collider != null) {
+-						if (this.showColliderCheckbox.mouseClicked(x, y, button)) {
++						if (this.showColliderCheckbox.mouseClicked(event, doubleClick)) {
+ 							return true;
+ 						}
+ 					}
+@@ -426,14 +427,14 @@ public class ModelPreviewer extends AbstractContainerWidget implements AnchoredW
+ 	}
+ 	
+ 	@Override
+-	public boolean mouseDragged(double mouseX, double mouseY, int button, double dx, double dy) {
+-		if (this.isMouseOver(mouseX, mouseY)) {
+-			if (button == 0) {
++	public boolean mouseDragged(MouseButtonEvent event, double dx, double dy) {
++		if (this.isMouseOver(event.x(), event.y())) {
++			if (event.button() == 0) {
+ 				if (this.cameraRotationEnabled) {
+ 					this.xRot = (float)Mth.clamp(this.xRot + dy * 2.5D, -30.0D, 45.0D);
+ 					this.yRot += (float)(dx * 2.5F);
+ 				}
+-			} else if (button == 2) {
++			} else if (event.button() == 2) {
+ 				if (this.cameraMoveEnabled) {
+ 					this.xMove += (float)((float)dx * 0.015F * -this.zoom);
+ 					this.yMove += (float)(-(float)dy * 0.015F * -this.zoom);
+diff --git a/src/main/java/yesman/epicfight/client/gui/widgets/SettingTitle.java b/src/main/java/yesman/epicfight/client/gui/widgets/SettingTitle.java
+index aa79a60..82ff3a2 100644
+--- a/src/main/java/yesman/epicfight/client/gui/widgets/SettingTitle.java
++++ b/src/main/java/yesman/epicfight/client/gui/widgets/SettingTitle.java
+@@ -1,13 +1,14 @@
+ package yesman.epicfight.client.gui.widgets;
+ 
+ import com.mojang.blaze3d.vertex.VertexConsumer;
++import net.minecraft.client.input.KeyEvent;
++import net.minecraft.client.input.MouseButtonEvent;
+ import net.minecraft.client.Minecraft;
+ import net.minecraft.client.gui.Font;
+ import net.minecraft.client.gui.GuiGraphics;
+ import net.minecraft.client.gui.components.AbstractWidget;
+ import net.minecraft.client.gui.components.events.GuiEventListener;
+ import net.minecraft.client.gui.narration.NarrationElementOutput;
+-import net.minecraft.client.gui.navigation.CommonInputs;
+ import net.minecraft.client.renderer.RenderType;
+ import net.minecraft.client.resources.sounds.SimpleSoundInstance;
+ import net.minecraft.network.chat.Component;
+@@ -106,9 +107,9 @@ public class SettingTitle extends AbstractWidget implements AnchoredWidget, Pres
+     }
+ 
+     @Override
+-    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
++    public boolean keyPressed(KeyEvent event) {
+         if (this.active && this.visible) {
+-            if (CommonInputs.selected(keyCode)) {
++            if (event.isSelection()) {
+                 this.onPressed();
+                 return true;
+             } else {
+@@ -120,10 +121,10 @@ public class SettingTitle extends AbstractWidget implements AnchoredWidget, Pres
+     }
+ 
+     @Override
+-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
++    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+         if (this.active && this.visible) {
+-            if (this.isValidClickButton(button)) {
+-                boolean flag = this.clicked(mouseX, mouseY);
++            if (this.isValidClickButton(event.buttonInfo())) {
++                boolean flag = this.isMouseOver(event.x(), event.y());
+                 if (flag) {
+                     this.playDownSound(Minecraft.getInstance().getSoundManager());
+                     this.onPressed();
+diff --git a/src/main/java/yesman/epicfight/client/gui/widgets/SideNavigationBarOpener.java b/src/main/java/yesman/epicfight/client/gui/widgets/SideNavigationBarOpener.java
+index 552e849..aaa40eb 100644
+--- a/src/main/java/yesman/epicfight/client/gui/widgets/SideNavigationBarOpener.java
++++ b/src/main/java/yesman/epicfight/client/gui/widgets/SideNavigationBarOpener.java
+@@ -1,10 +1,11 @@
+ package yesman.epicfight.client.gui.widgets;
+ 
++import net.minecraft.client.input.KeyEvent;
++import net.minecraft.client.input.MouseButtonEvent;
+ import net.minecraft.client.Minecraft;
+ import net.minecraft.client.gui.GuiGraphics;
+ import net.minecraft.client.gui.components.AbstractWidget;
+ import net.minecraft.client.gui.narration.NarrationElementOutput;
+-import net.minecraft.client.gui.navigation.CommonInputs;
+ import net.minecraft.client.gui.screens.Screen;
+ import net.minecraft.network.chat.Component;
+ import net.minecraft.resources.ResourceLocation;
+@@ -65,10 +66,10 @@ public class SideNavigationBarOpener extends AbstractWidget implements AnchoredW
+     }
+ 
+     @Override
+-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
++    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+         if (this.active && this.visible) {
+-            if (this.isValidClickButton(button)) {
+-                boolean flag = this.clicked(mouseX, mouseY);
++            if (this.isValidClickButton(event.buttonInfo())) {
++                boolean flag = this.isMouseOver(event.x(), event.y());
+                 if (flag) {
+                     this.playDownSound(Minecraft.getInstance().getSoundManager());
+                     this.onPressed();
+@@ -83,9 +84,9 @@ public class SideNavigationBarOpener extends AbstractWidget implements AnchoredW
+     }
+ 
+     @Override
+-    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
++    public boolean keyPressed(KeyEvent event) {
+         if (this.active && this.visible) {
+-            if (CommonInputs.selected(keyCode)) {
++            if (event.isSelection()) {
+                 this.playDownSound(Minecraft.getInstance().getSoundManager());
+                 this.onPressed();
+                 return true;
+diff --git a/src/main/java/yesman/epicfight/client/gui/widgets/Static.java b/src/main/java/yesman/epicfight/client/gui/widgets/Static.java
+index 02a41e5..1127eaa 100644
+--- a/src/main/java/yesman/epicfight/client/gui/widgets/Static.java
++++ b/src/main/java/yesman/epicfight/client/gui/widgets/Static.java
+@@ -1,5 +1,6 @@
+ package yesman.epicfight.client.gui.widgets;
+ 
++import net.minecraft.client.input.MouseButtonEvent;
+ import net.minecraft.client.gui.Font;
+ import net.minecraft.client.gui.GuiGraphics;
+ import net.minecraft.client.gui.components.AbstractWidget;
+@@ -80,16 +81,16 @@ public class Static extends AbstractWidget implements AnchoredWidget {
+     }
+ 
+     @Override
+-    public boolean mouseClicked(double mouseX, double mouseY, int action) {
++    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+         return false;
+     }
+ 
+     @Override
+-    public boolean mouseReleased(double mouseX, double mouseY, int action) {
++    public boolean mouseReleased(MouseButtonEvent event) {
+         return false;
+     }
+ 
+-    public boolean mouseDragged(double mouseX, double mouseY, int action, double p_93648_, double p_93649_) {
++    public boolean mouseDragged(MouseButtonEvent event, double p_93648_, double p_93649_) {
+         return false;
+     }
+ 
+diff --git a/src/main/java/yesman/epicfight/client/gui/widgets/SubscreenButton.java b/src/main/java/yesman/epicfight/client/gui/widgets/SubscreenButton.java
+index e86bf11..2a9df06 100644
+--- a/src/main/java/yesman/epicfight/client/gui/widgets/SubscreenButton.java
++++ b/src/main/java/yesman/epicfight/client/gui/widgets/SubscreenButton.java
+@@ -1,5 +1,6 @@
+ package yesman.epicfight.client.gui.widgets;
+ 
++import net.minecraft.client.input.InputWithModifiers;
+ import net.minecraft.client.Minecraft;
+ import net.minecraft.client.gui.components.AbstractWidget;
+ import net.minecraft.client.gui.components.Button;
+@@ -26,7 +27,7 @@ public class SubscreenButton extends AnchoredButton {
+     }
+ 
+     @Override
+-    public void onPress() {
++    public void onPress(InputWithModifiers input) {
+         Minecraft.getInstance().setScreen(this.openScreen.get());
+     }
+ }
+diff --git a/src/main/java/yesman/epicfight/client/gui/widgets/WidgetTable.java b/src/main/java/yesman/epicfight/client/gui/widgets/WidgetTable.java
+index 7feac81..399942c 100644
+--- a/src/main/java/yesman/epicfight/client/gui/widgets/WidgetTable.java
++++ b/src/main/java/yesman/epicfight/client/gui/widgets/WidgetTable.java
+@@ -1,4 +1,5 @@
+ package yesman.epicfight.client.gui.widgets;
++import net.minecraft.client.input.MouseButtonEvent;
+ import net.minecraft.client.Minecraft;
+ 
+ import net.minecraft.client.gui.GuiGraphics;
+@@ -149,10 +150,12 @@ public class WidgetTable extends ContainerObjectSelectionList<WidgetTable.Widget
+     }
+ 
+     @Override
+-    public boolean mouseClicked(double x, double y, int button) {
+-        this.updateScrollingState(x, y, button);
++    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
++        if (this.updateScrolling(event)) {
++            return true;
++        }
+ 
+-        if (!this.isMouseOver(x, y)) {
++        if (!this.isMouseOver(event.x(), event.y())) {
+             return false;
+         }
+ 
+@@ -165,7 +168,7 @@ public class WidgetTable extends ContainerObjectSelectionList<WidgetTable.Widget
+             // When the focused entry is in a visible area
+             if (focusTop <= this.getBottom() && focusBottom >= this.getY()) {
+                 for (GuiEventListener e : this.getFocused().children()) {
+-                    if (e.mouseClicked(x, y, button)) {
++                    if (e.mouseClicked(event, doubleClick)) {
+                         if (this.getFocused() != null && this.getFocused() != e) {
+                             this.getFocused().setFocused(false);
+                             this.getFocused().setFocused(e);
+@@ -177,7 +180,7 @@ public class WidgetTable extends ContainerObjectSelectionList<WidgetTable.Widget
+             }
+         }
+ 
+-        return super.mouseClicked(x, y, button);
++        return super.mouseClicked(event, doubleClick);
+     }
+ 
+     @Override
+@@ -209,20 +212,20 @@ public class WidgetTable extends ContainerObjectSelectionList<WidgetTable.Widget
+     }
+ 
+     @Override
+-    public boolean mouseDragged(double mouseX, double mouseY, int button, double dx, double dy) {
++    public boolean mouseDragged(MouseButtonEvent event, double dx, double dy) {
+         for (int i = 0; i < this.children().size(); i++) {
+             WidgetEntry entry = this.children().get(i);
+             int j1 = this.getRowTop(i);
+             int k1 = this.getRowBottom(i);
+ 
+             if (k1 >= this.getY() && j1 <= this.getBottom()) {
+-                if (entry.getChildAt(mouseX, mouseY).filter((component) -> component.mouseDragged(mouseX, mouseY, button, dx, dy)).isPresent()) {
++                if (entry.getChildAt(event.x(), event.y()).filter((component) -> component.mouseDragged(event, dx, dy)).isPresent()) {
+                     return true;
+                 }
+             }
+         }
+ 
+-        return super.mouseDragged(mouseX, mouseY, button, dx, dy);
++        return super.mouseDragged(event, dx, dy);
+     }
+ 
+     public class WidgetEntry extends ContainerObjectSelectionList.Entry<WidgetTable.WidgetEntry> {
+diff --git a/src/main/java/yesman/epicfight/compat/controlify/screenop/EpicFightSettingScreenProcessor.java b/src/main/java/yesman/epicfight/compat/controlify/screenop/EpicFightSettingScreenProcessor.java
+index d18209c..dfc2bb6 100644
+--- a/src/main/java/yesman/epicfight/compat/controlify/screenop/EpicFightSettingScreenProcessor.java
++++ b/src/main/java/yesman/epicfight/compat/controlify/screenop/EpicFightSettingScreenProcessor.java
+@@ -21,9 +21,9 @@ public class EpicFightSettingScreenProcessor extends ScreenProcessor<EpicFightSe
+         final boolean discardPressed = DISCARD.on(controller).guiPressed().get();
+         if (savePressed || discardPressed) {
+             if (savePressed) {
+-                screen.getSaveButton().onPress();
++                screen.getSaveButton().activateFromController();
+             } else {
+-                screen.getDiscardButton().onPress();
++                screen.getDiscardButton().activateFromController();
+             }
+             playClackSound();
+         }
+diff --git a/src/main/java/yesman/epicfight/compat/controlify/screenop/SkillBookScreenProcessor.java b/src/main/java/yesman/epicfight/compat/controlify/screenop/SkillBookScreenProcessor.java
+index 71d67f6..c7a6097 100644
+--- a/src/main/java/yesman/epicfight/compat/controlify/screenop/SkillBookScreenProcessor.java
++++ b/src/main/java/yesman/epicfight/compat/controlify/screenop/SkillBookScreenProcessor.java
+@@ -17,7 +17,7 @@ public class SkillBookScreenProcessor extends ScreenProcessor<SkillBookScreen> {
+ 
+     public void handleButtons(ControllerEntity controller) {
+         if (LEARN_SKILL.on(controller).guiPressed().get()) {
+-            screen.getLearnButton().onPress();
++            screen.pressLearnButton();
+             playClackSound();
+         }
+         super.handleButtons(controller);
+diff --git a/src/main/java/yesman/epicfight/epicskins/client/screen/AvatarEditScreen.java b/src/main/java/yesman/epicfight/epicskins/client/screen/AvatarEditScreen.java
+index d71a093..3458ee0 100644
+--- a/src/main/java/yesman/epicfight/epicskins/client/screen/AvatarEditScreen.java
++++ b/src/main/java/yesman/epicfight/epicskins/client/screen/AvatarEditScreen.java
+@@ -3,6 +3,7 @@ package yesman.epicfight.epicskins.client.screen;
+ import com.google.common.collect.ImmutableList;
+ import com.google.gson.JsonElement;
+ import com.mojang.blaze3d.systems.RenderSystem;
++import net.minecraft.client.input.MouseButtonEvent;
+ import net.minecraft.client.Minecraft;
+ import net.minecraft.client.gui.GuiGraphics;
+ import net.minecraft.client.gui.components.*;
+@@ -336,9 +337,9 @@ public class AvatarEditScreen extends Screen {
+ 	}
+ 
+ 	@Override
+-	public boolean mouseDragged(double mouseX, double mouseY, int button, double dx, double dy) {
+-		return this.getChildAt(mouseX, mouseY).filter((listener) -> {
+-			return listener.mouseDragged(mouseX, mouseY, button, dx, dy);
++	public boolean mouseDragged(MouseButtonEvent event, double dx, double dy) {
++		return this.getChildAt(event.x(), event.y()).filter((listener) -> {
++			return listener.mouseDragged(event, dx, dy);
+ 		}).isPresent();
+ 	}
+ 
+@@ -677,10 +678,10 @@ public class AvatarEditScreen extends Screen {
+ 		}
+ 
+ 		@Override
+-		public boolean mouseClicked(double pMouseX, double pMouseY, int pButton) {
+-			this.updateScrollingState(pMouseX, pMouseY, pButton);
++		public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
++			boolean overScrollbar = this.updateScrolling(event);
+ 
+-			if (!this.isMouseOver(pMouseX, pMouseY)) {
++			if (!this.isMouseOver(event.x(), event.y())) {
+ 				return false;
+ 			} else {
+ 				for (int i1 = 0; i1 < this.getItemCount(); ++i1) {
+@@ -691,7 +692,7 @@ public class AvatarEditScreen extends Screen {
+ 						CapeList.CosmeticsEntry entry = this.children().get(i1);
+ 
+ 						for (CapeList.CosmeticBlock b : entry.cosmeticsBlock) {
+-							if (b.mouseClicked(pMouseX, pMouseY, pButton)) {
++							if (b.mouseClicked(event, doubleClick)) {
+ 								CosmeticsEntry oEntry = this.getFocused();
+ 
+ 								if (entry != oEntry && oEntry instanceof ContainerEventHandler) {
+@@ -716,7 +717,7 @@ public class AvatarEditScreen extends Screen {
+ 					}
+ 				}
+ 
+-				return this.scrolling;
++				return overScrollbar;
+ 			}
+ 		}
+ 
+diff --git a/src/main/java/yesman/epicfight/epicskins/client/widget/CapePopupBox.java b/src/main/java/yesman/epicfight/epicskins/client/widget/CapePopupBox.java
+index 4f20542..2d767d7 100644
+--- a/src/main/java/yesman/epicfight/epicskins/client/widget/CapePopupBox.java
++++ b/src/main/java/yesman/epicfight/epicskins/client/widget/CapePopupBox.java
+@@ -1,6 +1,7 @@
+ package yesman.epicfight.epicskins.client.widget;
+ 
+ import com.mojang.datafixers.util.Pair;
++import net.minecraft.client.input.MouseButtonEvent;
+ import net.minecraft.client.gui.Font;
+ import net.minecraft.client.gui.screens.Screen;
+ import net.minecraft.network.chat.Component;
+@@ -20,8 +21,8 @@ public class CapePopupBox extends PopupBox<Cosmetic> {
+ 	}
+ 	
+ 	@Override
+-	public void onClick(double x, double y) {
+-		if (this.clickedPopupButton(x, y)) {
++	public void onClick(MouseButtonEvent event, boolean doubleClick) {
++		if (this.clickedPopupButton(event.x(), event.y())) {
+ 			this.onPress.run();
+ 		}
+ 	}

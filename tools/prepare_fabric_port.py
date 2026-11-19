@@ -3,6 +3,7 @@
 
 import argparse
 import hashlib
+import os
 from pathlib import Path, PurePosixPath
 import shutil
 import subprocess
@@ -75,11 +76,13 @@ def main():
         stage = temporary / 'source'
         stage.mkdir()
         extract_code(archive, stage)
+        # Apply against the extracted tree even when output is inside the checkout.
+        patch_env = dict(os.environ, GIT_CEILING_DIRECTORIES=str(temporary))
         for patch in sorted((PROJECT / 'patches').glob('*.patch')):
             subprocess.run(
                 ['git', '-c', 'core.whitespace=trailing-space,space-before-tab,cr-at-eol',
                  'apply', '--whitespace=error', str(patch)],
-                cwd=stage, check=True,
+                cwd=stage, env=patch_env, check=True,
             )
         shutil.copytree(PROJECT / 'bridge-api/src/main/java', stage / 'src/main/java',
                         dirs_exist_ok=True)
