@@ -1,0 +1,934 @@
+diff --git a/src/main/java/yesman/epicfight/client/events/engine/RenderEngine.java b/src/main/java/yesman/epicfight/client/events/engine/RenderEngine.java
+index df2d661..19a0af2 100644
+--- a/src/main/java/yesman/epicfight/client/events/engine/RenderEngine.java
++++ b/src/main/java/yesman/epicfight/client/events/engine/RenderEngine.java
+@@ -5,14 +5,13 @@ import com.google.common.collect.HashBiMap;
+ import com.google.gson.JsonElement;
+ import com.google.gson.JsonObject;
+ import com.mojang.blaze3d.platform.Window;
+-import com.mojang.blaze3d.systems.RenderSystem;
+ import com.mojang.blaze3d.vertex.PoseStack;
+ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+ import net.fabricmc.fabric.api.client.item.v1.ItemTooltipCallback;
+ import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
+ import net.fabricmc.fabric.api.client.rendering.v1.LivingEntityFeatureRendererRegistrationCallback;
+-import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
+-import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
++import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderContext;
++import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
+ import net.minecraft.ChatFormatting;
+ import net.minecraft.client.DeltaTracker;
+ import net.minecraft.client.Minecraft;
+@@ -230,7 +229,9 @@ public class RenderEngine implements IEventBasedEngine {
+         }
+ 
+         EntityRenderDispatcher erd = this.minecraft.getEntityRenderDispatcher();
+-        EntityRendererProvider.Context context = new EntityRendererProvider.Context(erd, this.minecraft.getItemRenderer(), this.minecraft.getBlockRenderer(), erd.getItemInHandRenderer(), this.minecraft.getResourceManager(), this.minecraft.getEntityModels(), this.minecraft.font);
++        EntityRendererProvider.Context context = new EntityRendererProvider.Context(erd, this.minecraft.getItemModelResolver(), this.minecraft.getMapRenderer(),
++            this.minecraft.getBlockRenderer(), this.minecraft.getResourceManager(), this.minecraft.getEntityModels(), erd.equipmentAssets,
++            this.minecraft.getAtlasManager(), this.minecraft.font, this.minecraft.playerSkinRenderCache());
+ 
+         if ("player".equals(rendererName)) {
+             this.entityRendererCache.put(entityType, this.basicHumanoidRenderer);
+@@ -247,7 +248,7 @@ public class RenderEngine implements IEventBasedEngine {
+                 PatchedEntityRenderer renderer = this.entityRendererProvider.get(presetEntityType).apply(entityType);
+ 
+                 if (!(this.minecraft.getEntityRenderDispatcher().renderers.get(entityType) instanceof LivingEntityRenderer) && (renderer instanceof PatchedLivingEntityRenderer patchedLivingEntityRenderer)) {
+-                    this.entityRendererCache.put(entityType, new PresetRenderer(context, entityType, (LivingEntityRenderer<LivingEntity, EntityModel<LivingEntity>>)context.getEntityRenderDispatcher().renderers.get(presetEntityType), patchedLivingEntityRenderer.getDefaultMesh()));
++                    this.entityRendererCache.put(entityType, new PresetRenderer(context, entityType, (LivingEntityRenderer)context.getEntityRenderDispatcher().renderers.get(presetEntityType), patchedLivingEntityRenderer.getDefaultMesh()));
+                 } else {
+                     this.entityRendererCache.put(entityType, this.entityRendererProvider.get(presetEntityType).apply(entityType));
+                 }
+@@ -290,7 +291,7 @@ public class RenderEngine implements IEventBasedEngine {
+     }
+ 
+     @SuppressWarnings("unchecked")
+-    public void renderEntityArmatureModel(LivingEntity livingEntity, LivingEntityPatch<?> entitypatch, EntityRenderer<? extends Entity> renderer, MultiBufferSource buffer, PoseStack matStack, int packedLight, float partialTicks) {
++    public void renderEntityArmatureModel(LivingEntity livingEntity, LivingEntityPatch<?> entitypatch, EntityRenderer<?, ?> renderer, MultiBufferSource buffer, PoseStack matStack, int packedLight, float partialTicks) {
+         this.getEntityRenderer(livingEntity).render(livingEntity, entitypatch, renderer, buffer, matStack, packedLight, partialTicks);
+     }
+ 
+@@ -353,28 +354,16 @@ public class RenderEngine implements IEventBasedEngine {
+             return !entity.isAlive() || entity.isRemoved();
+         });
+ 
+-        if (!RenderSystem.isOnRenderThread()) {
+-            RenderSystem.recordRenderCall(() -> {
+-                EpicFightRenderTypes.freeUnusedWorldRenderTypes();
+-            });
+-        } else {
+-            EpicFightRenderTypes.freeUnusedWorldRenderTypes();
+-        }
++        this.minecraft.execute(EpicFightRenderTypes::freeUnusedWorldRenderTypes);
+     }
+ 
+     public void clear() {
+         EpicFightCameraAPI.getInstance().zoomOut(0);
+         this.bossEventOwners.clear();
+-
+-        if (!RenderSystem.isOnRenderThread()) {
+-            RenderSystem.recordRenderCall(() -> {
+-                this.resetRenderers();
+-                EpicFightRenderTypes.clearWorldRenderTypes();
+-            });
+-        } else {
++        this.minecraft.execute(() -> {
+             this.resetRenderers();
+             EpicFightRenderTypes.clearWorldRenderTypes();
+-        }
++        });
+     }
+ 
+     public static boolean hitResultEquals(@Nullable HitResult hitResult, HitResult.Type hitType) {
+@@ -558,7 +547,7 @@ public class RenderEngine implements IEventBasedEngine {
+                 skillContainer.getSkill().onScreen(playerpatch, window.getGuiScaledWidth(), window.getGuiScaledHeight());
+             });
+ 
+-            this.overlayManager.renderTick(window.getGuiScaledWidth(), window.getGuiScaledHeight());
++            this.overlayManager.renderTick(guiGraphics);
+ 
+             // Battle mode HUD — registered via RegisterGuiLayersEvent.registerAboveAll in NeoForge
+             // On Fabric, HudRenderCallback fires at the equivalent point
+@@ -640,7 +629,7 @@ public class RenderEngine implements IEventBasedEngine {
+         if (ClientConfig.mineBlockGuideOption.showBlockHighlight() && blockHitResult != null) {
+             EpicFightCapabilities.getUnparameterizedEntityPatch(this.minecraft.player, LocalPlayerPatch.class).ifPresent(playerpatch -> {
+                 if (!playerpatch.canPlayAttackAnimation() && playerpatch.isEpicFightMode()) {
+-                    this.fakeBlockRenderer.render(context.camera(), context.matrixStack(), this.minecraft.renderBuffers().bufferSource(), this.minecraft.level, blockHitResult.getBlockPos(), 1.0F, 1.0F, 1.0F, 0.4F);
++                    this.fakeBlockRenderer.render(context.gameRenderer().getMainCamera(), context.matrices(), context.consumers(), this.minecraft.level, blockHitResult.getBlockPos(), 1.0F, 1.0F, 1.0F, 0.4F);
+                 }
+             });
+         }
+@@ -658,14 +647,6 @@ public class RenderEngine implements IEventBasedEngine {
+         }
+     }
+ 
+-    private void epicfight$renderTickPre(WorldRenderContext context) {
+-        EntityUI.HEALTH_BAR.reset();
+-    }
+-
+-    private void epicfight$renderTickPost(WorldRenderContext context) {
+-        EntityUI.HEALTH_BAR.remove();
+-    }
+-
+     private void epicfight$clientTick$Pre(Minecraft client) {
+         EpicFightCameraAPI.getInstance().preClientTick();
+         EpicFightCapabilities.getUnparameterizedEntityPatch(this.minecraft.player, LocalPlayerPatch.class).ifPresent(this.battleModeHUD::tick);
+@@ -763,8 +744,8 @@ public class RenderEngine implements IEventBasedEngine {
+         ClientTickEvents.END_CLIENT_TICK.register(this::epicfight$levelTickPost);
+ 
+         // Render frame events (health bar reset/remove)
+-        WorldRenderEvents.START.register(this::epicfight$renderTickPre);
+-        WorldRenderEvents.LAST.register(this::epicfight$renderTickPost);
++        WorldRenderEvents.START_MAIN.register(context -> EntityUI.HEALTH_BAR.reset());
++        WorldRenderEvents.END_MAIN.register(context -> EntityUI.HEALTH_BAR.remove());
+ 
+         // After entities — fake block renderer (mining guide)
+         WorldRenderEvents.AFTER_ENTITIES.register(this::epicfight$renderAfterLevel);
+diff --git a/src/main/java/yesman/epicfight/client/gui/datapack/screen/DatapackEditScreen.java b/src/main/java/yesman/epicfight/client/gui/datapack/screen/DatapackEditScreen.java
+index 0e5318e..db2ed15 100644
+--- a/src/main/java/yesman/epicfight/client/gui/datapack/screen/DatapackEditScreen.java
++++ b/src/main/java/yesman/epicfight/client/gui/datapack/screen/DatapackEditScreen.java
+@@ -322,11 +322,11 @@ public class DatapackEditScreen extends Screen implements ExtraEntryProvider {
+ 			Gson gson = new GsonBuilder().setPrettyPrinting().create();
+ 			JsonObject root = new JsonObject();
+ 			JsonObject pack = new JsonObject();
+-			int datapackVersion = SharedConstants.getCurrentVersion().getPackVersion(PackType.SERVER_DATA);
+-			int resourcepackVersion = SharedConstants.getCurrentVersion().getPackVersion(PackType.CLIENT_RESOURCES);
++			int datapackVersion = SharedConstants.getCurrentVersion().packVersion(PackType.SERVER_DATA).major();
++			int resourcepackVersion = SharedConstants.getCurrentVersion().packVersion(PackType.CLIENT_RESOURCES).major();
+ 			
+ 			if (datapackVersion != resourcepackVersion) {
+-				EpicFight.LOGGER.warn(new StringBuilder("Pack version is not matching in ").append(SharedConstants.getCurrentVersion().getId()).toString());
++				EpicFight.LOGGER.warn(new StringBuilder("Pack version is not matching in ").append(SharedConstants.getCurrentVersion().id()).toString());
+ 			}
+ 			
+ 			pack.addProperty("description", packName);
+@@ -570,7 +570,7 @@ public class DatapackEditScreen extends Screen implements ExtraEntryProvider {
+ 		return new MessageScreen<>("", "Enter the pack title", this, null, 180, 70) {
+ 			@Override
+ 			protected void init() {
+-				this.parentScreen.init(this.minecraft, this.width, this.height);
++				this.parentScreen.init(this.width, this.height);
+ 				int height = this.messageBoxHeight / 2;
+ 				
+ 				final EditBox titleEditBox = new EditBox(this.font, this.width / 2 - 72, this.height / 2 - 6, 144, 16, Component.literal("pack_title_input_box"));
+@@ -1448,7 +1448,7 @@ public class DatapackEditScreen extends Screen implements ExtraEntryProvider {
+ 																					currentTag.putString("type", pair.getFirst());
+ 																					
+ 																					if (pair.getSecond() != null) {
+-																						CapabilityItem.Builder<?> builder = pair.getSecond().apply(this.registry.get(this.packList.get(this.packListGrid.getRowposition()).getKey()));
++																						CapabilityItem.Builder<?> builder = pair.getSecond().apply(this.registry.getValue(this.packList.get(this.packListGrid.getRowposition()).getKey()));
+ 																						
+ 																						if (builder instanceof WeaponCapability.Builder weaponBuilder) {
+ 																							this.modelPreviewer.clearAnimations();
+@@ -1985,13 +1985,13 @@ public class DatapackEditScreen extends Screen implements ExtraEntryProvider {
+ 			ResourceLocation rl = ResourceLocation.parse(ParseUtil.nullParam(values.get("pack_item")));
+ 			
+ 			if (this.registry.containsKey(rl)) {
+-				this.modelPreviewer.setItemToRender(this.registry.get(rl));
++				this.modelPreviewer.setItemToRender(this.registry.getValue(rl));
+ 			}
+ 			
+ 			Function<Item, ? extends CapabilityItem.Builder<?>> builderProvider = DatapackEditScreen.getWeaponType(tag.getStringOr("type", ""));
+ 			
+ 			if (builderProvider != null) {
+-				CapabilityItem.Builder<?> builder = builderProvider.apply(this.registry.get(this.packList.get(rowposition).getKey()));
++				CapabilityItem.Builder<?> builder = builderProvider.apply(this.registry.getValue(this.packList.get(rowposition).getKey()));
+ 				
+ 				if (builder instanceof WeaponCapability.Builder weaponBuilder) {
+ 					this.modelPreviewer.clearAnimations();
+diff --git a/src/main/java/yesman/epicfight/client/gui/datapack/screen/MessageScreen.java b/src/main/java/yesman/epicfight/client/gui/datapack/screen/MessageScreen.java
+index 8e00f0a..5120e6d 100644
+--- a/src/main/java/yesman/epicfight/client/gui/datapack/screen/MessageScreen.java
++++ b/src/main/java/yesman/epicfight/client/gui/datapack/screen/MessageScreen.java
+@@ -89,7 +89,7 @@ public class MessageScreen<T> extends Screen {
+ 	
+ 	@Override
+ 	protected void init() {
+-		this.parentScreen.init(this.minecraft, this.width, this.height);
++		this.parentScreen.init(this.width, this.height);
+ 		int height = this.messageBoxHeight / 2;
+ 		
+ 		int stringWidthOk = this.minecraft.font.width(this.okButtomTitle != null ? this.okButtomTitle : CommonComponents.GUI_OK) + 10;
+@@ -125,7 +125,7 @@ public class MessageScreen<T> extends Screen {
+ 		this.parentScreen.render(guiGraphics, mouseX, mouseY, partialTick);
+ 		
+ 		guiGraphics.pose().pushMatrix();
+-		guiGraphics.pose().translate(0, 0, this.layerFarPlane);
++		guiGraphics.nextStratum();
+ 		guiGraphics.fillGradient(0, 0, this.width, this.height, -1072689136, -804253680);
+ 		
+ 		int width = this.messageBoxWidth / 2;
+diff --git a/src/main/java/yesman/epicfight/client/gui/datapack/screen/SelectFromRegistryScreen.java b/src/main/java/yesman/epicfight/client/gui/datapack/screen/SelectFromRegistryScreen.java
+index 6404ed6..b125865 100644
+--- a/src/main/java/yesman/epicfight/client/gui/datapack/screen/SelectFromRegistryScreen.java
++++ b/src/main/java/yesman/epicfight/client/gui/datapack/screen/SelectFromRegistryScreen.java
+@@ -48,7 +48,7 @@ public class SelectFromRegistryScreen<T> extends Screen {
+ 		
+ 		final Map<ResourceLocation, T> filteredItems = Maps.newHashMap();
+ 		
+-		registry.holders().map(Holder::value).filter(filter).forEach((value) -> filteredItems.put(registry.getKey(value), value));
++		registry.listElements().map(Holder::value).filter(filter).forEach((value) -> filteredItems.put(registry.getKey(value), value));
+ 		
+ 		this.registryList = new RegistryList(Minecraft.getInstance(), this.width, this.height - 52, 36, 21, filteredItems);
+ 		this.onPressRow = onPressRow;
+diff --git a/src/main/java/yesman/epicfight/client/gui/datapack/widgets/ComboBox.java b/src/main/java/yesman/epicfight/client/gui/datapack/widgets/ComboBox.java
+index 7b00414..88699a6 100644
+--- a/src/main/java/yesman/epicfight/client/gui/datapack/widgets/ComboBox.java
++++ b/src/main/java/yesman/epicfight/client/gui/datapack/widgets/ComboBox.java
+@@ -189,7 +189,7 @@ public class ComboBox<T> extends AbstractWidget implements DataBindingComponent<
+ 		
+ 		if (this.listOpened) {
+ 			guiGraphics.pose().pushMatrix();
+-			guiGraphics.pose().translate(0, 0, 10);
++			guiGraphics.nextStratum();
+ 			this.comboItemList.render(guiGraphics, mouseX, mouseY, partialTicks);
+ 			guiGraphics.pose().popMatrix();
+ 		}
+@@ -220,7 +220,6 @@ public class ComboBox<T> extends AbstractWidget implements DataBindingComponent<
+ 		
+ 		public ComboItemList(Minecraft minecraft, int maxRows, int itemHeight) {
+ 			super(minecraft, ComboBox.this.width, itemHeight * maxRows, 0, itemHeight);
+-			this.setRenderHeader(false, 0);
+ 		}
+ 		
+ 		@Override
+@@ -260,12 +259,12 @@ public class ComboBox<T> extends AbstractWidget implements DataBindingComponent<
+ 		}
+ 		
+ 		@Override
+-		public int getMaxScroll() {
+-			return Math.max(0, this.getMaxPosition() - (this.getBottom() - this.getY()));
++		public int maxScrollAmount() {
++			return Math.max(0, this.contentHeight() - (this.getBottom() - this.getY()));
+ 		}
+ 		
+ 		@Override
+-		protected int getRowTop(int row) {
++		public int getRowTop(int row) {
+ 			return this.getY() + 2 - (int) this.scrollAmount() + row * this.defaultEntryHeight;
+ 		}
+ 
+diff --git a/src/main/java/yesman/epicfight/client/gui/datapack/widgets/PopupBox.java b/src/main/java/yesman/epicfight/client/gui/datapack/widgets/PopupBox.java
+index 2f820cc..0de1848 100644
+--- a/src/main/java/yesman/epicfight/client/gui/datapack/widgets/PopupBox.java
++++ b/src/main/java/yesman/epicfight/client/gui/datapack/widgets/PopupBox.java
+@@ -126,16 +126,8 @@ public abstract class PopupBox<T> extends AbstractWidget implements DataBindingC
+ 		String correctedString = StringUtil.isNullOrEmpty(this.itemDisplayName) ? "" : this.font.plainSubstrByWidth(this.itemDisplayName, this.width - 16);
+ 		guiGraphics.drawString(this.font, correctedString, this._getX() + 4, this._getY() + this.height / 2 - this.font.lineHeight / 2 + 1, 16777215, false);
+ 		
+-		RenderSystem.enableBlend();
++		guiGraphics.blit(RenderPipelines.GUI_TEXTURED, POPUP_ICON, this._getX() + this.width - this.height, this._getY(), 0.0F, 0.0F, this.height, this.height, this.height, this.height, this.isActive() ? -1 : 0xff4c4c4c);
+ 		
+-		if (!this.isActive()) {
+-			RenderSystem.setShaderColor(0.3F, 0.3F, 0.3F, 1.0F);
+-		}
+-		
+-		guiGraphics.blit(RenderPipelines.GUI_TEXTURED, POPUP_ICON, this._getX() + this.width - this.height, this._getY(), 0.0F, 0.0F, this.height, this.height, this.height, this.height);
+-		
+-		RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+-		RenderSystem.disableBlend();
+ 	}
+ 	
+ 	@Override
+diff --git a/src/main/java/yesman/epicfight/client/gui/screen/EmoteEditScreen.java b/src/main/java/yesman/epicfight/client/gui/screen/EmoteEditScreen.java
+index e72251b..b3eabba 100644
+--- a/src/main/java/yesman/epicfight/client/gui/screen/EmoteEditScreen.java
++++ b/src/main/java/yesman/epicfight/client/gui/screen/EmoteEditScreen.java
+@@ -91,7 +91,7 @@ public class EmoteEditScreen extends Screen {
+ 
+         this.emotePreviewer.setBackgroundClearColor(new Vec4f(0.0F, 0.0F, 0.0F, 0.0F));
+         this.emotePreviewer.setFigureTexture(playerpatch.getOriginal().getSkin().body().texturePath());
+-        this.emotePreviewer.setMesh(playerpatch.getOriginal().getSkin().model() == PlayerSkin.Model.SLIM ? Meshes.ALEX : Meshes.BIPED);
++        this.emotePreviewer.setMesh(playerpatch.getOriginal().getSkin().model() == net.minecraft.world.entity.player.PlayerModelType.SLIM ? Meshes.ALEX : Meshes.BIPED);
+ 
+         this.saveButton = AnchoredButton.buttonBuilder(
+                 Component.translatable(GUI_WIDGET_COMMON_SAVE),
+@@ -249,7 +249,7 @@ public class EmoteEditScreen extends Screen {
+         protected Object epicfight$getEntryAtPosition(double mouseX, double mouseY) {
+             int xStart = this.getX();
+             int xEnd = xStart + this.getRowWidth();
+-            int mouseRelativeY = Mth.floor(mouseY - (double)this.getY()) - this.headerHeight + (int)this.scrollAmount() - 4;
++            int mouseRelativeY = Mth.floor(mouseY - (double)this.getY()) + (int)this.scrollAmount() - 4;
+             int rowPosition = mouseRelativeY / this.defaultEntryHeight;
+             return mouseX >= xStart && mouseX <= xEnd && rowPosition >= 0 && mouseRelativeY >= 0 && rowPosition < this.getItemCount() ? this.children().get(rowPosition) : null;
+         }
+diff --git a/src/main/java/yesman/epicfight/client/gui/screen/SideBarScreen.java b/src/main/java/yesman/epicfight/client/gui/screen/SideBarScreen.java
+index e2b4af2..c4b265a 100644
+--- a/src/main/java/yesman/epicfight/client/gui/screen/SideBarScreen.java
++++ b/src/main/java/yesman/epicfight/client/gui/screen/SideBarScreen.java
+@@ -75,7 +75,7 @@ public class SideBarScreen extends Screen {
+ 
+     @Override
+     public void repositionElements() {
+-        this.backgroundScreen.resize(this.minecraft, this.width, this.height);
++        this.backgroundScreen.resize(this.width, this.height);
+         this.switchableScreenList.relocate(this.getRectangle());
+         this.closeButton.relocate(this.getRectangle());
+     }
+@@ -86,7 +86,7 @@ public class SideBarScreen extends Screen {
+         this.backgroundScreen.render(guiGraphics, mouseX + 10000, mouseY + 10000, partialTick);
+ 
+         guiGraphics.pose().pushMatrix();
+-        guiGraphics.pose().translate(0, 0, 5000);
++        guiGraphics.nextStratum();
+ 
+         this.renderBackground(guiGraphics, mouseX, mouseY, partialTick);
+ 
+@@ -139,9 +139,9 @@ public class SideBarScreen extends Screen {
+             ResourceLocation resourcelocation = this.isHoveredOrFocused() ? ARROW_HIGHLIGHTED_SPRITE : ARROW_SPRITE;
+ 
+             guiGraphics.pose().pushMatrix();
+-            guiGraphics.pose().translate(this.getX() + this.getWidth() / 2.0F - 3 + 4, this.getY() + this.getHeight() / 2.0F + 3, 1.0F);
+-            guiGraphics.pose().mulPose(Axis.ZP.rotationDegrees(180.0F));
+-            guiGraphics.pose().translate(-(this.getX() + this.getWidth() / 2.0F - 3), -(this.getY() + this.getHeight() / 2.0F - 3), 1.0F);
++            guiGraphics.pose().translate(this.getX() + this.getWidth() / 2.0F - 3 + 4, this.getY() + this.getHeight() / 2.0F + 3);
++            guiGraphics.pose().rotate((float)Math.PI);
++            guiGraphics.pose().translate(-(this.getX() + this.getWidth() / 2.0F - 3), -(this.getY() + this.getHeight() / 2.0F - 3));
+             guiGraphics.blitSprite(RenderPipelines.GUI_TEXTURED, resourcelocation, this.getX() + this.getWidth() / 2 - 3, this.getY() + this.getHeight() / 2 - 3, 4, 6);
+             guiGraphics.pose().popMatrix();
+         }
+@@ -279,7 +279,7 @@ public class SideBarScreen extends Screen {
+             public void onPressed() {
+                 Minecraft.getInstance().getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F));
+                 backgroundScreen = this.screenProvider.get();
+-                backgroundScreen.init(minecraft, SideBarScreen.this.width, SideBarScreen.this.height);
++                backgroundScreen.init(SideBarScreen.this.width, SideBarScreen.this.height);
+                 backgroundScreen.initialized = false;
+             }
+ 
+diff --git a/src/main/java/yesman/epicfight/client/gui/screen/SlotSelectScreen.java b/src/main/java/yesman/epicfight/client/gui/screen/SlotSelectScreen.java
+index 28e78a4..a2d5a2b 100644
+--- a/src/main/java/yesman/epicfight/client/gui/screen/SlotSelectScreen.java
++++ b/src/main/java/yesman/epicfight/client/gui/screen/SlotSelectScreen.java
+@@ -48,7 +48,7 @@ public class SlotSelectScreen extends Screen {
+ 
+     @Override
+     protected void init() {
+-        this.parent.init(this.minecraft, this.width, this.height);
++        this.parent.init(this.width, this.height);
+         int buttonX = this.width / 2 - 84;
+         int buttonY = this.height / 2 - 40;
+         int columns = 0;
+@@ -172,7 +172,7 @@ public class SlotSelectScreen extends Screen {
+         this.renderBackground(guiGraphics, mouseX, mouseY, partialTick);
+ 
+         // move z level, to prevent the button text displayed above the screen.
+-        guiGraphics.pose().translate(0, 0, 5000);
++        guiGraphics.nextStratum();
+         guiGraphics.fill(left, top, left + boxWidth, top + boxHeight, -6250336);
+         guiGraphics.fill(left + 1, top + 1, left + boxWidth - 1, top + boxHeight - 1, -16777215);
+ 
+@@ -224,13 +224,9 @@ public class SlotSelectScreen extends Screen {
+ 
+         @Override
+         public void renderContents(@NotNull GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+-            super.renderContents(guiGraphics, mouseX, mouseY, partialTick);
++            this.renderDefaultSprite(guiGraphics);
+ 
+-            RenderSystem.enableBlend();
+-            if (!this.active) RenderSystem.setShaderColor(0.5F, 0.5F, 0.5F, 1.0F);
+-            guiGraphics.blit(RenderPipelines.GUI_TEXTURED, this.texture, this.getX() + 2, this.getY() + 2, 0, 0, this.width - 4, this.height - 4, 32, 32, 32, 32);
+-            if (!this.active) RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+-            RenderSystem.disableBlend();
++             guiGraphics.blit(RenderPipelines.GUI_TEXTURED, this.texture, this.getX() + 2, this.getY() + 2, 0, 0, this.width - 4, this.height - 4, 32, 32, 32, 32, this.active ? -1 : 0xff7f7f7f);
+         }
+     }
+ }
+\ No newline at end of file
+diff --git a/src/main/java/yesman/epicfight/client/gui/screen/config/EpicFightSettingScreen.java b/src/main/java/yesman/epicfight/client/gui/screen/config/EpicFightSettingScreen.java
+index 7b12a31..833eab0 100644
+--- a/src/main/java/yesman/epicfight/client/gui/screen/config/EpicFightSettingScreen.java
++++ b/src/main/java/yesman/epicfight/client/gui/screen/config/EpicFightSettingScreen.java
+@@ -203,6 +203,11 @@ public class EpicFightSettingScreen extends Screen {
+             return this.title;
+         }
+ 
++        @Override
++        public Component getTabExtraNarration() {
++            return Component.empty();
++        }
++
+         @Override
+         public void doLayout(ScreenRectangle rectangle) {
+             this.widgetTable.setX2(Math.round((rectangle.right() - rectangle.left()) * 0.3F));
+diff --git a/src/main/java/yesman/epicfight/client/gui/screen/config/HUDLocationsScreen.java b/src/main/java/yesman/epicfight/client/gui/screen/config/HUDLocationsScreen.java
+index d3ed822..31743b7 100644
+--- a/src/main/java/yesman/epicfight/client/gui/screen/config/HUDLocationsScreen.java
++++ b/src/main/java/yesman/epicfight/client/gui/screen/config/HUDLocationsScreen.java
+@@ -1,21 +1,19 @@
+ package yesman.epicfight.client.gui.screen.config;
+ 
+ import net.minecraft.client.renderer.RenderPipelines;
+-import com.mojang.blaze3d.systems.RenderSystem;
+ import com.mojang.blaze3d.vertex.*;
+ import net.minecraft.client.input.MouseButtonEvent;
+ import net.minecraft.client.Minecraft;
+ import net.minecraft.client.gui.GuiGraphics;
++import net.minecraft.util.ARGB;
+ import net.minecraft.client.gui.components.AbstractWidget;
+ import net.minecraft.client.gui.components.Button;
+ import net.minecraft.client.gui.components.Renderable;
+ import net.minecraft.client.gui.components.events.ContainerEventHandler;
+ import net.minecraft.client.gui.components.events.GuiEventListener;
+ import net.minecraft.client.gui.screens.Screen;
+-import net.minecraft.client.renderer.GameRenderer;
+ import net.minecraft.network.chat.Component;
+ import net.minecraft.resources.ResourceLocation;
+-import net.minecraft.world.phys.Vec2;
+ import yesman.epicfight.api.utils.math.Vec2i;
+ import yesman.epicfight.client.gui.ScreenCalculations.AlignDirection;
+ import yesman.epicfight.client.gui.ScreenCalculations.HorizontalBasis;
+@@ -304,66 +302,31 @@ public class HUDLocationsScreen extends Screen {
+             }
+         }
+ 
+-        public void drawOutline(GuiGraphics guiGraphics) {
+-            PoseStack poseStack = guiGraphics.pose();
+-
+-            float screenX = this.getX() - 1;
+-            float screenXEnd = (this.getX() + this.width) + 1;
+-            float screenY = this.getY() - 1;
+-            float screenYEnd = (this.getY() + this.height) + 1;
+-
+-            RenderSystem.disableCull();
+-            RenderSystem.lineWidth(2.0F);
+-            RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+-
+-            RenderSystem.setShader(GameRenderer::getRendertypeLinesShader);
+-            BufferBuilder bufferbuilder = Tesselator.getInstance().begin(VertexFormat.Mode.LINES, DefaultVertexFormat.POSITION_COLOR_NORMAL);
+-
+-            bufferbuilder.addVertex(poseStack.last().pose(), screenX, screenY, 0).setColor(69, 166, 244, 255).setNormal(1.0F, 0.0F, 0.0F);
+-            bufferbuilder.addVertex(poseStack.last().pose(), screenXEnd, screenY, 0).setColor(69, 166, 244, 255).setNormal(1.0F, 0.0F, 0.0F);
+-
+-            bufferbuilder.addVertex(poseStack.last().pose(), screenXEnd, screenY, 0).setColor(69, 166, 244, 255).setNormal(0.0F, -1.0F, 0.0F);
+-            bufferbuilder.addVertex(poseStack.last().pose(), screenXEnd, screenYEnd, 0).setColor(69, 166, 244, 255).setNormal(0.0F, -1.0F, 0.0F);
+-
+-            bufferbuilder.addVertex(poseStack.last().pose(), screenXEnd, screenYEnd, 0).setColor(69, 166, 244, 255).setNormal(-1.0F, 0.0F, 0.0F);
+-            bufferbuilder.addVertex(poseStack.last().pose(), screenX, screenYEnd, 0).setColor(69, 166, 244, 255).setNormal(-1.0F, 0.0F, 0.0F);
+-
+-            bufferbuilder.addVertex(poseStack.last().pose(), screenX, screenYEnd, 0).setColor(69, 166, 244, 255).setNormal(0.0F, 1.0F, 0.0F);
+-            bufferbuilder.addVertex(poseStack.last().pose(), screenX, screenY, 0).setColor(69, 166, 244, 255).setNormal(0.0F, 1.0F, 0.0F);
+-
+-            if (this.horizontalBasis.getValue() == HorizontalBasis.CENTER) {
+-                bufferbuilder.addVertex(poseStack.last().pose(), screenX + (screenXEnd - screenX) / 2.0F, screenY + (screenYEnd - screenY) / 2.0F, 0).setColor(69, 166, 244, 255).setNormal(1.0F, 0.0F, 0.0F);
+-                bufferbuilder.addVertex(poseStack.last().pose(), this.parentScreen.width / 2, screenY + (screenYEnd - screenY) / 2.0F, 0).setColor(69, 166, 244, 255).setNormal(1.0F, 0.0F, 0.0F);
+-            } else if (this.horizontalBasis.getValue() == HorizontalBasis.LEFT) {
+-                bufferbuilder.addVertex(poseStack.last().pose(), screenX, screenY, 0).setColor(69, 166, 244, 255).setNormal(1.0F, 0.0F, 0.0F);
+-                bufferbuilder.addVertex(poseStack.last().pose(), 0, screenY, 0).setColor(69, 166, 244, 255).setNormal(1.0F, 0.0F, 0.0F);
+-            } else if (this.horizontalBasis.getValue() == HorizontalBasis.RIGHT) {
+-                bufferbuilder.addVertex(poseStack.last().pose(), screenX, screenY, 0).setColor(69, 166, 244, 255).setNormal(1.0F, 0.0F, 0.0F);
+-                bufferbuilder.addVertex(poseStack.last().pose(), this.parentScreen.width, screenY, 0).setColor(69, 166, 244, 255).setNormal(1.0F, 0.0F, 0.0F);
++        public void drawOutline(GuiGraphics graphics) {
++            int left = this.getX() - 1;
++            int top = this.getY() - 1;
++            int right = this.getX() + this.width + 1;
++            int bottom = this.getY() + this.height + 1;
++            int centerX = (left + right) / 2;
++            int centerY = (top + bottom) / 2;
++            int cyan = 0xff45a6f4;
++            graphics.renderOutline(left, top, right - left + 1, bottom - top + 1, cyan);
++            switch (this.horizontalBasis.getValue()) {
++                case CENTER -> graphics.hLine(centerX, this.parentScreen.width / 2, centerY, cyan);
++                case LEFT -> graphics.hLine(left, 0, top, cyan);
++                case RIGHT -> graphics.hLine(left, this.parentScreen.width, top, cyan);
+             }
+-
+-            if (this.verticalBasis.getValue() == VerticalBasis.CENTER) {
+-                bufferbuilder.addVertex(poseStack.last().pose(), screenX + (screenXEnd - screenX) / 2.0F, screenY + (screenYEnd - screenY) / 2.0F, 0).setColor(69, 166, 244, 255).setNormal(0.0F, 1.0F, 0.0F);
+-                bufferbuilder.addVertex(poseStack.last().pose(), screenX + (screenXEnd - screenX) / 2.0F, this.parentScreen.height / 2, 0).setColor(69, 166, 244, 255).setNormal(0.0F, 1.0F, 0.0F);
+-            } else if (this.verticalBasis.getValue() == VerticalBasis.TOP) {
+-                bufferbuilder.addVertex(poseStack.last().pose(), screenX, screenY, 0).setColor(69, 166, 244, 255).setNormal(0.0F, 1.0F, 0.0F);
+-                bufferbuilder.addVertex(poseStack.last().pose(), screenX, 0, 0).setColor(69, 166, 244, 255).setNormal(0.0F, 1.0F, 0.0F);
+-            } else if (this.verticalBasis.getValue() == VerticalBasis.BOTTOM) {
+-                bufferbuilder.addVertex(poseStack.last().pose(), screenX, screenY, 0).setColor(69, 166, 244, 255).setNormal(0.0F, 1.0F, 0.0F);
+-                bufferbuilder.addVertex(poseStack.last().pose(), screenX, this.parentScreen.height, 0).setColor(69, 166, 244, 255).setNormal(0.0F, 1.0F, 0.0F);
++            switch (this.verticalBasis.getValue()) {
++                case CENTER -> graphics.vLine(centerX, centerY, this.parentScreen.height / 2, cyan);
++                case TOP -> graphics.vLine(left, top, 0, cyan);
++                case BOTTOM -> graphics.vLine(left, top, this.parentScreen.height, cyan);
+             }
+-            BufferUploader.drawWithShader(bufferbuilder.buildOrThrow());
+         }
+ 
+         @Override
+         protected void renderContents(GuiGraphics guiGraphics, int x, int y, float partialTicks) {
+-            RenderSystem.setShader(GameRenderer::getPositionTexShader);
+-            RenderSystem.setShaderColor(this.r, this.g, this.b, this.alpha);
+-            RenderSystem.enableBlend();
+-            RenderSystem.defaultBlendFunc();
+-            RenderSystem.enableDepthTest();
+ 
+-            guiGraphics.blit(RenderPipelines.GUI_TEXTURED, texture, getX(), getY(), this.texU, this.texV, this.width, this.height, this.texW, this.texH, this.resolutionDivW, this.resolutionDivH);
++            guiGraphics.blit(RenderPipelines.GUI_TEXTURED, texture, getX(), getY(), this.texU, this.texV, this.width, this.height, this.texW, this.texH, this.resolutionDivW, this.resolutionDivH, ARGB.colorFromFloat(this.alpha, this.r, this.g, this.b));
+ 
+             if (this.isHoveredOrFocused() || this.popupScreen.isOpen()) {
+                 this.drawOutline(guiGraphics);
+@@ -392,13 +355,8 @@ public class HUDLocationsScreen extends Screen {
+         protected void renderContents(GuiGraphics guiGraphics, int x, int y, float partialTicks) {
+             Vec2i startPos = this.alignDirection.getValue().startCoordGetter.get(getX(), getY(), this.width, this.height, 2, this.horizontalBasis.getValue(), this.verticalBasis.getValue());
+ 
+-            RenderSystem.setShader(GameRenderer::getPositionTexShader);
+-            RenderSystem.setShaderColor(this.r, this.g, this.b, this.alpha);
+-            RenderSystem.enableBlend();
+-            RenderSystem.defaultBlendFunc();
+-            RenderSystem.enableDepthTest();
+ 
+-            guiGraphics.blit(RenderPipelines.GUI_TEXTURED, this.texture, startPos.x, startPos.y, this.texU, this.texV, this.width, this.height, this.texW, this.texH, this.resolutionDivW, this.resolutionDivH);
++            guiGraphics.blit(RenderPipelines.GUI_TEXTURED, this.texture, startPos.x, startPos.y, this.texU, this.texV, this.width, this.height, this.texW, this.texH, this.resolutionDivW, this.resolutionDivH, ARGB.colorFromFloat(this.alpha, this.r, this.g, this.b));
+ 
+             if (this.isHoveredOrFocused() || this.popupScreen.isOpen()) {
+                 this.drawOutline(guiGraphics);
+@@ -410,12 +368,7 @@ public class HUDLocationsScreen extends Screen {
+ 
+             Vec2i nextPos = this.alignDirection.getValue().nextPositionGetter.getNext(this.horizontalBasis.getValue(), this.verticalBasis.getValue(), startPos, this.width, this.height);
+ 
+-            RenderSystem.setShader(GameRenderer::getPositionTexShader);
+-            RenderSystem.setShaderColor(this.r, this.g, this.b, this.alpha);
+-            RenderSystem.enableBlend();
+-            RenderSystem.defaultBlendFunc();
+-            RenderSystem.enableDepthTest();
+-            guiGraphics.blit(RenderPipelines.GUI_TEXTURED, texture2, nextPos.x, nextPos.y, this.texU, this.texV, this.width, this.height, this.texW, this.texH, this.resolutionDivW, this.resolutionDivH);
++            guiGraphics.blit(RenderPipelines.GUI_TEXTURED, texture2, nextPos.x, nextPos.y, this.texU, this.texV, this.width, this.height, this.texW, this.texH, this.resolutionDivW, this.resolutionDivH, ARGB.colorFromFloat(this.alpha, this.r, this.g, this.b));
+         }
+     }
+ 
+@@ -516,16 +469,13 @@ public class HUDLocationsScreen extends Screen {
+                     this.enable = false;
+                 }
+ 
+-                PoseStack poseStack = guiGraphics.pose();
+-                poseStack.pushPose();
+-                poseStack.translate(0, 0, 200); // zlevel
++                guiGraphics.nextStratum();
+                 this.renderPopup(guiGraphics, this.x, this.y, this.width, this.height);
+ 
+                 for(Renderable renderable : this.renderables) {
+                     renderable.render(guiGraphics, mouseX, mouseY, partialTicks);
+                 }
+ 
+-                poseStack.popPose();
+             }
+         }
+ 
+@@ -535,7 +485,6 @@ public class HUDLocationsScreen extends Screen {
+             int j2 = x;
+             int k2 = y;
+ 
+-            RenderSystem.setShader(GameRenderer::getPositionColorShader);
+ 
+             int backgroundStart = 0xf0100010;
+             int backgroundEnd = 0xf0100010;
+@@ -594,95 +543,23 @@ public class HUDLocationsScreen extends Screen {
+             }
+ 
+             @Override
+-            protected void renderContents(GuiGraphics guiGraphics, int x, int y, float partialTicks) {
+-                RenderSystem.setShader(GameRenderer::getPositionTexShader);
+-                RenderSystem.setShaderTexture(0, BATTLE_ICONS);
+-                RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, this.alpha);
+-                RenderSystem.enableBlend();
+-                RenderSystem.defaultBlendFunc();
+-                RenderSystem.enableDepthTest();
+-
+-                Vec2[] texCoords = new Vec2[4];
+-
+-                float startX;
+-                float startY;
+-                float width;
+-                float height;
+-
+-                if (this.isHovered) {
+-                    startX = 132 / 255.0F;
+-                    startY = 0;
+-                    width = 36 / 255.0F;
+-                    height = 36 / 255.0F;
+-
+-                    //GuiComponent.blit(poseStack, this.x, this.y, this.width, this.height, 132, 0, 36, 36, 255, 255);
+-                } else {
+-                    startX = 97 / 255.0F;
+-                    startY = 2 / 255.0F;
+-                    width = 31 / 255.0F;
+-                    height = 31 / 255.0F;
+-
+-                    //GuiComponent.blit(poseStack, this.x, this.y, this.width, this.height, 97, 2, 31, 31, 255, 255);
+-                }
+-
+-                Vec2 uv0 = new Vec2(startX, startY);
+-                Vec2 uv1 = new Vec2(startX + width, startY);
+-                Vec2 uv2 = new Vec2(startX + width, startY + height);
+-                Vec2 uv3 = new Vec2(startX, startY + height);
+-
+-                texCoords[0] = uv0;
+-                texCoords[1] = uv1;
+-                texCoords[2] = uv2;
+-                texCoords[3] = uv3;
+-
++            protected void renderContents(GuiGraphics graphics, int mouseX, int mouseY, float partialTicks) {
++                int u = this.isHovered ? 132 : 97;
++                int v = this.isHovered ? 0 : 2;
++                int size = this.isHovered ? 36 : 31;
++                float rotation = 0.0F;
+                 if (this.alignDirection.getValue() == AlignDirection.HORIZONTAL) {
+-                    if (this.horBasis.getValue() == HorizontalBasis.LEFT) {
+-                        texCoords[0] = uv1;
+-                        texCoords[1] = uv2;
+-                        texCoords[2] = uv3;
+-                        texCoords[3] = uv0;
+-                    } else {
+-                        texCoords[0] = uv3;
+-                        texCoords[1] = uv0;
+-                        texCoords[2] = uv1;
+-                        texCoords[3] = uv2;
+-                    }
+-                } else {
+-                    if (this.verBasis.getValue() == VerticalBasis.BOTTOM) {
+-                        texCoords[0] = uv2;
+-                        texCoords[1] = uv3;
+-                        texCoords[2] = uv0;
+-                        texCoords[3] = uv1;
+-                    }
++                    rotation = (float)(this.horBasis.getValue() == HorizontalBasis.LEFT ? -Math.PI / 2 : Math.PI / 2);
++                } else if (this.verBasis.getValue() == VerticalBasis.BOTTOM) {
++                    rotation = (float)Math.PI;
+                 }
+-
+-                this.blitRotate(guiGraphics, texCoords);
++                var pose = graphics.pose();
++                pose.pushMatrix().translate(this.getX(), this.getY()).scale(this.width, this.height);
++                pose.translate(0.5F, 0.5F).rotate(rotation).translate(-0.5F, -0.5F);
++                graphics.blit(RenderPipelines.GUI_TEXTURED, BATTLE_ICONS, 0, 0, u, v, 1, 1, size, size, 255, 255, ARGB.white(this.alpha));
++                pose.popMatrix();
+             }
+ 
+-            public void blitRotate(GuiGraphics guiGraphics, Vec2[] texCoords) {
+-                PoseStack poseStack = guiGraphics.pose();
+-                RenderSystem.setShader(GameRenderer::getPositionTexShader);
+-                BufferBuilder bufferbuilder = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX);
+-
+-                bufferbuilder
+-                    .addVertex(poseStack.last().pose(), this.getX(), this.getY(), this.getBlitOffset())
+-                    .setUv(texCoords[0].x, texCoords[0].y);
+-                bufferbuilder
+-                    .addVertex(poseStack.last().pose(), this.getX() + this.width, this.getY(), this.getBlitOffset())
+-                    .setUv(texCoords[1].x, texCoords[1].y);
+-                bufferbuilder
+-                    .addVertex(poseStack.last().pose(), this.getX() + this.width, this.getY() + this.height, this.getBlitOffset())
+-                    .setUv(texCoords[2].x, texCoords[2].y);
+-                bufferbuilder
+-                    .addVertex(poseStack.last().pose(), this.getX(), this.getY() + this.height, this.getBlitOffset())
+-                    .setUv(texCoords[3].x, texCoords[3].y);
+-
+-                BufferUploader.drawWithShader(bufferbuilder.buildOrThrow());
+-            }
+-
+-            public int getBlitOffset() {
+-                return 0;
+-            }
+         }
+     }
+ }
+\ No newline at end of file
+diff --git a/src/main/java/yesman/epicfight/client/gui/screen/overlay/BlendingTextureOverlay.java b/src/main/java/yesman/epicfight/client/gui/screen/overlay/BlendingTextureOverlay.java
+index 1816c79..09f5221 100644
+--- a/src/main/java/yesman/epicfight/client/gui/screen/overlay/BlendingTextureOverlay.java
++++ b/src/main/java/yesman/epicfight/client/gui/screen/overlay/BlendingTextureOverlay.java
+@@ -1,16 +1,7 @@
+ package yesman.epicfight.client.gui.screen.overlay;
+ 
+-import org.lwjgl.opengl.GL11;
+-
+-import com.mojang.blaze3d.platform.GlStateManager;
+-import com.mojang.blaze3d.systems.RenderSystem;
+-import com.mojang.blaze3d.vertex.BufferBuilder;
+-import com.mojang.blaze3d.vertex.BufferUploader;
+-import com.mojang.blaze3d.vertex.DefaultVertexFormat;
+-import com.mojang.blaze3d.vertex.Tesselator;
+-import com.mojang.blaze3d.vertex.VertexFormat;
+-
+-import net.minecraft.client.renderer.GameRenderer;
++import net.minecraft.client.gui.GuiGraphics;
++import net.minecraft.client.renderer.RenderPipelines;
+ import net.minecraft.resources.ResourceLocation;
+ 
+ public class BlendingTextureOverlay extends OverlayManager.Overlay {
+@@ -26,20 +17,9 @@ public class BlendingTextureOverlay extends OverlayManager.Overlay {
+ 	}
+ 	
+ 	@Override
+-	public boolean render(int xResolution, int yResolution) {
+-		RenderSystem.setShader(GameRenderer::getPositionTexShader);
+-		RenderSystem.setShaderTexture(0, this.texture);
+-		GlStateManager._enableBlend();
+-		GlStateManager._disableDepthTest();
+-		GlStateManager._blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
+-		Tesselator tessellator = Tesselator.getInstance();
+-	    BufferBuilder bufferbuilder = tessellator.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX);
+-	    bufferbuilder.addVertex(0, 0, 1).setUv(0, 0);
+-	    bufferbuilder.addVertex(0, yResolution, 1).setUv(0, 1);
+-	    bufferbuilder.addVertex(xResolution, yResolution, 1).setUv(1, 1);
+-	    bufferbuilder.addVertex(xResolution, 0, 1).setUv(1, 0);
+-	    BufferUploader.drawWithShader(bufferbuilder.buildOrThrow());
+-	    
+-	    return !this.isAlive;
+-	}
+-}
+\ No newline at end of file
++    public boolean render(GuiGraphics graphics) {
++        graphics.blit(RenderPipelines.GUI_TEXTURED, this.texture, 0, 0, 0, 0,
++            graphics.guiWidth(), graphics.guiHeight(), 1, 1, 1, 1);
++        return !this.isAlive;
++    }
++}
+diff --git a/src/main/java/yesman/epicfight/client/gui/screen/overlay/FlickeringOverlay.java b/src/main/java/yesman/epicfight/client/gui/screen/overlay/FlickeringOverlay.java
+index 8c8c48f..b55e90e 100644
+--- a/src/main/java/yesman/epicfight/client/gui/screen/overlay/FlickeringOverlay.java
++++ b/src/main/java/yesman/epicfight/client/gui/screen/overlay/FlickeringOverlay.java
+@@ -18,7 +18,7 @@ public class FlickeringOverlay extends OverlayManager.Overlay {
+ 	}
+ 	
+ 	@Override
+-	public boolean render(int xResolution, int yResolution) {
++	public boolean render(net.minecraft.client.gui.GuiGraphics graphics) {
+ 		this.time += this.deltaTime;
+ 		float darkenAmount = Mth.clamp((float)Math.sin(this.time), -1.0F, 0.0F);
+ 		
+diff --git a/src/main/java/yesman/epicfight/client/gui/screen/overlay/OverlayManager.java b/src/main/java/yesman/epicfight/client/gui/screen/overlay/OverlayManager.java
+index f2d5c61..bb75198 100644
+--- a/src/main/java/yesman/epicfight/client/gui/screen/overlay/OverlayManager.java
++++ b/src/main/java/yesman/epicfight/client/gui/screen/overlay/OverlayManager.java
+@@ -5,6 +5,7 @@ import java.util.Map;
+ import com.google.common.collect.Maps;
+ 
+ import net.minecraft.client.Minecraft;
++import net.minecraft.client.gui.GuiGraphics;
+ import net.minecraft.resources.ResourceLocation;
+ 
+ public class OverlayManager {
+@@ -13,9 +14,9 @@ public class OverlayManager {
+ 	private double originalGamma;
+ 	private boolean isGammaChanged;
+ 
+-	public void renderTick(int xResolution, int yResolution) {
++	public void renderTick(GuiGraphics graphics) {
+ 		this.isGammaChanged = false;
+-		this.overlays.entrySet().removeIf((entry) -> entry.getValue().render(xResolution, yResolution));
++		this.overlays.entrySet().removeIf((entry) -> entry.getValue().render(graphics));
+ 	}
+ 	
+ 	public void remove(String overlayId) {
+@@ -53,6 +54,6 @@ public class OverlayManager {
+ 	}
+ 	
+ 	public abstract static class Overlay {
+-		public abstract boolean render(int xResolution, int yResolution);
++		public abstract boolean render(GuiGraphics graphics);
+ 	}
+ }
+\ No newline at end of file
+diff --git a/src/main/java/yesman/epicfight/client/gui/widgets/ClampedNumberBox.java b/src/main/java/yesman/epicfight/client/gui/widgets/ClampedNumberBox.java
+index 32bc00c..26b989b 100644
+--- a/src/main/java/yesman/epicfight/client/gui/widgets/ClampedNumberBox.java
++++ b/src/main/java/yesman/epicfight/client/gui/widgets/ClampedNumberBox.java
+@@ -26,6 +26,10 @@ import java.util.function.Consumer;
+ import java.util.function.Function;
+ 
+ public class ClampedNumberBox<T extends Number> extends AbstractContainerWidget implements AnchoredWidget, DataBoundWidget<T> {
++        // The child controls own scrolling, this panel uses a fixed layout.
++        @Override protected int contentHeight() { return getHeight(); }
++        @Override protected double scrollRate() { return 0.0; }
++
+     private final T minValue;
+     private final T maxValue;
+     private final T increment;
+diff --git a/src/main/java/yesman/epicfight/client/gui/widgets/ComboBox.java b/src/main/java/yesman/epicfight/client/gui/widgets/ComboBox.java
+index ffd0cec..2d0db0f 100644
+--- a/src/main/java/yesman/epicfight/client/gui/widgets/ComboBox.java
++++ b/src/main/java/yesman/epicfight/client/gui/widgets/ComboBox.java
+@@ -248,7 +248,7 @@ public class ComboBox<T> extends AbstractWidget implements AnchoredWidget, DataB
+ 
+         if (this.comboItemList.visible) {
+             guiGraphics.pose().pushMatrix();
+-            guiGraphics.pose().translate(0, 0, 10);
++            guiGraphics.nextStratum();
+             this.comboItemList.render(guiGraphics, mouseX, mouseY, partialTicks);
+             guiGraphics.pose().popMatrix();
+         }
+@@ -279,7 +279,6 @@ public class ComboBox<T> extends AbstractWidget implements AnchoredWidget, DataB
+ 
+         public ComboItemList(Minecraft minecraft, int maxRows, int itemHeight) {
+             super(minecraft, ComboBox.this.width, itemHeight * maxRows, 0, itemHeight);
+-            this.setRenderHeader(false, 0);
+         }
+ 
+         public void addEntry(T item, String displayName) {
+@@ -311,12 +310,12 @@ public class ComboBox<T> extends AbstractWidget implements AnchoredWidget, DataB
+         }
+ 
+         @Override
+-        public int getMaxScroll() {
+-            return Math.max(0, this.getMaxPosition() - (this.getBottom() - this.getY()));
++        public int maxScrollAmount() {
++            return Math.max(0, this.contentHeight() - (this.getBottom() - this.getY()));
+         }
+ 
+         @Override
+-        protected int getRowTop(int row) {
++        public int getRowTop(int row) {
+             return this.getY() + 2 - (int) this.scrollAmount() + row * this.defaultEntryHeight;
+         }
+ 
+diff --git a/src/main/java/yesman/epicfight/client/gui/widgets/EmoteWheelTab.java b/src/main/java/yesman/epicfight/client/gui/widgets/EmoteWheelTab.java
+index 040ed49..caaca94 100644
+--- a/src/main/java/yesman/epicfight/client/gui/widgets/EmoteWheelTab.java
++++ b/src/main/java/yesman/epicfight/client/gui/widgets/EmoteWheelTab.java
+@@ -1,7 +1,7 @@
+ package yesman.epicfight.client.gui.widgets;
+ 
+ import com.mojang.blaze3d.platform.InputConstants;
+-import com.mojang.blaze3d.vertex.PoseStack;
++import org.joml.Matrix3x2fStack;
+ import net.minecraft.client.input.InputWithModifiers;
+ import net.minecraft.client.input.KeyEvent;
+ import net.minecraft.client.Minecraft;
+@@ -34,6 +34,10 @@ import java.util.List;
+ import java.util.function.Consumer;
+ 
+ public class EmoteWheelTab extends AbstractContainerWidget implements AnchoredWidget {
++        // The child controls own scrolling, this panel uses a fixed layout.
++        @Override protected int contentHeight() { return getHeight(); }
++        @Override protected double scrollRate() { return 0.0; }
++
+     private final List<TabButton> tabButtons = new ArrayList<>();
+     private final List<WheelPage> wheelPages = new ArrayList<>();
+     private final Consumer<Holder.Reference<Emote>> onPressWheelButton;
+@@ -342,15 +346,15 @@ public class EmoteWheelTab extends AbstractContainerWidget implements AnchoredWi
+     }
+ 
+     public enum TransitionType {
+-        ZOOM_IN((PoseStack poseStack, AbstractWidget widget, ScreenRectangle parentRectangle, float interpolation) -> {
++        ZOOM_IN((Matrix3x2fStack poseStack, AbstractWidget widget, ScreenRectangle parentRectangle, float interpolation) -> {
+             float centerX = parentRectangle.left() + parentRectangle.width() / 2.0F;
+             float centerY = parentRectangle.top() + parentRectangle.height() / 2.0F;
+ 
+-            poseStack.translate(centerX, centerY, 0);
+-            poseStack.scale(interpolation, interpolation, interpolation);
+-            poseStack.translate(-centerX, -centerY, 0);
++            poseStack.translate(centerX, centerY);
++            poseStack.scale(interpolation, interpolation);
++            poseStack.translate(-centerX, -centerY);
+         }),
+-        SLIDE((PoseStack poseStack, AbstractWidget widget, ScreenRectangle parentRectangle, float interpolation) -> {
++        SLIDE((Matrix3x2fStack poseStack, AbstractWidget widget, ScreenRectangle parentRectangle, float interpolation) -> {
+ 
+         });
+ 
+@@ -363,7 +367,7 @@ public class EmoteWheelTab extends AbstractContainerWidget implements AnchoredWi
+ 
+     @FunctionalInterface
+     interface TransitionApplier {
+-        void apply(PoseStack poseStack, AbstractWidget widget, ScreenRectangle parentRectangle, float interpolation);
++        void apply(Matrix3x2fStack poseStack, AbstractWidget widget, ScreenRectangle parentRectangle, float interpolation);
+     }
+ 
+     private class TabButton extends AnchoredButton {
+@@ -408,6 +412,10 @@ public class EmoteWheelTab extends AbstractContainerWidget implements AnchoredWi
+     }
+ 
+     public class WheelPage extends AbstractContainerWidget {
++        // The child controls own scrolling, this panel uses a fixed layout.
++        @Override protected int contentHeight() { return getHeight(); }
++        @Override protected double scrollRate() { return 0.0; }
++
+         private final EmoteWheelButton[] wheelButtons;
+ 
+         public WheelPage(PlayerSkin playerSkin) {
+@@ -502,8 +510,8 @@ public class EmoteWheelTab extends AbstractContainerWidget implements AnchoredWi
+             );
+ 
+             this.modelPreviewer.setBackgroundClearColor(new Vec4f(0.0F, 0.0F, 0.0F, 0.0F));
+-            this.modelPreviewer.setFigureTexture(playerSkin.texture());
+-            this.modelPreviewer.setMesh(playerSkin.model() == PlayerSkin.Model.SLIM ? Meshes.ALEX : Meshes.BIPED);
++            this.modelPreviewer.setFigureTexture(playerSkin.body().texturePath());
++            this.modelPreviewer.setMesh(playerSkin.model() == net.minecraft.world.entity.player.PlayerModelType.SLIM ? Meshes.ALEX : Meshes.BIPED);
+             this.active = editable;
+         }
+ 
+diff --git a/src/main/java/yesman/epicfight/client/gui/widgets/ModelPreviewer.java b/src/main/java/yesman/epicfight/client/gui/widgets/ModelPreviewer.java
+index 02df300..189c027 100644
+--- a/src/main/java/yesman/epicfight/client/gui/widgets/ModelPreviewer.java
++++ b/src/main/java/yesman/epicfight/client/gui/widgets/ModelPreviewer.java
+@@ -63,6 +63,10 @@ import java.util.*;
+ import java.util.function.Function;
+ 
+ public class ModelPreviewer extends AbstractContainerWidget implements AnchoredWidget {
++        // The child controls own scrolling, this panel uses a fixed layout.
++        @Override protected int contentHeight() { return getHeight(); }
++        @Override protected double scrollRate() { return 0.0; }
++
+ 	private final PreviewRenderTarget modelRenderTarget;
+ 	private final List<AssetAccessor<? extends StaticAnimation>> animationsToPlay = new ArrayList<> ();
+ 	private final List<CustomTrailParticle> trailParticles = new ArrayList<> ();
+diff --git a/src/main/java/yesman/epicfight/client/gui/widgets/SideNavigationBarOpener.java b/src/main/java/yesman/epicfight/client/gui/widgets/SideNavigationBarOpener.java
+index 7333057..e2f79ce 100644
+--- a/src/main/java/yesman/epicfight/client/gui/widgets/SideNavigationBarOpener.java
++++ b/src/main/java/yesman/epicfight/client/gui/widgets/SideNavigationBarOpener.java
+@@ -50,7 +50,7 @@ public class SideNavigationBarOpener extends AbstractWidget implements AnchoredW
+         int maxY = this.getY() + this.getHeight();
+ 
+         guiGraphics.pose().pushMatrix();
+-        guiGraphics.pose().translate(0, 0, 1000);
++        guiGraphics.nextStratum();
+ 
+         guiGraphics.fill(minX, minY, maxX, maxY, outlineColor);
+         guiGraphics.fill(minX, minY + 1, maxX - 1, maxY - 1, 0xFF000000);
+diff --git a/src/main/resources/epicfight.accesswidener b/src/main/resources/epicfight.accesswidener
+index 94f3248..da933d2 100644
+--- a/src/main/resources/epicfight.accesswidener
++++ b/src/main/resources/epicfight.accesswidener
+@@ -105,3 +105,5 @@ accessible field com/mojang/blaze3d/opengl/GlBuffer handle I
+ 
+ accessible method net/minecraft/client/renderer/item/BlockModelWrapper <init> (Ljava/util/List;Ljava/util/List;Lnet/minecraft/client/renderer/item/ModelRenderProperties;Ljava/util/function/Function;)V
+ accessible method net/minecraft/client/renderer/item/BlockModelWrapper detectRenderType (Ljava/util/List;)Ljava/util/function/Function;
++
++accessible field net/minecraft/client/renderer/entity/EntityRenderDispatcher equipmentAssets Lnet/minecraft/client/resources/model/EquipmentAssetManager;

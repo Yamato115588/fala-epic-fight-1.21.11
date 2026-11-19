@@ -38,7 +38,7 @@ cd epicfight-fabric-work
 
 บน Windows ใช้ `py -3 tools\prepare_fabric_port.py epicfight-fabric-work` แล้วรัน `gradlew.bat clean build` จากโฟลเดอร์ที่สร้าง สคริปต์รับ `--upstream-archive` สำหรับ archive ที่ดาวน์โหลดไว้แล้ว โดยตรวจ checksum เดียวกัน Gradle Wrapper ใช้ Gradle 9.5.1 และตรวจ SHA-256 ของไฟล์ Gradle ที่ดาวน์โหลด
 
-GitHub Actions ชื่อ **Fabric 1.21.11 code build** รันบนสาขา `fabric-1.21.11` หลังบิลด์สำเร็จ `tools/check_fabric_jar.py` จะเลือก JAR หลัก ตรวจ metadata, คลาส entrypoint และ namespace ของ access widener แล้วอัปโหลด `epicfight-fabric-1.21.11-code-only` ในหน้า Actions ส่วนแพ็กพร้อมเล่นต้องมีแอสเซตที่ได้รับอนุญาตและผ่านการทดสอบในเกม
+GitHub Actions ชื่อ **Fabric 1.21.11 code build** รันบนสาขา `fabric-1.21.11` สคริปต์ `tools/check_fabric_jar.py` ตรวจ entrypoint, namespace ของ access widener และ SHA-256 ของทรัพยากรที่อนุญาตก่อนอัปโหลด `epicfight-fabric-1.21.11` เมื่อการคอมไพล์ติดขัด workflow จะอัปโหลด `epicfight-compiler-diagnostics` [ผลบิลด์ปัจจุบันและคำสั่งทดสอบ](PORTING-STATUS.md)
 
 ## ผลทดสอบและสถานะ
 
@@ -54,7 +54,7 @@ GitHub Actions ชื่อ **Fabric 1.21.11 code build** รันบนสา�
 - GameTest บน Fabric 1.21.11 ลงทะเบียนชนิดอาวุธ Greatsword, Dagger, Longsword, Spear และ Tachi จากซอร์สจริง ตรวจค่าวัสดุ ความทน การซ่อม ค่าเสริมพลัง และค่าปรับของ Greatsword ผ่าน การใช้คอมโบในเกมต้องทดสอบกับมอดตัวเต็ม
 - GameTest ของเกราะผ่านการตรวจช่องสวมใส่ ค่าป้องกัน แท็กซ่อมด้วย string และ equipment asset ของ Stray การตรวจ RenderPipeline ทั้งสามตัวผ่านใน JVM ด้วยคลาส Minecraft 1.21.11 การวาดในเกมและการประมวลผล compute shader ยังรอทดสอบ
 - GLSL ของพรีวิวทั้งสามรูปแบบผ่าน Minecraft 1.21.11 `GlslPreprocessor` และคอมไพล์พร้อมลิงก์ใน Mesa llvmpipe การวาดจากหน้าพรีวิวจริงยังรอบิลด์มอดเต็ม
-- `processResources` ของ 1.21.11 ผ่าน การคอมไพล์ทั้งมอดยังติด API เรนเดอร์, Registry, NBT ในส่วนอื่น, mixin targets และมอดเสริม และ `validateAccessWidener` ยังพบสมาชิก Minecraft ที่ต้องย้าย จึงยังไม่มี JAR สำหรับเล่น การทดสอบคอมโบ แอนิเมชันและการซิงก์ระหว่างผู้เล่นต้องทำหลังได้ build ที่เปิดเกมได้
+- `processResources` และ `validateAccessWidener` ผ่าน Compute Shader ของโครงการผ่านการอ่านพิกเซลจาก Minecraft `RenderPass` ด้วย Mesa llvmpipe การเปิดเกมและการทดสอบหลังรวมมอดเต็มยังรอ `compileJava` [รายงานการทดสอบ](PORTING-STATUS.md)
 - Arclight ที่พบในเซิร์ฟเวอร์ Fala ฝัง Fabric Loader 0.19.2 ต้องทดสอบด้วย Arclight สำหรับ 1.21.11 ที่มี Loader ตรงตามข้อกำหนด และทดสอบร่วมกับ CustomFigura, Emotecraft และ Geyser ในเซิร์ฟเวอร์ทดสอบก่อนรวมแพ็กจริง [เวอร์ชันที่ Arclight ตรึงไว้](https://github.com/IzzelAliz/Arclight/blob/8a57510/gradle/libs.versions.toml#L34-L35)
 
 ## บิลด์มอดเสริม CustomFigura
@@ -73,6 +73,6 @@ JAR นี้เป็นรุ่นทดสอบ การเล่นด้
 
 ## สิทธิ์การใช้งาน
 
-ซอร์ส Epic Fight ใช้ GPL-3.0 ส่วนโมเดล แอนิเมชัน ภาพ เสียง และทรัพยากรเดิมสงวนสิทธิ์ รุ่นสำหรับแจกต้องใช้แอสเซตที่ได้รับอนุญาตหรือที่โครงการมีสิทธิ์ใช้เอง [เงื่อนไขของ Epic Fight](https://github.com/Antikythera-Studios/epicfight/blob/866a2a1e4268d0d7897c6a5be4ef1e58e47d7443/README.md#license)
+ซอร์ส Epic Fight ที่ตรึงไว้ใช้ GPL-3.0 ทรัพยากรต้นฉบับอยู่ภายใต้ `LICENSE-ASSETS` พอร์ตนี้เตรียมไฟล์ CC0-1.0 ที่สร้างขึ้นเองจาก `replacement-assets/` และรองรับ resource pack ที่มีสิทธิ์ใช้งาน [เงื่อนไขของ Epic Fight](https://github.com/Antikythera-Studios/epicfight/blob/866a2a1e4268d0d7897c6a5be4ef1e58e47d7443/README.md#license)
 
 Equipment JSON ของ Stray ใช้ `assets/epicfight/textures/entity/equipment/humanoid/stray_cloth.png` และ `assets/epicfight/textures/entity/equipment/humanoid_leggings/stray_cloth.png` สำหรับเลเยอร์ตัวและขาตามลำดับ ให้วางภาพที่ได้รับอนุญาตไว้ตามสองพาธนี้ก่อนทดสอบการวาดเกราะ

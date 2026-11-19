@@ -1,0 +1,392 @@
+diff --git a/src/main/java/yesman/epicfight/client/gui/widgets/package-info.java b/src/main/java/yesman/epicfight/client/gui/widgets/package-info.java
+index b6bb85b..c0bece2 100644
+--- a/src/main/java/yesman/epicfight/client/gui/widgets/package-info.java
++++ b/src/main/java/yesman/epicfight/client/gui/widgets/package-info.java
+@@ -1,8 +1,4 @@
+-@ParametersAreNonnullByDefault
+-@MethodsReturnNonnullByDefault
+-@FieldsAreNonnullByDefault
++@NullMarked
+ package yesman.epicfight.client.gui.widgets;
+ 
+ import org.jspecify.annotations.NullMarked;
+-
+-import javax.annotation.ParametersAreNonnullByDefault;
+\ No newline at end of file
+diff --git a/src/main/java/yesman/epicfight/client/world/capabilites/entitypatch/player/AbstractClientPlayerPatch.java b/src/main/java/yesman/epicfight/client/world/capabilites/entitypatch/player/AbstractClientPlayerPatch.java
+index d6ced96..5f9423b 100644
+--- a/src/main/java/yesman/epicfight/client/world/capabilites/entitypatch/player/AbstractClientPlayerPatch.java
++++ b/src/main/java/yesman/epicfight/client/world/capabilites/entitypatch/player/AbstractClientPlayerPatch.java
+@@ -171,9 +171,10 @@ public class AbstractClientPlayerPatch<T extends AbstractClientPlayer> extends P
+ 
+     @Override
+     public void preTickClient() {
+-        this.xCloakO2 = this.original.xCloakO;
+-        this.yCloakO2 = this.original.yCloakO;
+-        this.zCloakO2 = this.original.zCloakO;
++        var cloak = this.original.avatarState();
++        this.xCloakO2 = cloak.getInterpolatedCloakX(0);
++        this.yCloakO2 = cloak.getInterpolatedCloakY(0);
++        this.zCloakO2 = cloak.getInterpolatedCloakZ(0);
+ 
+         super.preTickClient();
+ 
+@@ -181,8 +182,8 @@ public class AbstractClientPlayerPatch<T extends AbstractClientPlayer> extends P
+             this.original.yBodyRot = this.original.yHeadRot;
+         }
+ 
+-        Item currentMain = this.original.getInventory().getSelected().getItem();
+-        Item currentOff = this.original.getInventory().offhand.getFirst().getItem();
++        Item currentMain = this.original.getMainHandItem().getItem();
++        Item currentOff = this.original.getOffhandItem().getItem();
+         boolean isMainHandChanged = this.prevHeldItem != currentMain;
+         boolean isOffHandChanged = this.prevHeldItemOffHand != currentOff;
+ 
+@@ -357,7 +358,7 @@ public class AbstractClientPlayerPatch<T extends AbstractClientPlayer> extends P
+             mat.rotateDeg(-Mth.rotLerp(partialTick, this.original.yBodyRotO, this.original.yBodyRot), Vec3f.Y_AXIS).rotateDeg(f2 * (-this.original.getXRot()), Vec3f.X_AXIS);
+ 
+             Vec3 vec3d = this.original.getViewVector(partialTick);
+-            Vec3 vec3d1 = this.original.getDeltaMovementLerped(partialTick);
++            Vec3 vec3d1 = this.original.avatarState().deltaMovementOnPreviousTick().lerp(this.original.getDeltaMovement(), partialTick);
+             double d0 = vec3d1.horizontalDistanceSqr();
+             double d1 = vec3d.horizontalDistanceSqr();
+ 
+@@ -461,21 +462,18 @@ public class AbstractClientPlayerPatch<T extends AbstractClientPlayer> extends P
+ 
+     @Override
+     public Vec3 getAccurateCloakLocation(float partialFrame) {
++        var cloak = this.original.avatarState();
+         if (partialFrame < 0.0F) {
+-            partialFrame = 1.0F - partialFrame;
+-
+-            double x = Mth.lerp((double)partialFrame, this.xCloakO2, this.original.xCloakO) - Mth.lerp((double)partialFrame, this.xPosO2, this.original.xo);
+-            double y = Mth.lerp((double)partialFrame, this.yCloakO2, this.original.yCloakO) - Mth.lerp((double)partialFrame, this.yPosO2, this.original.yo);
+-            double z = Mth.lerp((double)partialFrame, this.zCloakO2, this.original.zCloakO) - Mth.lerp((double)partialFrame, this.zPosO2, this.original.zo);
+-
+-            return new Vec3(x, y, z);
+-        } else {
+-            double x = Mth.lerp((double)partialFrame, this.original.xCloakO, this.original.xCloak) - Mth.lerp((double)partialFrame, this.original.xo, this.original.getX());
+-            double y = Mth.lerp((double)partialFrame, this.original.yCloakO, this.original.yCloak) - Mth.lerp((double)partialFrame, this.original.yo, this.original.getY());
+-            double z = Mth.lerp((double)partialFrame, this.original.zCloakO, this.original.zCloak) - Mth.lerp((double)partialFrame, this.original.zo, this.original.getZ());
+-
+-            return new Vec3(x, y, z);
++            float progress = 1.0F + partialFrame;
++            return new Vec3(
++                Mth.lerp(progress, this.xCloakO2, cloak.getInterpolatedCloakX(0)) - Mth.lerp(progress, this.xPosO2, this.original.xo),
++                Mth.lerp(progress, this.yCloakO2, cloak.getInterpolatedCloakY(0)) - Mth.lerp(progress, this.yPosO2, this.original.yo),
++                Mth.lerp(progress, this.zCloakO2, cloak.getInterpolatedCloakZ(0)) - Mth.lerp(progress, this.zPosO2, this.original.zo));
+         }
++        return new Vec3(
++            cloak.getInterpolatedCloakX(partialFrame) - Mth.lerp(partialFrame, this.original.xo, this.original.getX()),
++            cloak.getInterpolatedCloakY(partialFrame) - Mth.lerp(partialFrame, this.original.yo, this.original.getY()),
++            cloak.getInterpolatedCloakZ(partialFrame) - Mth.lerp(partialFrame, this.original.zo, this.original.getZ()));
+     }
+ 
+     @Override
+diff --git a/src/main/java/yesman/epicfight/client/world/capabilites/entitypatch/player/LocalPlayerPatch.java b/src/main/java/yesman/epicfight/client/world/capabilites/entitypatch/player/LocalPlayerPatch.java
+index ec5a190..f64631a 100644
+--- a/src/main/java/yesman/epicfight/client/world/capabilites/entitypatch/player/LocalPlayerPatch.java
++++ b/src/main/java/yesman/epicfight/client/world/capabilites/entitypatch/player/LocalPlayerPatch.java
+@@ -490,7 +490,7 @@ public class LocalPlayerPatch extends AbstractClientPlayerPatch<LocalPlayer> {
+                 if (blockHitResult != null && this.minecraft.level != null) {
+                     BlockPos bp = blockHitResult.getBlockPos();
+                     BlockState bs = this.minecraft.level.getBlockState(bp);
+-                    return !combatItem.getItem().canAttackBlock(bs, this.original.level(), bp, this.original) || !combatItem.isCorrectToolForDrops(bs);
++                    return !combatItem.canDestroyBlock(bs, this.original.level(), bp, this.original) || !combatItem.isCorrectToolForDrops(bs);
+                 }
+             } else {
+                 return RenderEngine.hitResultNotEquals(this.minecraft.hitResult, HitResult.Type.BLOCK);
+diff --git a/src/main/java/yesman/epicfight/data/tags/EpicFightItemTagsProvider.java b/src/main/java/yesman/epicfight/data/tags/EpicFightItemTagsProvider.java
+index e2b5488..8c1e9af 100644
+--- a/src/main/java/yesman/epicfight/data/tags/EpicFightItemTagsProvider.java
++++ b/src/main/java/yesman/epicfight/data/tags/EpicFightItemTagsProvider.java
+@@ -4,7 +4,9 @@ import yesman.epicfight.EpicFight;
+ import net.minecraft.core.HolderLookup;
+ import net.minecraft.core.HolderLookup.Provider;
+ import net.minecraft.data.PackOutput;
+-import net.minecraft.data.tags.ItemTagsProvider;
++import net.minecraft.data.tags.IntrinsicHolderTagsProvider;
++import net.minecraft.core.registries.Registries;
++import net.minecraft.world.item.Item;
+ import net.minecraft.data.tags.TagsProvider;
+ import net.minecraft.tags.ItemTags;
+ import net.minecraft.world.level.block.Block;
+@@ -13,14 +15,14 @@ import yesman.epicfight.registry.entries.EpicFightItems;
+ 
+ import java.util.concurrent.CompletableFuture;
+ 
+-public class EpicFightItemTagsProvider extends ItemTagsProvider {
++public class EpicFightItemTagsProvider extends IntrinsicHolderTagsProvider<Item> {
+ 	public EpicFightItemTagsProvider(
+ 		PackOutput output,
+         CompletableFuture<HolderLookup.Provider> lookupProvider,
+         CompletableFuture<TagsProvider.TagLookup<Block>> blockTags,
+         @org.jetbrains.annotations.Nullable yesman.epicfight.platform.neoforged.common.data.ExistingFileHelper existingFileHelper
+ 	) {
+-		super(output, lookupProvider, blockTags);
++		super(output, Registries.ITEM, lookupProvider, item -> item.builtInRegistryHolder().key());
+ 	}
+ 	
+ 	@Override
+diff --git a/src/main/java/yesman/epicfight/server/commands/AnimatorCommand.java b/src/main/java/yesman/epicfight/server/commands/AnimatorCommand.java
+index 68a890b..1c81f1c 100644
+--- a/src/main/java/yesman/epicfight/server/commands/AnimatorCommand.java
++++ b/src/main/java/yesman/epicfight/server/commands/AnimatorCommand.java
+@@ -21,7 +21,7 @@ public class AnimatorCommand {
+ 	public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
+ 		dispatcher.register(
+ 			Commands.literal("epicfight")
+-					.then(Commands.literal("animator").requires((commandSourceStack) -> commandSourceStack.hasPermission(2))
++					.then(Commands.literal("animator").requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
+ 							      .then(Commands.literal("play")
+ 												.then(Commands.argument("targets", EntityArgument.entities())
+ 														  	  .then(Commands.argument("animation", AnimationArgument.animation())
+diff --git a/src/main/java/yesman/epicfight/server/commands/PlayerModeCommand.java b/src/main/java/yesman/epicfight/server/commands/PlayerModeCommand.java
+index 8faf99c..50e26ef 100644
+--- a/src/main/java/yesman/epicfight/server/commands/PlayerModeCommand.java
++++ b/src/main/java/yesman/epicfight/server/commands/PlayerModeCommand.java
+@@ -20,7 +20,7 @@ import java.util.Locale;
+ 
+ public class PlayerModeCommand {
+ 	public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
+-		LiteralArgumentBuilder<CommandSourceStack> builder = Commands.literal("mode").requires((commandSourceStack) -> commandSourceStack.hasPermission(2));
++		LiteralArgumentBuilder<CommandSourceStack> builder = Commands.literal("mode").requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS));
+ 		
+ 		for (PlayerMode mode : PlayerPatch.PlayerMode.values()) {
+ 			builder.then(Commands.literal(mode.name().toLowerCase(Locale.ROOT)).executes((command) -> {
+diff --git a/src/main/java/yesman/epicfight/server/commands/PlayerSkillCommand.java b/src/main/java/yesman/epicfight/server/commands/PlayerSkillCommand.java
+index 1928deb..ba62043 100644
+--- a/src/main/java/yesman/epicfight/server/commands/PlayerSkillCommand.java
++++ b/src/main/java/yesman/epicfight/server/commands/PlayerSkillCommand.java
+@@ -52,7 +52,7 @@ public class PlayerSkillCommand {
+ 			}
+ 		}
+ 		
+-		LiteralArgumentBuilder<CommandSourceStack> builder = Commands.literal("skill").requires((commandSourceStack) -> commandSourceStack.hasPermission(2))
++		LiteralArgumentBuilder<CommandSourceStack> builder = Commands.literal("skill").requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
+ 			.then(Commands.literal("clear").executes((commandContext) -> clearSkill(commandContext.getSource(), ImmutableList.of(commandContext.getSource().getPlayerOrException())))
+ 			.then(Commands.argument("targets", EntityArgument.players()).executes((commandContext) -> clearSkill(commandContext.getSource(), EntityArgument.getPlayers(commandContext, "targets")))))
+ 			.then(Commands.literal("add")
+diff --git a/src/main/java/yesman/epicfight/server/commands/PlayerStaminaCommand.java b/src/main/java/yesman/epicfight/server/commands/PlayerStaminaCommand.java
+index 280d8b3..acfdd7b 100644
+--- a/src/main/java/yesman/epicfight/server/commands/PlayerStaminaCommand.java
++++ b/src/main/java/yesman/epicfight/server/commands/PlayerStaminaCommand.java
+@@ -26,7 +26,7 @@ public class PlayerStaminaCommand {
+ 	private static final SimpleCommandExceptionType ERROR_MODIFYING_FAILED = new SimpleCommandExceptionType(Component.translatable("commands.epicfight.stamina.success.failed"));
+ 	
+ 	public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
+-		LiteralArgumentBuilder<CommandSourceStack> builder = Commands.literal("stamina").requires((commandSourceStack) -> commandSourceStack.hasPermission(2));
++		LiteralArgumentBuilder<CommandSourceStack> builder = Commands.literal("stamina").requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS));
+ 		
+ 		builder.then(Commands.literal("get").then(Commands.argument("target", EntityArgument.player()).executes((command) -> {
+ 			return getStamina(command.getSource(), EntityArgument.getPlayer(command, "target"));
+diff --git a/src/main/java/yesman/epicfight/world/capabilities/entitypatch/HumanoidMobPatch.java b/src/main/java/yesman/epicfight/world/capabilities/entitypatch/HumanoidMobPatch.java
+index e251ad8..f2011f2 100644
+--- a/src/main/java/yesman/epicfight/world/capabilities/entitypatch/HumanoidMobPatch.java
++++ b/src/main/java/yesman/epicfight/world/capabilities/entitypatch/HumanoidMobPatch.java
+@@ -5,6 +5,8 @@ import com.google.common.collect.Maps;
+ import com.google.common.collect.Sets;
+ import com.mojang.datafixers.util.Pair;
+ import net.minecraft.core.Holder;
++import net.minecraft.tags.ItemTags;
++import yesman.epicfight.world.item.WeaponMaterials;
+ import net.minecraft.server.level.ServerPlayer;
+ import net.minecraft.world.InteractionHand;
+ import net.minecraft.world.entity.Entity;
+@@ -370,8 +372,8 @@ public abstract class HumanoidMobPatch<T extends PathfinderMob> extends MobPatch
+ 	}
+ 	
+ 	public boolean isArmed() {
+-		Item heldItem = this.original.getMainHandItem().getItem();
+-		return heldItem instanceof SwordItem || heldItem instanceof DiggerItem || heldItem instanceof TridentItem;
++		ItemStack heldItem = this.original.getMainHandItem();
++		return heldItem.is(ItemTags.SWORDS) || WeaponMaterials.isMiningTool(heldItem) || heldItem.getItem() instanceof TridentItem;
+ 	}
+ 	
+ 	@Override
+diff --git a/src/main/java/yesman/epicfight/world/capabilities/item/GloveCapability.java b/src/main/java/yesman/epicfight/world/capabilities/item/GloveCapability.java
+index 55be5ce..12533e7 100644
+--- a/src/main/java/yesman/epicfight/world/capabilities/item/GloveCapability.java
++++ b/src/main/java/yesman/epicfight/world/capabilities/item/GloveCapability.java
+@@ -1,8 +1,8 @@
+ package yesman.epicfight.world.capabilities.item;
+ 
+-import net.minecraft.world.item.DiggerItem;
++import net.minecraft.tags.ItemTags;
++import yesman.epicfight.world.item.WeaponMaterials;
+ import net.minecraft.world.item.ItemStack;
+-import net.minecraft.world.item.SwordItem;
+ import yesman.epicfight.world.capabilities.EpicFightCapabilities;
+ import yesman.epicfight.world.capabilities.entitypatch.LivingEntityPatch;
+ 
+@@ -14,10 +14,10 @@ public class GloveCapability extends WeaponCapability {
+ 	
+ 	@Override
+ 	public boolean checkOffhandValid(LivingEntityPatch<?> entitypatch) {
+-		ItemStack offhandItme = entitypatch.getOriginal().getOffhandItem();
+-		CapabilityItem itemCap = EpicFightCapabilities.getItemStackCapability(offhandItme);
++		ItemStack offhand = entitypatch.getOriginal().getOffhandItem();
++		CapabilityItem itemCap = EpicFightCapabilities.getItemStackCapability(offhand);
+ 		boolean isFist = itemCap.getWeaponCategory() == WeaponCategories.FIST;
+-		return isFist || !(offhandItme.getItem() instanceof SwordItem || offhandItme.getItem() instanceof DiggerItem);
++		return isFist || !(offhand.is(ItemTags.SWORDS) || WeaponMaterials.isMiningTool(offhand));
+ 	}
+ 	
+ 	@Override
+diff --git a/src/main/java/yesman/epicfight/world/item/GloveItem.java b/src/main/java/yesman/epicfight/world/item/GloveItem.java
+index 2552161..50b61f2 100644
+--- a/src/main/java/yesman/epicfight/world/item/GloveItem.java
++++ b/src/main/java/yesman/epicfight/world/item/GloveItem.java
+@@ -1,21 +1,11 @@
+ package yesman.epicfight.world.item;
+ 
+ import net.minecraft.world.item.Item;
+-import net.minecraft.world.item.ItemStack;
+ import net.minecraft.world.item.Items;
+ 
+ public class GloveItem extends WeaponItem {
+ 	public GloveItem(Item.Properties properties) {
+-		super(properties);
++		super(properties.enchantable(22).repairable(Items.IRON_NUGGET));
+ 	}
+ 	
+-	@Override
+-    public int getEnchantmentValue() {
+-        return 22;
+-    }
+-	
+-	@Override
+-	public boolean isValidRepairItem(ItemStack toRepair, ItemStack repair) {
+-		return toRepair.getItem() == Items.IRON_NUGGET;
+-	}
+-}
+\ No newline at end of file
++}
+diff --git a/src/main/java/yesman/epicfight/world/item/UchigatanaItem.java b/src/main/java/yesman/epicfight/world/item/UchigatanaItem.java
+index e45aa25..1d1fe00 100644
+--- a/src/main/java/yesman/epicfight/world/item/UchigatanaItem.java
++++ b/src/main/java/yesman/epicfight/world/item/UchigatanaItem.java
+@@ -1,6 +1,8 @@
+ package yesman.epicfight.world.item;
+ 
++import net.minecraft.core.HolderSet;
+ import net.minecraft.core.component.DataComponents;
++import net.minecraft.core.registries.BuiltInRegistries;
+ import net.minecraft.network.chat.Component;
+ import net.minecraft.tags.BlockTags;
+ import net.minecraft.world.item.Item;
+@@ -9,10 +11,12 @@ import net.minecraft.world.item.Items;
+ import net.minecraft.world.item.TooltipFlag;
+ import net.minecraft.world.item.component.ItemAttributeModifiers;
+ import net.minecraft.world.item.component.Tool;
++import net.minecraft.world.item.component.TooltipDisplay;
+ import net.minecraft.world.level.block.Blocks;
+ import yesman.epicfight.generated.LangKeys;
+ 
+ import java.util.List;
++import java.util.function.Consumer;
+ 
+ public class UchigatanaItem extends WeaponItem {
+ 	public static ItemAttributeModifiers createUchigatanaAttributes() {
+@@ -20,26 +24,18 @@ public class UchigatanaItem extends WeaponItem {
+ 	}
+ 	
+ 	public UchigatanaItem(Item.Properties properties) {
+-		super(properties.component(DataComponents.TOOL, createToolProperties()));
++		super(properties.enchantable(22).repairable(Items.IRON_BARS).component(DataComponents.TOOL, createToolProperties()));
+ 	}
+ 	
+ 	public static Tool createToolProperties() {
+-        return new Tool(List.of(Tool.Rule.minesAndDrops(List.of(Blocks.COBWEB), 15.0F), Tool.Rule.overrideSpeed(BlockTags.SWORD_EFFICIENT, 1.5F)), 1.0F, 2);
++        var blocks = BuiltInRegistries.acquireBootstrapRegistrationLookup(BuiltInRegistries.BLOCK);
++        return new Tool(List.of(Tool.Rule.minesAndDrops(HolderSet.direct(Blocks.COBWEB.builtInRegistryHolder()), 15.0F),
++            Tool.Rule.overrideSpeed(blocks.getOrThrow(BlockTags.SWORD_EFFICIENT), 1.5F)), 1.0F, 2, false);
+     }
+ 	
+ 	@Override
+-    public int getEnchantmentValue() {
+-        return 22;
+-    }
+-	
+-	@Override
+-	public boolean isValidRepairItem(ItemStack toRepair, ItemStack repair) {
+-		return toRepair.getItem() == Items.IRON_BARS;
+-	}
+-    
+-	@Override
+-	public void appendHoverText(ItemStack stack, Item.TooltipContext context, List<Component> tooltipComponents, TooltipFlag tooltipFlag) {
+-		tooltipComponents.add(Component.literal(""));
+-		tooltipComponents.add(Component.translatable(LangKeys.ITEM_UCHIGATANA_TOOLTIP));
++	public void appendHoverText(ItemStack stack, Item.TooltipContext context, TooltipDisplay display, Consumer<Component> tooltip, TooltipFlag tooltipFlag) {
++		tooltip.accept(Component.literal(""));
++		tooltip.accept(Component.translatable(LangKeys.ITEM_UCHIGATANA_TOOLTIP));
+ 	}
+ }
+\ No newline at end of file
+diff --git a/src/main/java/yesman/epicfight/world/item/WeaponItem.java b/src/main/java/yesman/epicfight/world/item/WeaponItem.java
+index 64d7dfd..87212ff 100644
+--- a/src/main/java/yesman/epicfight/world/item/WeaponItem.java
++++ b/src/main/java/yesman/epicfight/world/item/WeaponItem.java
+@@ -1,8 +1,8 @@
+ package yesman.epicfight.world.item;
+-import yesman.epicfight.EpicFight;
++import net.minecraft.core.component.DataComponents;
++import net.minecraft.world.item.component.Weapon;
+ 
+ import net.minecraft.core.BlockPos;
+-import net.minecraft.world.entity.EquipmentSlot;
+ import net.minecraft.world.entity.LivingEntity;
+ import net.minecraft.world.entity.player.Player;
+ import net.minecraft.world.item.Item;
+@@ -12,22 +12,12 @@ import net.minecraft.world.level.block.state.BlockState;
+ 
+ public class WeaponItem extends Item {
+     public WeaponItem(Item.Properties properties) {
+-        super(properties);
++        super(properties.component(DataComponents.WEAPON, new Weapon(1)));
+     }
+     
+-    /**
+-     * Below code are copies from {@link SwordItem.class} to share the common properties of swords
+-     */
+-    public boolean canAttackBlock(BlockState state, Level level, BlockPos pos, Player player) {
+-        return !player.isCreative();
+-    }
+-
+-    public boolean hurtEnemy(ItemStack stack, LivingEntity target, LivingEntity attacker) {
+-        return true;
+-    }
+-
+-    public void postHurtEnemy(ItemStack stack, LivingEntity target, LivingEntity attacker) {
+-        stack.hurtAndBreak(1, attacker, EquipmentSlot.MAINHAND);
++    @Override
++    public boolean canDestroyBlock(ItemStack stack, BlockState state, Level level, BlockPos pos, LivingEntity miner) {
++        return !(miner instanceof Player player && player.isCreative()) && super.canDestroyBlock(stack, state, level, pos, miner);
+     }
+ 
+     public boolean canPerformAction(ItemStack stack, yesman.epicfight.platform.neoforged.common.ItemAbility itemAbility) {
+diff --git a/src/main/java/yesman/epicfight/world/item/WeaponMaterials.java b/src/main/java/yesman/epicfight/world/item/WeaponMaterials.java
+index 43fd6a0..2914aaa 100644
+--- a/src/main/java/yesman/epicfight/world/item/WeaponMaterials.java
++++ b/src/main/java/yesman/epicfight/world/item/WeaponMaterials.java
+@@ -3,7 +3,9 @@ package yesman.epicfight.world.item;
+ import java.util.List;
+ 
+ import net.minecraft.core.component.DataComponents;
++import net.minecraft.tags.ItemTags;
+ import net.minecraft.world.item.Item;
++import net.minecraft.world.item.ItemStack;
+ import net.minecraft.world.item.ToolMaterial;
+ 
+ public final class WeaponMaterials {
+@@ -15,6 +17,10 @@ public final class WeaponMaterials {
+     private WeaponMaterials() {
+     }
+ 
++    public static boolean isMiningTool(ItemStack stack) {
++        return stack.is(ItemTags.AXES) || stack.is(ItemTags.HOES) || stack.is(ItemTags.PICKAXES) || stack.is(ItemTags.SHOVELS);
++    }
++
+     public static ToolMaterial materialOf(Item item) {
+         if (item instanceof TieredWeaponItem weapon) {
+             return weapon.getMaterial();
