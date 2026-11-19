@@ -6,6 +6,7 @@ rootProject { project ->
             source new File(probeDir, 'PortDataTest.java'), new File(probeDir, 'ReplacementAssetTest.java'),
                    project.file('src/main/java/yesman/epicfight/api/asset/AssetResourceSource.java'),
                    project.file('src/main/java/yesman/epicfight/util/TagUtils.java'),
+                   project.file('src/main/java/yesman/epicfight/util/EntityPatchDataIO.java'),
                    project.file('src/main/java/yesman/epicfight/api/client/model/transformer/MeshVertex.java')
             classpath = project.configurations.compileClasspath
             destinationDirectory.set(dest)

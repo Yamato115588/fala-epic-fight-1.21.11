@@ -14,6 +14,11 @@ import net.minecraft.nbt.TagParser;
 import org.joml.Matrix4f;
 import yesman.epicfight.api.client.model.transformer.MeshVertex;
 import yesman.epicfight.util.TagUtils;
+import yesman.epicfight.util.EntityPatchDataIO;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.util.ProblemReporter;
+import net.minecraft.world.level.storage.TagValueInput;
+import net.minecraft.world.level.storage.TagValueOutput;
 
 public final class PortDataTest {
     public static void main(String[] args) throws Exception {
@@ -23,6 +28,19 @@ public final class PortDataTest {
         NbtIo.write(saved, new DataOutputStream(bytes));
         CompoundTag loaded = NbtIo.read(new DataInputStream(new ByteArrayInputStream(bytes.toByteArray())));
         check(saved.equals(loaded), "binary NBT round trip");
+        var registries = HolderLookup.Provider.create(java.util.stream.Stream.empty());
+        var output = TagValueOutput.createWithContext(ProblemReporter.DISCARDING, registries);
+        output.putInt("Air", 300);
+        EntityPatchDataIO.writeFields(output, loaded);
+        var persistent = TagParser.parseCompoundFully("{faction:'fala',rank:7}");
+        output.store("ForgeData", CompoundTag.CODEC, persistent);
+        EntityPatchDataIO.writeFields(output, new CompoundTag());
+        var result = output.buildResult();
+        check(result.getIntOr("Air", 0) == 300 && result.getStringOr("skill", "").equals("หลบ"), "Minecraft and patch fields at the same save root");
+        var input = TagValueInput.create(ProblemReporter.DISCARDING, registries, result);
+        check(EntityPatchDataIO.readFields(input).equals(result), "existing root fields survive ValueInput");
+        check(input.read("ForgeData", CompoundTag.CODEC).orElseThrow().equals(persistent), "legacy persistent entity subtree");
+        System.out.println("PASS: entity patch fields merged with vanilla data and legacy ForgeData round trip through ValueInput/ValueOutput");
         ListTag joints = TagUtils.getTypedList(loaded, "joints", Tag.TAG_INT);
         check(TagUtils.intAt(joints, 0) == 2 && TagUtils.intAt(joints, 1) == 5, "joint order");
         joints.add(IntTag.valueOf(8));

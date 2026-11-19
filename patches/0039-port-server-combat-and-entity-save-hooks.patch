@@ -1,0 +1,657 @@
+diff --git a/src/main/java/yesman/epicfight/data/conditions/Condition.java b/src/main/java/yesman/epicfight/data/conditions/Condition.java
+index e70e4c5..a51c036 100644
+--- a/src/main/java/yesman/epicfight/data/conditions/Condition.java
++++ b/src/main/java/yesman/epicfight/data/conditions/Condition.java
+@@ -53,7 +53,7 @@ public interface Condition<T> {
+ 			throw new IllegalArgumentException(MessageFormat.format("{0} condition error: {1} not specified!", this.getClass().getSimpleName(), key));
+ 		}
+ 		
+-		String enumString = this.assertTag(key, "string", compound, StringTag.class, CompoundTag::getString).toUpperCase(Locale.ROOT);
++		String enumString = this.assertTag(key, "string", compound, StringTag.class, (data, name) -> data.getString(name).orElseThrow()).toUpperCase(Locale.ROOT);
+ 		
+ 		try {
+ 			return Enum.valueOf(enumCls, enumString);
+@@ -67,7 +67,7 @@ public interface Condition<T> {
+ 			throw new IllegalArgumentException(MessageFormat.format("{0} condition error: {1} not specified!", this.getClass().getSimpleName(), key));
+ 		}
+ 		
+-		String enumString = this.assertTag(key, "string", compound, StringTag.class, CompoundTag::getString).toLowerCase(Locale.ROOT);
++		String enumString = this.assertTag(key, "string", compound, StringTag.class, (data, name) -> data.getString(name).orElseThrow()).toLowerCase(Locale.ROOT);
+ 		
+ 		try {
+ 			return extendableEnumManager.getOrThrow(enumString);
+diff --git a/src/main/java/yesman/epicfight/data/conditions/entity/HealthPoint.java b/src/main/java/yesman/epicfight/data/conditions/entity/HealthPoint.java
+index 811e57e..8340fa3 100644
+--- a/src/main/java/yesman/epicfight/data/conditions/entity/HealthPoint.java
++++ b/src/main/java/yesman/epicfight/data/conditions/entity/HealthPoint.java
+@@ -35,7 +35,7 @@ public class HealthPoint extends EntityPatchCondition {
+ 	
+ 	@Override
+ 	public HealthPoint read(CompoundTag tag) {
+-		this.health = this.assertTag("health", "decimal", tag, NumericTag.class, CompoundTag::getDouble);
++		this.health = this.assertTag("health", "decimal", tag, NumericTag.class, (data, name) -> data.getDouble(name).orElseThrow());
+ 		this.comparator = this.assertEnumTag("comparator", Comparator.class, tag);
+ 		
+ 		return this;
+diff --git a/src/main/java/yesman/epicfight/data/conditions/entity/PlayerName.java b/src/main/java/yesman/epicfight/data/conditions/entity/PlayerName.java
+index 9deb1ce..3901061 100644
+--- a/src/main/java/yesman/epicfight/data/conditions/entity/PlayerName.java
++++ b/src/main/java/yesman/epicfight/data/conditions/entity/PlayerName.java
+@@ -24,7 +24,7 @@ public class PlayerName extends EntityPatchCondition {
+ 	
+ 	@Override
+ 	public PlayerName read(CompoundTag tag) {
+-		this.name = this.assertTag("identifier", "string", tag, StringTag.class, CompoundTag::getString);
++		this.name = this.assertTag("identifier", "string", tag, StringTag.class, (data, name) -> data.getString(name).orElseThrow());
+ 		return this;
+ 	}
+ 	
+diff --git a/src/main/java/yesman/epicfight/data/conditions/entity/PlayerSkillActivated.java b/src/main/java/yesman/epicfight/data/conditions/entity/PlayerSkillActivated.java
+index 589bd5b..a4efe08 100644
+--- a/src/main/java/yesman/epicfight/data/conditions/entity/PlayerSkillActivated.java
++++ b/src/main/java/yesman/epicfight/data/conditions/entity/PlayerSkillActivated.java
+@@ -33,7 +33,7 @@ public class PlayerSkillActivated extends EntityPatchCondition {
+ 	
+ 	@Override
+ 	public PlayerSkillActivated read(CompoundTag tag) {
+-		String skillName = this.assertTag("skill", "string", tag, StringTag.class, CompoundTag::getString);
++		String skillName = this.assertTag("skill", "string", tag, StringTag.class, (data, name) -> data.getString(name).orElseThrow());
+ 		
+ 		if ((this.skill = SkillReloadListener.getSkill(skillName)) == null) {
+ 			throw new NoSuchElementException(MessageFormat.format("{} condition error: Skill named {} does not exist", this.getClass().getSimpleName(), skillName));
+diff --git a/src/main/java/yesman/epicfight/data/conditions/entity/RandomChance.java b/src/main/java/yesman/epicfight/data/conditions/entity/RandomChance.java
+index 4f7de0f..1020ac9 100644
+--- a/src/main/java/yesman/epicfight/data/conditions/entity/RandomChance.java
++++ b/src/main/java/yesman/epicfight/data/conditions/entity/RandomChance.java
+@@ -30,7 +30,7 @@ public class RandomChance extends EntityPatchCondition {
+ 	
+ 	@Override
+ 	public RandomChance read(CompoundTag tag) {
+-		this.chance = this.assertTag("chance", "decimal", tag, NumericTag.class, CompoundTag::getDouble);
++		this.chance = this.assertTag("chance", "decimal", tag, NumericTag.class, (data, name) -> data.getDouble(name).orElseThrow());
+ 		return this;
+ 	}
+ 	
+diff --git a/src/main/java/yesman/epicfight/data/conditions/entity/TargetInDistance.java b/src/main/java/yesman/epicfight/data/conditions/entity/TargetInDistance.java
+index b4de5cc..cab8fd3 100644
+--- a/src/main/java/yesman/epicfight/data/conditions/entity/TargetInDistance.java
++++ b/src/main/java/yesman/epicfight/data/conditions/entity/TargetInDistance.java
+@@ -35,8 +35,8 @@ public class TargetInDistance extends EntityPatchCondition {
+ 	
+ 	@Override
+ 	public TargetInDistance read(CompoundTag tag) {
+-		this.min = this.assertTag("min", "decimal", tag, NumericTag.class, CompoundTag::getDouble);
+-		this.max = this.assertTag("max", "decimal", tag, NumericTag.class, CompoundTag::getDouble);
++		this.min = this.assertTag("min", "decimal", tag, NumericTag.class, (data, name) -> data.getDouble(name).orElseThrow());
++		this.max = this.assertTag("max", "decimal", tag, NumericTag.class, (data, name) -> data.getDouble(name).orElseThrow());
+ 		
+ 		return this;
+ 	}
+diff --git a/src/main/java/yesman/epicfight/data/conditions/entity/TargetInPov.java b/src/main/java/yesman/epicfight/data/conditions/entity/TargetInPov.java
+index 585251b..bcad405 100644
+--- a/src/main/java/yesman/epicfight/data/conditions/entity/TargetInPov.java
++++ b/src/main/java/yesman/epicfight/data/conditions/entity/TargetInPov.java
+@@ -35,8 +35,8 @@ public class TargetInPov extends EntityPatchCondition {
+ 	
+ 	@Override
+ 	public TargetInPov read(CompoundTag tag) {
+-		this.min = this.assertTag("min", "decimal", tag, NumericTag.class, CompoundTag::getDouble);
+-		this.max = this.assertTag("max", "decimal", tag, NumericTag.class, CompoundTag::getDouble);
++		this.min = this.assertTag("min", "decimal", tag, NumericTag.class, (data, name) -> data.getDouble(name).orElseThrow());
++		this.max = this.assertTag("max", "decimal", tag, NumericTag.class, (data, name) -> data.getDouble(name).orElseThrow());
+ 		
+ 		return this;
+ 	}
+diff --git a/src/main/java/yesman/epicfight/data/conditions/itemstack/TagValueCondition.java b/src/main/java/yesman/epicfight/data/conditions/itemstack/TagValueCondition.java
+index be815f2..84a3556 100644
+--- a/src/main/java/yesman/epicfight/data/conditions/itemstack/TagValueCondition.java
++++ b/src/main/java/yesman/epicfight/data/conditions/itemstack/TagValueCondition.java
+@@ -87,7 +87,7 @@ public class TagValueCondition extends ItemStackCondition {
+ 				continue;
+ 			}
+ 
+-			DataComponentType<?> type = BuiltInRegistries.DATA_COMPONENT_TYPE.get(componentId);
++			DataComponentType<?> type = BuiltInRegistries.DATA_COMPONENT_TYPE.getValue(componentId);
+ 
+ 			if (type == null) {
+ 				continue;
+diff --git a/src/main/java/yesman/epicfight/gameasset/ColliderPreset.java b/src/main/java/yesman/epicfight/gameasset/ColliderPreset.java
+index 4de4905..2551924 100644
+--- a/src/main/java/yesman/epicfight/gameasset/ColliderPreset.java
++++ b/src/main/java/yesman/epicfight/gameasset/ColliderPreset.java
+@@ -14,8 +14,6 @@ import net.minecraft.nbt.CompoundTag;
+ import net.minecraft.nbt.ListTag;
+ import net.minecraft.resources.ResourceLocation;
+ import net.minecraft.server.packs.resources.PreparableReloadListener;
+-import net.minecraft.server.packs.resources.ResourceManager;
+-import net.minecraft.util.profiling.ProfilerFiller;
+ import org.jetbrains.annotations.NotNull;
+ import yesman.epicfight.EpicFight;
+ import yesman.epicfight.api.collider.Collider;
+@@ -131,7 +129,7 @@ public class ColliderPreset implements PreparableReloadListener {
+ 	}
+ 	
+ 	@Override
+-	public @NotNull CompletableFuture<Void> reload(PreparationBarrier stage, @NotNull ResourceManager resourceManager, ProfilerFiller preparationsProfiler, ProfilerFiller reloadProfiler, Executor backgroundExecutor, Executor gameExecutor) {
++	public @NotNull CompletableFuture<Void> reload(SharedState state, Executor backgroundExecutor, PreparationBarrier stage, Executor gameExecutor) {
+ 		return CompletableFuture.runAsync(() -> {
+ 			//Collider newCOllider = new OBBCollider(0.4D, 0.4D, 0.5D, 0D, 1.25D, -0.85D)
+ 			//((AttackAnimation)Animations.FATAL_DRAW_DASH).changeCollider(newCOllider, 0);
+diff --git a/src/main/java/yesman/epicfight/mixin/common/MixinDefaultAttributes.java b/src/main/java/yesman/epicfight/mixin/common/MixinDefaultAttributes.java
+index 8645617..04a1669 100644
+--- a/src/main/java/yesman/epicfight/mixin/common/MixinDefaultAttributes.java
++++ b/src/main/java/yesman/epicfight/mixin/common/MixinDefaultAttributes.java
+@@ -89,6 +89,6 @@ public abstract class MixinDefaultAttributes {
+         if (key == null) {
+             return holder;
+         }
+-        return BuiltInRegistries.ATTRIBUTE.getHolder(key).map(reference -> (Holder<Attribute>)reference).orElse(holder);
++        return BuiltInRegistries.ATTRIBUTE.get(key).map(reference -> (Holder<Attribute>)reference).orElse(holder);
+     }
+ }
+diff --git a/src/main/java/yesman/epicfight/mixin/common/MixinEntity.java b/src/main/java/yesman/epicfight/mixin/common/MixinEntity.java
+index 2efafa6..0c3e736 100644
+--- a/src/main/java/yesman/epicfight/mixin/common/MixinEntity.java
++++ b/src/main/java/yesman/epicfight/mixin/common/MixinEntity.java
+@@ -3,6 +3,9 @@ package yesman.epicfight.mixin.common;
+ import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+ import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
+ import net.minecraft.nbt.CompoundTag;
++import net.minecraft.world.level.storage.ValueInput;
++import net.minecraft.world.level.storage.ValueOutput;
++import yesman.epicfight.util.EntityPatchDataIO;
+ import net.minecraft.server.network.ServerGamePacketListenerImpl;
+ import net.minecraft.world.entity.Entity;
+ import net.minecraft.world.entity.LivingEntity;
+@@ -71,12 +74,6 @@ public abstract class MixinEntity implements IEpicFightEntityPatchHolder, IPersi
+     @Unique
+     private int lastOnGroundTick;
+     
+-	@Shadow
+-	protected abstract void readAdditionalSaveData(CompoundTag compound);
+-	
+-	@Shadow
+-    protected abstract void addAdditionalSaveData(CompoundTag compound);
+-	
+ 	// On NeoForge, Entity.onAddedToLevel() is a patched method that fires when an entity
+ 	// is added to the level's entity storage. Fabric doesn't have this method, so this
+ 	// injection is silently skipped (defaultRequire=0). The onAddedToLevel() behavior is
+@@ -103,8 +100,8 @@ public abstract class MixinEntity implements IEpicFightEntityPatchHolder, IPersi
+ 		}
+ 	}
+ 	
+-	@Inject(at = @At(value = "HEAD"), method = "lerpMotion(DDD)V", cancellable = true)
+-	public void epicfight$lerpMotion(double pX, double pY, double pZ, CallbackInfo callback) {
++	@Inject(at = @At(value = "HEAD"), method = "lerpMotion(Lnet/minecraft/world/phys/Vec3;)V", cancellable = true)
++	public void epicfight$lerpMotion(Vec3 movement, CallbackInfo callback) {
+ 		Entity self = (Entity)(Object)this;
+ 
+ 		// Remove the delta movement from the server while playing animation with REMOVE_DELTA_MOVEMENT property set as true
+@@ -161,43 +158,27 @@ public abstract class MixinEntity implements IEpicFightEntityPatchHolder, IPersi
+         }
+     }
+ 	
+-	@WrapOperation(
+-		at = @At(
+-			value = "INVOKE",
+-			target = "Lnet/minecraft/world/entity/Entity;addAdditionalSaveData(Lnet/minecraft/nbt/CompoundTag;)V"
+-		),
+-		method = "saveWithoutId(Lnet/minecraft/nbt/CompoundTag;)Lnet/minecraft/nbt/CompoundTag;"
+-	)
+-	private void epicfight$saveWithoutId(Entity self, CompoundTag compoundTag, Operation<CompoundTag> operation) {
+-		this.addAdditionalSaveData(compoundTag);
+-
+-		safeGetPatch(self, EntityPatch.class).ifPresent(entitypatch -> {
+-			entitypatch.writeData(compoundTag);
+-		});
+-
+-		if (!this.epicfight$persistentData.isEmpty()) {
+-			compoundTag.put("ForgeData", this.epicfight$persistentData);
+-		}
+-	}
+-	
+-	@WrapOperation(
+-		at = @At(
+-			value = "INVOKE",
+-			target = "Lnet/minecraft/world/entity/Entity;readAdditionalSaveData(Lnet/minecraft/nbt/CompoundTag;)V"
+-		),
+-		method = "load(Lnet/minecraft/nbt/CompoundTag;)V"
+-	)
+-	private void epicfight$load(Entity self, CompoundTag compoundTag, Operation<Void> operation) {
+-		this.readAdditionalSaveData(compoundTag);
+-
+-		safeGetPatch(self, EntityPatch.class).ifPresent(entitypatch -> {
+-			entitypatch.readData(compoundTag);
+-		});
++    @Inject(method = "saveWithoutId(Lnet/minecraft/world/level/storage/ValueOutput;)V", at = @At(value = "INVOKE",
++        target = "Lnet/minecraft/world/entity/Entity;addAdditionalSaveData(Lnet/minecraft/world/level/storage/ValueOutput;)V", shift = At.Shift.AFTER))
++    private void epicfight$saveWithoutId(ValueOutput output, CallbackInfo ci) {
++        EntityPatch<?> patch = safeGetEntityPatch((Entity)(Object)this);
++        if (patch != null) {
++            CompoundTag fields = new CompoundTag();
++            patch.writeData(fields);
++            EntityPatchDataIO.writeFields(output, fields);
++        }
++        if (!this.epicfight$persistentData.isEmpty()) {
++            output.store("ForgeData", CompoundTag.CODEC, this.epicfight$persistentData);
++        }
++    }
+ 
+-		if (compoundTag.contains("ForgeData")) {
+-			this.epicfight$persistentData = compoundTag.getCompoundOrEmpty("ForgeData");
+-		}
+-	}
++    @Inject(method = "load(Lnet/minecraft/world/level/storage/ValueInput;)V", at = @At(value = "INVOKE",
++        target = "Lnet/minecraft/world/entity/Entity;readAdditionalSaveData(Lnet/minecraft/world/level/storage/ValueInput;)V", shift = At.Shift.AFTER))
++    private void epicfight$load(ValueInput input, CallbackInfo ci) {
++        EntityPatch<?> patch = safeGetEntityPatch((Entity)(Object)this);
++        if (patch != null) patch.readData(EntityPatchDataIO.readFields(input));
++        this.epicfight$persistentData = input.read("ForgeData", CompoundTag.CODEC).orElseGet(CompoundTag::new);
++    }
+ 
+     /// EntityEvent.Size — fires when an entity's dimensions are refreshed, allows modifying the size
+     /// On NeoForge this was EntityEvent.Size. On Fabric we inject into refreshDimensions.
+@@ -212,22 +193,19 @@ public abstract class MixinEntity implements IEpicFightEntityPatchHolder, IPersi
+     }
+ 
+     /// EntityMountEvent — fires when an entity starts riding
+-    @Inject(at = @At(value = "TAIL"), method = "startRiding(Lnet/minecraft/world/entity/Entity;Z)Z")
+-    private void epicfight$startRiding(Entity entity, boolean force, CallbackInfoReturnable<Boolean> info) {
++    @Inject(at = @At(value = "TAIL"), method = "startRiding(Lnet/minecraft/world/entity/Entity;ZZ)Z")
++    private void epicfight$startRiding(Entity entity, boolean force, boolean sendEvent, CallbackInfoReturnable<Boolean> info) {
+         if (info.getReturnValue()) {
+             Entity self = (Entity)(Object)this;
+             VanillaEntityEventHooks.onEntityMount(self, entity, true);
+         }
+     }
+ 
+-    /// EntityMountEvent — fires when an entity stops riding
+-    @Inject(at = @At(value = "TAIL"), method = "stopRiding()V")
+-    private void epicfight$stopRiding(CallbackInfo info) {
+-        Entity self = (Entity)(Object)this;
+-        Entity vehicle = self.getVehicle();
+-        if (vehicle != null) {
+-            VanillaEntityEventHooks.onEntityMount(self, vehicle, false);
+-        }
++    @WrapOperation(method = "removeVehicle()V", at = @At(value = "INVOKE",
++        target = "Lnet/minecraft/world/entity/Entity;removePassenger(Lnet/minecraft/world/entity/Entity;)V"))
++    private void epicfight$dismount(Entity vehicle, Entity passenger, Operation<Void> original) {
++        original.call(vehicle, passenger);
++        VanillaEntityEventHooks.onEntityMount(passenger, vehicle, false);
+     }
+ 
+     /// Called when setting [Entity#onGround()] according to the player's movement
+@@ -243,7 +221,7 @@ public abstract class MixinEntity implements IEpicFightEntityPatchHolder, IPersi
+             if (self.tickCount - lastOnGroundTick >= 4) { // 4 ticks are noise guard for floating point calculation error
+                 try {
+                     EpicFightCapabilities.<LivingEntity, LivingEntityPatch<LivingEntity>>getParameterizedEntityPatch(self, LivingEntity.class, LivingEntityPatch.class).ifPresent(entitypatch -> {
+-                        entitypatch.onFall(entitypatch.getOriginal().fallDistance, 1.0F);
++                        entitypatch.onFall((float)entitypatch.getOriginal().fallDistance, 1.0F);
+                     });
+                 } catch (Throwable ignored) {}
+             }
+diff --git a/src/main/java/yesman/epicfight/mixin/common/MixinServerCommonPacketListenerImpl.java b/src/main/java/yesman/epicfight/mixin/common/MixinServerCommonPacketListenerImpl.java
+index b3f12fe..e17d86e 100644
+--- a/src/main/java/yesman/epicfight/mixin/common/MixinServerCommonPacketListenerImpl.java
++++ b/src/main/java/yesman/epicfight/mixin/common/MixinServerCommonPacketListenerImpl.java
+@@ -31,8 +31,9 @@ public abstract class MixinServerCommonPacketListenerImpl {
+ 	@Inject(at = @At(value = "TAIL"), method = "handleResourcePackResponse(Lnet/minecraft/network/protocol/common/ServerboundResourcePackPacket;)V")
+ 	public void epicfight$handleResourcePackResponse(ServerboundResourcePackPacket packet, CallbackInfo info) {
+ 		if (packet.action() == ServerboundResourcePackPacket.Action.SUCCESSFULLY_LOADED) {
+-			ServerPlayer serverPlayer = this.server.getPlayerList().getPlayer(this.playerProfile().getId());
++			ServerPlayer serverPlayer = this.server.getPlayerList().getPlayer(this.playerProfile().id());
+ 			
++			if (serverPlayer == null) return;
+ 			EpicFightCapabilities.getUnparameterizedEntityPatch(serverPlayer, ServerPlayerPatch.class).ifPresent(playerpatch -> {
+ 				playerpatch.modifyLivingMotionByCurrentItem(false);
+ 			});
+diff --git a/src/main/java/yesman/epicfight/mixin/common/MixinWitherBoss.java b/src/main/java/yesman/epicfight/mixin/common/MixinWitherBoss.java
+index 8c7ce54..1eeaaa6 100644
+--- a/src/main/java/yesman/epicfight/mixin/common/MixinWitherBoss.java
++++ b/src/main/java/yesman/epicfight/mixin/common/MixinWitherBoss.java
+@@ -22,7 +22,7 @@ import net.minecraft.world.Difficulty;
+ import net.minecraft.world.entity.Entity;
+ import net.minecraft.world.entity.EntityType;
+ import net.minecraft.world.entity.LivingEntity;
+-import net.minecraft.world.entity.PowerableMob;
++import net.minecraft.server.level.ServerLevel;
+ import net.minecraft.world.entity.boss.wither.WitherBoss;
+ import net.minecraft.world.entity.monster.Monster;
+ import net.minecraft.world.entity.monster.RangedAttackMob;
+@@ -34,7 +34,7 @@ import yesman.epicfight.world.capabilities.EpicFightCapabilities;
+ import yesman.epicfight.world.capabilities.entitypatch.boss.WitherPatch;
+ 
+ @Mixin(value = WitherBoss.class)
+-public abstract class MixinWitherBoss extends Monster implements PowerableMob, RangedAttackMob, MixinWitherBossAccessor {
++public abstract class MixinWitherBoss extends Monster implements RangedAttackMob, MixinWitherBossAccessor {
+ 	@Shadow private int[] nextHeadUpdate = new int[2];
+ 	@Shadow private int[] idleHeadUpdates = new int[2];
+ 	@Shadow private int destroyBlocksTick;
+@@ -88,7 +88,7 @@ public abstract class MixinWitherBoss extends Monster implements PowerableMob, R
+ 				}
+ 			}
+ 			
+-			boolean powered = this.isPowered();
++			boolean powered = self.isPowered();
+ 			
+ 			for (int l = 0; l < 3; ++l) {
+ 				double subHeadX = self$Accessor.invoke_getHeadX(l);
+@@ -152,8 +152,8 @@ public abstract class MixinWitherBoss extends Monster implements PowerableMob, R
+ 		self.getYRotHeads()[head] = this.rotlerp(self.getYRotHeads()[head], f, lerpY);
+ 	}
+ 	
+-	@Inject(at = @At(value = "HEAD"), method = "customServerAiStep()V", cancellable = true)
+-	private void epicfight$customServerAiStep(CallbackInfo info) {
++	@Inject(at = @At(value = "HEAD"), method = "customServerAiStep(Lnet/minecraft/server/level/ServerLevel;)V", cancellable = true)
++	private void epicfight$customServerAiStep(ServerLevel level, CallbackInfo info) {
+ 		if (this.epicFight$witherPatch != null) {
+ 			info.cancel();
+ 			WitherBoss self = this.epicFight$witherPatch.getOriginal();
+@@ -177,7 +177,7 @@ public abstract class MixinWitherBoss extends Monster implements PowerableMob, R
+ 					self.heal(10.0F);
+ 				}
+ 			} else {
+-				super.customServerAiStep();
++				super.customServerAiStep(level);
+ 
+ 				for (int i = 1; i < 3; ++i) {
+ 					if (self.tickCount >= this.nextHeadUpdate[i - 1]) {
+@@ -216,7 +216,7 @@ public abstract class MixinWitherBoss extends Monster implements PowerableMob, R
+ 								self.setAlternativeTarget(i, 0);
+ 							}
+ 						} else {
+-							List<LivingEntity> list = self.level().getNearbyEntities(LivingEntity.class, WitherBoss.TARGETING_CONDITIONS, self, self.getBoundingBox().inflate(20.0D, 8.0D, 20.0D));
++							List<LivingEntity> list = level.getNearbyEntities(LivingEntity.class, WitherBoss.TARGETING_CONDITIONS, self, self.getBoundingBox().inflate(20.0D, 8.0D, 20.0D));
+ 							
+ 							if (!list.isEmpty()) {
+ 								LivingEntity livingentity1 = list.get(self.getRandom().nextInt(list.size()));
+diff --git a/src/main/java/yesman/epicfight/util/EntityPatchDataIO.java b/src/main/java/yesman/epicfight/util/EntityPatchDataIO.java
+new file mode 100644
+index 0000000..96cf209
+--- /dev/null
++++ b/src/main/java/yesman/epicfight/util/EntityPatchDataIO.java
+@@ -0,0 +1,22 @@
++package yesman.epicfight.util;
++
++import com.mojang.serialization.MapCodec;
++import net.minecraft.nbt.CompoundTag;
++import net.minecraft.world.level.storage.ValueInput;
++import net.minecraft.world.level.storage.ValueOutput;
++
++/** Keep the root-level fields of entity patch saves readable by the existing patch API. */
++public final class EntityPatchDataIO {
++    // CompoundTag.CODEC always represents a map, including when there are no patch fields.
++    private static final MapCodec<CompoundTag> FIELDS = MapCodec.assumeMapUnsafe(CompoundTag.CODEC);
++
++    private EntityPatchDataIO() {}
++
++    public static void writeFields(ValueOutput output, CompoundTag fields) {
++        if (!fields.isEmpty()) output.store(FIELDS, fields);
++    }
++
++    public static CompoundTag readFields(ValueInput input) {
++        return input.read(FIELDS).orElseGet(CompoundTag::new);
++    }
++}
+diff --git a/src/main/java/yesman/epicfight/world/capabilities/entitypatch/player/PlayerPatch.java b/src/main/java/yesman/epicfight/world/capabilities/entitypatch/player/PlayerPatch.java
+index e719424..7bea575 100644
+--- a/src/main/java/yesman/epicfight/world/capabilities/entitypatch/player/PlayerPatch.java
++++ b/src/main/java/yesman/epicfight/world/capabilities/entitypatch/player/PlayerPatch.java
+@@ -366,7 +366,7 @@ public abstract class PlayerPatch<T extends Player> extends LivingEntityPatch<T>
+ 	
+ 	@Override
+ 	public AttackResult attack(EpicFightDamageSource damageSource, Entity target, InteractionHand hand) {
+-		float fallDist = this.original.fallDistance;
++		double fallDist = this.original.fallDistance;
+ 		boolean onGround = this.original.onGround();
+ 		boolean offhandValid = this.isOffhandItemValid();
+ 		
+diff --git a/src/main/java/yesman/epicfight/world/capabilities/entitypatch/player/ServerPlayerPatch.java b/src/main/java/yesman/epicfight/world/capabilities/entitypatch/player/ServerPlayerPatch.java
+index 8c125be..171103a 100644
+--- a/src/main/java/yesman/epicfight/world/capabilities/entitypatch/player/ServerPlayerPatch.java
++++ b/src/main/java/yesman/epicfight/world/capabilities/entitypatch/player/ServerPlayerPatch.java
+@@ -361,7 +361,7 @@ public class ServerPlayerPatch extends PlayerPatch<ServerPlayer> {
+ 	
+ 	@Override
+ 	public boolean isTargetInvulnerable(Entity target) {
+-		if (target instanceof Player && !this.getOriginal().server.isPvpAllowed()) {
++		if (target instanceof Player && !this.getOriginal().level().isPvpAllowed()) {
+ 			return true;
+ 		}
+ 		
+diff --git a/src/main/java/yesman/epicfight/world/entity/AreaEffectBreath.java b/src/main/java/yesman/epicfight/world/entity/AreaEffectBreath.java
+index b96ae1b..629b9c6 100644
+--- a/src/main/java/yesman/epicfight/world/entity/AreaEffectBreath.java
++++ b/src/main/java/yesman/epicfight/world/entity/AreaEffectBreath.java
+@@ -14,6 +14,7 @@ import net.minecraft.world.entity.LivingEntity;
+ import net.minecraft.world.entity.MoverType;
+ import net.minecraft.world.entity.Pose;
+ import net.minecraft.world.level.Level;
++import net.minecraft.server.level.ServerLevel;
+ import net.minecraft.world.phys.Vec3;
+ import yesman.epicfight.registry.entries.EpicFightEntityTypes;
+ import yesman.epicfight.world.damagesource.EpicFightDamageSource;
+@@ -27,7 +28,7 @@ public class AreaEffectBreath extends AreaEffectCloud {
+ 	public AreaEffectBreath(EntityType<? extends AreaEffectBreath> entityType, Level level) {
+ 		super(entityType, level);
+ 		this.setDuration(5);
+-		this.addEffect(new MobEffectInstance(MobEffects.HARM, 1, 1));
++		this.addEffect(new MobEffectInstance(MobEffects.INSTANT_DAMAGE, 1, 1));
+ 	}
+ 	
+ 	public AreaEffectBreath(Level level, double x, double y, double z) {
+@@ -40,7 +41,7 @@ public class AreaEffectBreath extends AreaEffectCloud {
+ 	public void tick() {
+ 		this.move(MoverType.SELF, this.getDeltaMovement());
+ 		
+-		if (!this.level().isClientSide()) {
++		if (this.level() instanceof ServerLevel serverLevel) {
+ 			if (this.tickCount >= this.getDuration()) {
+ 				this.discard();
+ 				return;
+@@ -73,7 +74,7 @@ public class AreaEffectBreath extends AreaEffectCloud {
+ 					
+ 					EpicFightDamageSource damageSource = EpicFightDamageSources.enderDragonBreath(this.getOwner(), this).setStunType(StunType.SHORT);
+ 					
+-					if (livingentity.isInvulnerableTo(damageSource)) {
++					if (livingentity.isInvulnerableTo(serverLevel, damageSource)) {
+ 						continue;
+ 					}
+ 					
+@@ -89,7 +90,7 @@ public class AreaEffectBreath extends AreaEffectCloud {
+ 							damageSource.setInitialPosition(this.initialFirePosition);
+ 							damageSource.setBaseImpact(2.0F);
+ 							
+-							livingentity.hurt(damageSource, 3.0F);
++							livingentity.hurtServer(serverLevel, damageSource, 3.0F);
+ 						}
+ 					}
+ 				}
+diff --git a/src/main/java/yesman/epicfight/world/entity/DeathHarvestOrb.java b/src/main/java/yesman/epicfight/world/entity/DeathHarvestOrb.java
+index f917f41..3d4299d 100644
+--- a/src/main/java/yesman/epicfight/world/entity/DeathHarvestOrb.java
++++ b/src/main/java/yesman/epicfight/world/entity/DeathHarvestOrb.java
+@@ -1,7 +1,8 @@
+ package yesman.epicfight.world.entity;
+ 
+ import net.minecraft.core.particles.ParticleTypes;
+-import net.minecraft.nbt.CompoundTag;
++import net.minecraft.world.level.storage.ValueInput;
++import net.minecraft.world.level.storage.ValueOutput;
+ import net.minecraft.network.syncher.SynchedEntityData.Builder;
+ import net.minecraft.world.entity.Entity;
+ import net.minecraft.world.entity.EntityType;
+@@ -63,11 +64,11 @@ public class DeathHarvestOrb extends Entity {
+ 	}
+ 	
+ 	@Override
+-	public void readAdditionalSaveData(CompoundTag tag) {
++	public void readAdditionalSaveData(ValueInput input) {
+ 	}
+ 	
+ 	@Override
+-	public void addAdditionalSaveData(CompoundTag tag) {
++	public void addAdditionalSaveData(ValueOutput output) {
+ 	}
+ 	
+ 	@Override
+diff --git a/src/main/java/yesman/epicfight/world/entity/DodgeLocationIndicator.java b/src/main/java/yesman/epicfight/world/entity/DodgeLocationIndicator.java
+index f38b59a..6c2ea1b 100644
+--- a/src/main/java/yesman/epicfight/world/entity/DodgeLocationIndicator.java
++++ b/src/main/java/yesman/epicfight/world/entity/DodgeLocationIndicator.java
+@@ -1,7 +1,6 @@
+ package yesman.epicfight.world.entity;
+ 
+-import java.util.Collections;
+-import java.util.List;
++import net.minecraft.server.level.ServerLevel;
+ 
+ import net.minecraft.world.damagesource.DamageSource;
+ import net.minecraft.world.entity.EntityType;
+@@ -15,7 +14,6 @@ import yesman.epicfight.registry.entries.EpicFightEntityTypes;
+ import yesman.epicfight.world.capabilities.entitypatch.LivingEntityPatch;
+ 
+ public class DodgeLocationIndicator extends LivingEntity {
+-	private static final List<ItemStack> EMPTY_LIST = Collections.emptyList();
+ 	private LivingEntityPatch<?> entitypatch;
+ 	
+ 	public DodgeLocationIndicator(EntityType<? extends LivingEntity> type, Level level) {
+@@ -43,11 +41,7 @@ public class DodgeLocationIndicator extends LivingEntity {
+ 	}
+ 	
+ 	@Override
+-	public boolean hurt(DamageSource damageSource, float amount) {
+-		if (this.level().isClientSide()) {
+-			return false;
+-		}
+-		
++	public boolean hurtServer(ServerLevel level, DamageSource damageSource, float amount) {
+ 		if (!DodgeAnimation.DODGEABLE_SOURCE_VALIDATOR.apply(damageSource).dealtDamage()) {
+ 			this.entitypatch.onDodgeSuccess(damageSource, this.getBoundingBox().getCenter());
+ 		}
+@@ -57,10 +51,6 @@ public class DodgeLocationIndicator extends LivingEntity {
+ 		return false;
+ 	}
+ 	
+-	@Override
+-	public Iterable<ItemStack> getArmorSlots() {
+-		return EMPTY_LIST;
+-	}
+ 
+ 	@Override
+ 	public ItemStack getItemBySlot(EquipmentSlot p_21127_) {
+diff --git a/src/main/java/yesman/epicfight/world/entity/WitherGhostClone.java b/src/main/java/yesman/epicfight/world/entity/WitherGhostClone.java
+index 535f8f3..63ef2ee 100644
+--- a/src/main/java/yesman/epicfight/world/entity/WitherGhostClone.java
++++ b/src/main/java/yesman/epicfight/world/entity/WitherGhostClone.java
+@@ -5,7 +5,8 @@ import net.minecraft.server.level.ServerLevel;
+ import net.minecraft.tags.DamageTypeTags;
+ import net.minecraft.world.damagesource.DamageSource;
+ import net.minecraft.world.entity.EntityType;
+-import net.minecraft.world.entity.FlyingMob;
++import net.minecraft.core.BlockPos;
++import net.minecraft.world.level.block.state.BlockState;
+ import net.minecraft.world.entity.LivingEntity;
+ import net.minecraft.world.entity.Mob;
+ import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
+@@ -15,8 +16,8 @@ import net.minecraft.world.phys.Vec3;
+ import yesman.epicfight.registry.entries.EpicFightAttributes;
+ import yesman.epicfight.registry.entries.EpicFightEntityTypes;
+ 
+-public class WitherGhostClone extends FlyingMob {
+-	public WitherGhostClone(EntityType<? extends FlyingMob> entityType, Level level) {
++public class WitherGhostClone extends Mob {
++	public WitherGhostClone(EntityType<? extends Mob> entityType, Level level) {
+ 		super(entityType, level);
+ 		this.setNoGravity(true);
+ 		this.noPhysics = true;
+@@ -30,20 +31,35 @@ public class WitherGhostClone extends FlyingMob {
+ 	}
+ 	
+ 	@Override
+-	public boolean hurt(DamageSource damagesource, float damage) {
++	public boolean hurtServer(ServerLevel level, DamageSource damagesource, float damage) {
+ 		if (!damagesource.is(DamageTypeTags.BYPASSES_INVULNERABILITY)) {
+ 			return false;
+ 		}
+ 		
+-		return super.hurt(damagesource, damage);
++		return super.hurtServer(level, damagesource, damage);
+ 	}
+ 	
++	@Override
++	public void travel(Vec3 movement) {
++		this.travelFlying(movement, 0.02F);
++	}
++
++	@Override
++	public boolean onClimbable() {
++		return false;
++	}
++
++	@Override
++	protected void checkFallDamage(double distance, boolean onGround, BlockState block, BlockPos pos) {
++		// A flying clone ignores ground impacts, matching the flying mob it extends in 1.21.1.
++	}
++
+ 	public static AttributeSupplier.Builder createAttributes() {
+ 		return Mob.createMobAttributes().add(EpicFightAttributes.WEIGHT).add(EpicFightAttributes.ARMOR_NEGATION).add(EpicFightAttributes.IMPACT).add(EpicFightAttributes.MAX_STRIKES).add(Attributes.ATTACK_DAMAGE);
+ 	}
+ 	
+ 	@Override
+-	public void customServerAiStep() {
++	public void customServerAiStep(ServerLevel level) {
+ 		if (this.tickCount >= 40) {
+ 			this.remove(RemovalReason.DISCARDED);
+ 		}
+diff --git a/src/main/java/yesman/epicfight/world/entity/WitherSkeletonMinion.java b/src/main/java/yesman/epicfight/world/entity/WitherSkeletonMinion.java
+index 78330bf..009115a 100644
+--- a/src/main/java/yesman/epicfight/world/entity/WitherSkeletonMinion.java
++++ b/src/main/java/yesman/epicfight/world/entity/WitherSkeletonMinion.java
+@@ -11,6 +11,7 @@ import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
+ import net.minecraft.world.entity.boss.wither.WitherBoss;
+ import net.minecraft.world.entity.monster.WitherSkeleton;
+ import net.minecraft.world.level.Level;
++import net.minecraft.server.level.ServerLevel;
+ import yesman.epicfight.registry.entries.EpicFightEntityTypes;
+ 
+ public class WitherSkeletonMinion extends WitherSkeleton {
+@@ -38,16 +39,16 @@ public class WitherSkeletonMinion extends WitherSkeleton {
+ 	@Override
+ 	protected void registerGoals() {
+ 		super.registerGoals();
+-		this.targetSelector.addGoal(3, new NearestAttackableTargetGoal<>(this, LivingEntity.class, 10, true, false, livingentity -> (!livingentity.getType().is(EntityTypeTags.UNDEAD) && livingentity.attackable())));
++		this.targetSelector.addGoal(3, new NearestAttackableTargetGoal<>(this, LivingEntity.class, 10, true, false, (livingentity, level) -> (!livingentity.getType().is(EntityTypeTags.UNDEAD) && livingentity.attackable())));
+ 	}
+ 	
+ 	@Override
+-	public boolean hurt(DamageSource source, float amount) {
++	public boolean hurtServer(ServerLevel level, DamageSource source, float amount) {
+ 		if (this.summoner != null && source.getEntity() == this.summoner) {
+ 			return false;
+ 		}
+ 		
+-		return super.hurt(source, amount);
++		return super.hurtServer(level, source, amount);
+ 	}
+ 	
+ 	@Override
+diff --git a/src/main/java/yesman/epicfight/world/entity/ai/behavior/AnimatedCombatBehavior.java b/src/main/java/yesman/epicfight/world/entity/ai/behavior/AnimatedCombatBehavior.java
+index 5a1b3ee..5c59564 100644
+--- a/src/main/java/yesman/epicfight/world/entity/ai/behavior/AnimatedCombatBehavior.java
++++ b/src/main/java/yesman/epicfight/world/entity/ai/behavior/AnimatedCombatBehavior.java
+@@ -1,4 +1,4 @@
+-package yesman.epicfight.world.entity.ai.behavior;
++package yesman.epicfight.world.entity.ai.behavior;
+ 
+ import com.google.common.collect.ImmutableMap;
+ 
+@@ -64,7 +64,7 @@ public class AnimatedCombatBehavior<T extends MobPatch<?>> extends Behavior<Mob>
+ 	private boolean isHoldingRangeWeapon(Mob mob) {
+ 		return mob.isHolding((stack) -> {
+ 			Item item = stack.getItem();
+-			return item instanceof ProjectileWeaponItem && mob.canFireProjectileWeapon((ProjectileWeaponItem) item);
++			return item instanceof ProjectileWeaponItem && mob.canUseNonMeleeWeapon(stack);
+ 		});
+ 	}
+ 	
