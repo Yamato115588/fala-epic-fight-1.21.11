@@ -1,40 +1,29 @@
-pack60 and probe61 are earlier diagnostic runs. pack62 uses the remapped JAR hashed in build.log.
-New Drive pack SHA-256 dc209f7c4abed56d2419a41268956bfd912ba863a465b82d96e39f249bf536d8
+Minecraft 1.21.11 / Fabric 0.19.3. The game used the production JAR with SHA-256 e481c818277b8599226444fbd8da538135a90476c0b063c80e71be8aa21ea0a6.
+Lite archive SHA-256 2676674d1ce000613129d948cd77344e71393994c0704b4e7f597ea91af04415. 24 Client JARs preserved. Local Dedicated uses a 20-JAR projection.
 
-pack60-multi
-yesman.epicfight.api.exception.AssetLoadingException: Can't read epicfight:animmodels/armor/chestplate.json because of java.io.FileNotFoundException: epicfight:animmodels/armor/chestplate.json
-yesman.epicfight.api.exception.AssetLoadingException: Can't read epicfight:animmodels/armor/chestplate.json because of java.io.FileNotFoundException: epicfight:animmodels/armor/chestplate.json
+Observed issue before the fixes
+yesman.epicfight.api.exception.AssetLoadingException: Can't read epicfight:animmodels/entity/biped_old_texture.json because of java.io.FileNotFoundException: epicfight:animmodels/entity/biped_old_texture.json
+java.lang.NullPointerException: Cannot invoke "yesman.epicfight.api.animation.TransformSheet.getInterpolatedTranslation(float)" because "coordTransform" is null
+[17:34:51] [main/INFO]: Immediate reason: [HARD_DEP_NO_CANDIDATE figuraextrabone 0.0.42-fabric-hotfix {depends figura @ [>=0.1.5+1.21.1]}, ROOT_FORCELOAD_SINGLE figuraextrabone 0.0.42-fabric-hotfix]
+java.lang.IllegalStateException: Recursive update
 
-probe61-combat
-Health and position ['90.0f', '36.0f', '[-54.5d, 66.0d, 8.5d]', '[-54.5d, 66.0000000665758d, 7.804229110922365d]']
-
-pack62-dedicated
-[16:57:48] [main/INFO]: Loading Minecraft 1.21.11 with Fabric Loader 0.19.3
-[16:58:14] [Server thread/INFO]: Done (1.478s)! For help, type "help"
-[16:58:53] [Server thread/INFO]: FalaTest joined the game
-[16:59:05] [Server thread/INFO]: Replaced a slot on FalaTest with [Iron Sword]
-[16:59:05] [Server thread/INFO]: Replaced a slot on FalaTest with [Diamond Chestplate]
-[16:59:05] [Server thread/INFO]: Summoned new Enderman
-[16:59:06] [Server thread/INFO]: Cow has the following entity data: 90.0f
-[16:59:19] [Server thread/INFO]: Cow has the following entity data: 36.0f
-[16:59:20] [Server thread/INFO]: FalaTest has the following entity data: [-54.5d, 66.0d, 8.5d]
-[16:59:22] [Server thread/INFO]: FalaTest has the following entity data: [-54.5d, 66.0d, 10.821706290940094d]
-[16:59:24] [Server thread/INFO]: FalaTest has the following entity data: [-54.5d, 66.0000000665758d, 8.09298479395153d]
-[16:59:25] [Server thread/INFO]: Saving players
-
-pack62-combat
+reviewed-lite
 Combat mode ['toEpicFightMode', 'toVanillaMode', 'toEpicFightMode']
 Server motions ['epicfight:biped/combat/sword_auto1', 'epicfight:biped/combat/sword_auto2', 'epicfight:biped/combat/sword_auto3', 'epicfight:biped/skill/roll_forward', 'epicfight:biped/skill/roll_backward']
 Client motions ['epicfight:biped/combat/sword_auto1', 'epicfight:biped/combat/sword_auto2', 'epicfight:biped/combat/sword_auto3', 'epicfight:biped/skill/roll_forward', 'epicfight:biped/skill/roll_backward']
-Health and position ['90.0f', '36.0f', '[-54.5d, 66.0d, 8.5d]', '[-54.5d, 66.0d, 10.821706290940094d]', '[-54.5d, 66.0000000665758d, 8.09298479395153d]']
+Health and position ['90.0f', '36.0f', '[-104.5d, 70.0d, -121.5d]', '[-104.5d, 70.0d, -119.15604597122444d]', '[-104.5d, 70.0d, -122.3508858834153d]']
 Sword combo, damage and directional roll PASS
+Mob clip registry and dedicated visual playback PASS
+OpenAL peak PCM amplitude per probe {'entity.hit.blade': 32768, 'entity.weapon.whoosh': 32768, 'skill.roll': 32763, 'sfx.no_sound': 0}
+Epic Fight sound reload and playback warnings 0
 Singleplayer rendered with connected player
-
-pack62-single
-[16:59:49] [main/INFO]: Loading Minecraft 1.21.11 with Fabric Loader 0.19.3
-[17:00:31] [Server thread/INFO]: FalaTest joined the game
-
-Remaining missing asset warnings
-[16:58:55] [Render thread/WARN]: [EpicFight] onConstruct failed for class_1642: Failed to load animation clip from: StaticAnimation epicfight:animmodels/animations/zombie/idle.json
-[16:58:55] [Render thread/WARN]: [EpicFight] onConstruct failed for class_1548: Failed to load animation clip from: StaticAnimation epicfight:animmodels/animations/creeper/idle.json
-[16:58:46] [Render thread/WARN]: Missing sound for event: epicfight:entity.hit.blade
+[17:41:47] [main/INFO]: [STDOUT]: FALA_MOB_ASSETS clips=114 root_motion=9 baked_ik=14
+[17:41:48] [Server thread/INFO]: Done (0.610s)! For help, type "help"
+[17:42:18] [Server thread/INFO]: FalaTest joined the game
+[17:42:59] [Server thread/INFO]: Played sound epicfight:entity.hit.blade to FalaTest
+[17:43:00] [Server thread/INFO]: Played sound epicfight:entity.weapon.whoosh to FalaTest
+[17:43:01] [Server thread/INFO]: Played sound epicfight:skill.roll to FalaTest
+[17:43:02] [Server thread/INFO]: Played sound epicfight:sfx.no_sound to FalaTest
+[17:42:14] [Render thread/INFO]: OpenAL initialized on device Wave File Writer
+[17:42:15] [Render thread/INFO]: [STDOUT]: FALA_MOB_ASSETS clips=114 root_motion=9 baked_ik=14
+[17:43:34] [Server thread/INFO]: FalaTest joined the game

@@ -1,0 +1,13 @@
+--- a/src/main/java/yesman/epicfight/api/animation/types/ActionAnimation.java
++++ b/src/main/java/yesman/epicfight/api/animation/types/ActionAnimation.java
+@@ -313,7 +313,9 @@
+ 		
+ 		if (this.getProperty(ActionAnimationProperty.COORD).isEmpty()) {
+ 			TransformSheet coordTransform = this.getTransfroms().get("Root");
+-			jt.translation().add(0.0F, 0.0F, coordTransform.getInterpolatedTranslation(poseTime).z);
++			if (coordTransform != null) {
++				jt.translation().add(0.0F, 0.0F, coordTransform.getInterpolatedTranslation(poseTime).z);
++			}
+ 		}
+ 	}
+ 	

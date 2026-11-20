@@ -30,7 +30,9 @@ final class ReplacementAssetTest {
         var manifest = object(ReplacementAssetTest.class.getResourceAsStream("/META-INF/fala-replacement-assets/manifest.json").readAllBytes());
         check(manifest.get("license").getAsString().equals("CC0-1.0"), "asset license");
         var hashes = manifest.getAsJsonObject("sha256");
-        check(hashes.size() == 191, "expected independent asset inventory");
+        check(hashes.size() == 307, "expected independent asset inventory");
+        checkMobMotions(hashes);
+        checkSounds();
         var packInfo = new PackLocationInfo("fala-assets", Component.literal("Fala"), PackSource.DEFAULT, Optional.empty());
         try (var pack = new PathPackResources(packInfo, directory)) {
             for (var item : hashes.entrySet()) {
@@ -59,7 +61,8 @@ final class ReplacementAssetTest {
             throw new AssertionError("missing asset");
         } catch (FileNotFoundException expected) { }
         for (String mob : List.of("enderman", "creeper", "skeleton", "spider", "iron_golem", "ravager",
-                "vex", "piglin", "hoglin", "dragon", "wither")) {
+                "vex", "piglin", "hoglin", "dragon", "wither", "biped_old_texture", "biped_outlayer",
+                "zombie_villager", "illager", "witch")) {
             var modelData = read("entity/" + mob);
             var armature = modelData.getAsJsonObject("armature");
             Set<String> hierarchy = new HashSet<>();
@@ -69,6 +72,9 @@ final class ReplacementAssetTest {
             for (var joint : jointNames) check(hierarchy.contains(joint.getAsString()), mob + " joint");
             var geometry = modelData.getAsJsonObject("vertices");
             check(array(geometry, "vindices").size() == array(geometry, "positions").size()/3*2, mob + " weights");
+            for (var uv : array(geometry, "uvs")) {
+                check(uv.getAsDouble() >= 0 && uv.getAsDouble() <= 1, mob + " UV range");
+            }
             if (mob.equals("enderman")) {
                 check(hierarchy.contains("Head_Top"), "Enderman jaw joint");
                 check(geometry.getAsJsonObject("parts").keySet().equals(Set.of("headTop","headBottom",
@@ -163,6 +169,64 @@ final class ReplacementAssetTest {
         }
         System.out.println("PASS: " + hashes.size() + " CC0 resources, pack override and bundled lookup, player rigs, 15 motions and ribbon texture");
     }
+    private static void checkMobMotions(JsonObject hashes) throws Exception {
+        Map<String, String> rigs = Map.ofEntries(Map.entry("zombie", "biped"), Map.entry("wither_skeleton", "skeleton"),
+                Map.entry("illager", "biped"), Map.entry("witch", "biped"), Map.entry("piglin", "piglin"),
+                Map.entry("hoglin", "hoglin"), Map.entry("ravager", "ravager"), Map.entry("spider", "spider"),
+                Map.entry("iron_golem", "iron_golem"), Map.entry("creeper", "creeper"), Map.entry("vex", "vex"),
+                Map.entry("wither", "wither"), Map.entry("dragon", "dragon"), Map.entry("enderman", "enderman"));
+        int checked = 0;
+        for (var rig : rigs.entrySet()) {
+            var joints = read("entity/" + rig.getValue()).getAsJsonObject("armature").getAsJsonArray("joints");
+            Set<String> names = new HashSet<>(Set.of("Coord"));
+            for (var joint : joints) names.add(joint.getAsString());
+            String prefix = "assets/epicfight/animmodels/animations/" + rig.getKey() + "/";
+            for (String path : hashes.keySet()) {
+                if (!path.startsWith(prefix)) continue;
+                String name = path.substring("assets/epicfight/animmodels/".length(), path.length() - ".json".length());
+                var channels = read(name).getAsJsonArray("animation");
+                check(!channels.isEmpty(), "empty animation " + name);
+                Set<String> seen = new HashSet<>();
+                boolean moving = false;
+                for (var element : channels) {
+                    var channel = element.getAsJsonObject();
+                    String joint = channel.get("name").getAsString();
+                    check(names.contains(joint) && seen.add(joint), "invalid joint " + joint + " in " + name);
+                    var times = channel.getAsJsonArray("time");
+                    var keys = channel.getAsJsonArray("transform");
+                    check(times.size() == keys.size() && times.size() >= 2 && times.get(0).getAsDouble() == 0, "timeline " + name);
+                    for (int i = 1; i < keys.size(); i++) {
+                        check(times.get(i).getAsDouble() > times.get(i - 1).getAsDouble(), "timestamp order " + name);
+                        moving |= !keys.get(i).equals(keys.get(0));
+                    }
+                }
+                check(moving, "unanimated mob motion " + name);
+                checked++;
+            }
+        }
+        check(checked == 114, "registered mob motion coverage");
+    }
+
+    private static void checkSounds() throws Exception {
+        try (var input = AssetResourceSource.open(null, Identifier.parse("epicfight:sounds.json"))) {
+            var events = object(input.readAllBytes());
+            check(events.size() == 43, "registered sound event coverage");
+            for (var event : events.entrySet()) {
+                var sounds = event.getValue().getAsJsonObject().getAsJsonArray("sounds");
+                check(sounds.size() == 1, "sound alias " + event.getKey());
+                if (event.getKey().equals("sfx.no_sound")) {
+                    check(sounds.get(0).getAsString().equals("epicfight:compat/silence"), "silent event");
+                    continue;
+                }
+                var alias = sounds.get(0).getAsJsonObject();
+                check(alias.get("name").getAsString().startsWith("minecraft:")
+                        && alias.get("type").getAsString().equals("event")
+                        && alias.get("volume").getAsDouble() > 0 && alias.get("pitch").getAsDouble() > 0,
+                        "in-game audio reference " + event.getKey());
+            }
+        }
+    }
+
     private static JsonArray array(JsonObject object,String name) {
         return object.getAsJsonObject(name).getAsJsonArray("array");
     }

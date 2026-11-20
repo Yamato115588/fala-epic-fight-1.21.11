@@ -1,0 +1,36 @@
+--- a/src/main/java/yesman/epicfight/client/renderer/EpicFightRenderTypes.java
++++ b/src/main/java/yesman/epicfight/client/renderer/EpicFightRenderTypes.java
+@@ -3,6 +3,8 @@
+ import java.util.IdentityHashMap;
+ import java.util.Map;
+ import java.util.Optional;
++import java.util.concurrent.ConcurrentHashMap;
++import java.util.concurrent.ConcurrentMap;
+ import java.util.function.Function;
+ import java.util.function.Supplier;
+ 
+@@ -37,7 +39,7 @@
+ 
+     private static final Function<RenderPipeline, RenderPipeline> TRIANGLE_PIPELINE = Util.memoize(source ->
+         copyPipeline(source, "triangles/" + source.getLocation().getNamespace() + "/" + source.getLocation().getPath(), TRIANGLES).build());
+-    private static final Function<RenderType, RenderType> TRIANGLE_TYPE = Util.memoize(EpicFightRenderTypes::makeTriangulated);
++    private static final ConcurrentMap<RenderType, RenderType> TRIANGLE_TYPES = new ConcurrentHashMap<>();
+ 
+     public static RenderType makeTriangulated(RenderType type) {
+         // Animated texture transforms, such as energy swirl, use this uncached path.
+@@ -45,7 +47,14 @@
+     }
+ 
+     public static RenderType getTriangulated(RenderType type) {
+-        return type.mode() == TRIANGLES ? type : TRIANGLE_TYPE.apply(type);
++        if (type.mode() == TRIANGLES) return type;
++        RenderType cached = TRIANGLE_TYPES.get(type);
++        if (cached != null) return cached;
++
++        // Copying a type can triangulate its outline through this same cache.
++        RenderType converted = makeTriangulated(type);
++        RenderType previous = TRIANGLE_TYPES.putIfAbsent(type, converted);
++        return previous != null ? previous : converted;
+     }
+ 
+     private record TextureVariant(RenderType type, Identifier texture) {

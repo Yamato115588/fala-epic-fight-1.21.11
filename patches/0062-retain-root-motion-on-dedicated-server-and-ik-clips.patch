@@ -1,0 +1,166 @@
+--- a/src/main/java/yesman/epicfight/api/asset/JsonAssetLoader.java
++++ b/src/main/java/yesman/epicfight/api/asset/JsonAssetLoader.java
+@@ -39,7 +39,6 @@
+ import yesman.epicfight.api.utils.math.Vec4f;
+ import yesman.epicfight.gameasset.Armatures.ArmatureContructor;
+ import yesman.epicfight.main.EpicFightMod;
+-import yesman.epicfight.main.EpicFightSharedConstants;
+ 
+ import javax.annotation.Nullable;
+ import java.io.IOException;
+@@ -494,120 +493,73 @@
+     }
+ 
+     public AnimationClip loadClipForAnimation(StaticAnimation animation) {
++        return this.loadClipForAnimation(animation, false);
++    }
++
++    public AnimationClip loadAllJointsClipForAnimation(StaticAnimation animation) {
++        return this.loadClipForAnimation(animation, true);
++    }
++
++    private AnimationClip loadClipForAnimation(StaticAnimation animation, boolean allJoints) {
+         if (this.rootJson == null) {
+             throw new AssetLoadingException("Can't find animation in path: " + animation);
+         }
+ 
+         if (animation.getArmature() == null) {
+-            EpicFight.LOGGER.error("Animation " + animation + " doesn't have an armature.");
++            throw new AssetLoadingException("Animation " + animation + " doesn't have an armature.");
+         }
+ 
+         TransformFormat format = getAsTransformFormatOrDefault(this.rootJson, "format");
+-        JsonArray array = this.rootJson.get("animation").getAsJsonArray();
++        JsonArray channels = this.rootJson.getAsJsonArray("animation");
+         boolean action = animation instanceof MainFrameAnimation;
+         boolean attack = animation instanceof AttackAnimation;
+         boolean dedicatedServer = FabricLoader.getInstance().getEnvironmentType() == EnvType.SERVER;
+-        boolean noTransformData = !action && !attack && dedicatedServer;
++        boolean filterAttackJoints = dedicatedServer && attack && !allJoints;
++        boolean keepTransforms = allJoints || !dedicatedServer || action || attack;
+         boolean root = true;
+         Armature armature = animation.getArmature().get();
+         Set<String> allowedJoints = Sets.newLinkedHashSet();
+ 
+-        if (attack) {
++        if (filterAttackJoints) {
+             for (Phase phase : ((AttackAnimation)animation).phases) {
+                 for (AttackAnimation.JointColliderPair colliderInfo : phase.getColliders()) {
+                     armature.gatherAllJointsInPathToTerminal(colliderInfo.getFirst().getName(), allowedJoints);
+                 }
+             }
+-        } else if (action) {
+-            allowedJoints.add(ROOT_BONE);
+         }
+ 
+         AnimationClip clip = new AnimationClip();
+-
+-        for (JsonElement element : array) {
+-            JsonObject jObject = element.getAsJsonObject();
+-            String name = jObject.get("name").getAsString();
+-
+-            if (attack && dedicatedServer && !allowedJoints.contains(name)) {
+-                if (name.equals(COORD_BONE)) {
+-                    root = false;
+-                }
+-
++        for (JsonElement element : channels) {
++            JsonObject channel = element.getAsJsonObject();
++            String name = channel.get("name").getAsString();
++
++            // Coordinate channels drive action movement on the server and in IK clips.
++            if (name.equals(COORD_BONE)) {
++                if (animation instanceof ActionAnimation actionAnimation) {
++                    TransformSheet sheet = getTransformSheet(channel, new OpenMatrix4f(), true, format);
++                    actionAnimation.addProperty(ActionAnimationProperty.COORD, sheet);
++                    clip.setClipTime(Math.max(clip.getClipTime(), sheet.maxFrameTime()));
++                }
++                root = false;
+                 continue;
+             }
+ 
++            if (filterAttackJoints && !allowedJoints.contains(name)) {
++                continue;
++            }
+             Joint joint = armature.searchJointByName(name);
+-
+             if (joint == null) {
+-                if (name.equals(COORD_BONE)) {
+-                    TransformSheet sheet = getTransformSheet(jObject, new OpenMatrix4f(), true, format);
+-
+-                    if (action) {
+-                        ((ActionAnimation)animation).addProperty(ActionAnimationProperty.COORD, sheet);
+-                    }
+-
+-                    root = false;
+-                    continue;
+-                } else {
+-                    EpicFight.LOGGER.debug("[EpicFightMod] No joint named " + name + " in " + animation);
+-                    continue;
+-                }
+-            }
+-
+-            TransformSheet sheet = getTransformSheet(jObject, OpenMatrix4f.invert(joint.getLocalTransform(), null), root, format);
+-
+-            if (!noTransformData) {
++                EpicFight.LOGGER.debug("[EpicFightMod] No joint named " + name + " in " + animation);
++                continue;
++            }
++
++            TransformSheet sheet = getTransformSheet(channel, OpenMatrix4f.invert(joint.getLocalTransform(), null), root, format);
++            if (keepTransforms) {
+                 clip.addJointTransform(name, sheet);
+             }
+-
+-            float maxFrameTime = sheet.maxFrameTime();
+-
+-            if (clip.getClipTime() < maxFrameTime) {
+-                clip.setClipTime(maxFrameTime);
+-            }
+-
++            clip.setClipTime(Math.max(clip.getClipTime(), sheet.maxFrameTime()));
+             root = false;
+         }
+-
+-        return clip;
+-    }
+-
+-    public AnimationClip loadAllJointsClipForAnimation(StaticAnimation animation) {
+-        TransformFormat format = getAsTransformFormatOrDefault(this.rootJson, "format");
+-        JsonArray array = this.rootJson.get("animation").getAsJsonArray();
+-        boolean root = true;
+-
+-        if (animation.getArmature() == null) {
+-            EpicFight.LOGGER.error("Animation " + animation + " doesn't have an armature.");
+-        }
+-
+-        Armature armature = animation.getArmature().get();
+-        AnimationClip clip = new AnimationClip();
+-
+-        for (JsonElement element : array) {
+-            JsonObject jObject = element.getAsJsonObject();
+-            String name = jObject.get("name").getAsString();
+-            Joint joint = armature.searchJointByName(name);
+-
+-            if (joint == null) {
+-                if (EpicFightSharedConstants.IS_DEV_ENV) {
+-                    EpicFight.LOGGER.debug(animation.getRegistryName() + ": No joint named " + name + " in armature");
+-                }
+-
+-                continue;
+-            }
+-
+-            TransformSheet sheet = getTransformSheet(jObject, OpenMatrix4f.invert(joint.getLocalTransform(), null), root, format);
+-            clip.addJointTransform(name, sheet);
+-            float maxFrameTime = sheet.maxFrameTime();
+-
+-            if (clip.getClipTime() < maxFrameTime) {
+-                clip.setClipTime(maxFrameTime);
+-            }
+-
+-            root = false;
+-        }
+-
+         return clip;
+     }
+ 

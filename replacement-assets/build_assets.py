@@ -3,8 +3,11 @@
 """Build original player geometry and keyframes from dimensions, pivots and motion curves."""
 from hashlib import sha256
 import json
+import boss_motions
 import entity_models
 import enderman_motions
+import mob_motions
+import sound_events
 from math import cos, pi, radians, sin
 import struct
 import zlib
@@ -59,12 +62,14 @@ def mesh_builder(pivots, joints, texture_height=64):
     # Six outward-facing cube faces and their skin-net rectangles.
     faces = [(0,3,2,1), (4,5,6,7), (0,4,7,3), (1,2,6,5), (3,7,6,2), (0,1,5,4)]
     dirs = [(0,0,-1),(0,0,1),(-1,0,0),(1,0,0),(0,1,0),(0,-1,0)]
-    def box(part, joint, cx, low, high, width, depth, skin, dims, slice_y=(0.,1.), expand=0., cz=0.):
+    def box(part, joint, cx, low, high, width, depth, skin, dims, slice_y=(0.,1.), expand=0., cz=0., mirror_u=False):
         w, h, d = dims
         s, t = skin
         u0, u1 = s+d, s+d+w
         rects = [(u1+d,t+d,w,h), (u0,t+d,w,h), (s,t+d,d,h), (u1,t+d,d,h),
                  (u0,t,w,d), (u1,t,w,d)]
+        if mirror_u:
+            rects[2], rects[3] = rects[3], rects[2]
         x0, x1 = cx-width/2-expand, cx+width/2+expand
         y0, y1 = low-expand, high+expand
         z0, z1 = cz-depth/2-expand, cz+depth/2+expand
@@ -93,6 +98,7 @@ def mesh_builder(pivots, joints, texture_height=64):
                     row = lo if points[index][1] == y1 else hi
                 else:
                     column, row = ((0,0),(0,1),(1,1),(1,0))[i]
+                column = 1 - column if mirror_u else column
                 uvs.extend((round((u+du*column)/64,7), round((v+dv*row)/texture_height,7)))
             for i in (0,1,2, 0,2,3):
                 indices.extend((base+corners[i],uvbase+i,normal_idx))
@@ -100,30 +106,55 @@ def mesh_builder(pivots, joints, texture_height=64):
             'vertices':{**{k:{'array':v} for k,v in [('positions',positions),('normals',normals),('uvs',uvs),
                        ('vindices',influences),('vcounts',counts),('weights',[1])]},'parts':parts}}
 
-def player(slim, piglin=False):
+def player(slim, piglin=False, legacy_skin=False, drowned_overlay=False):
     pivots = dict(PIVOTS)
     if piglin:
         for side, sign in [('L', 1), ('R', -1)]:
             pivots['Ear_'+side] = ('Head', (sign*.225, 1.85, -.035))
-    box, mesh = mesh_builder(pivots, (*JOINTS, 'Ear_L', 'Ear_R') if piglin else JOINTS)
+    box, mesh = mesh_builder(pivots, (*JOINTS, 'Ear_L', 'Ear_R') if piglin else JOINTS,
+                             texture_height=32 if legacy_skin else 64)
     if piglin:
         for side, sign in [('L', 1), ('R', -1)]:
             box('head', 'Ear_'+side, sign*.286, 1.68, 1.87, .14, .06, (39, 6), (4, 5, 1))
-    for outer in (False,True):
-        gap=.011 if outer else 0
+    for outer in ((True,) if drowned_overlay else (False, True)):
+        gap = .033 if drowned_overlay else .011 if outer else 0
+        overlay_uv = outer and not drowned_overlay
         box('hat' if outer else 'head','Head',0,1.53,1.99,.475,.455,
             (32,0) if outer else (0,0),(8,8,8),expand=gap)
+        if legacy_skin and outer:
+            continue
         for j,low,hi,yrange in [('Torso',.91,1.22,(.5,1)),('Chest',1.22,1.53,(0,.5))]:
-            box('jacket' if outer else 'torso',j,0,low,hi,.485,.24,(16,32) if outer else (16,16),(8,12,4),yrange,gap)
+            box('jacket' if outer else 'torso',j,0,low,hi,.485,.24,(16,32) if overlay_uv else (16,16),(8,12,4),yrange,gap)
         for side, sign in [('R',-1),('L',1)]:
             prefix='right' if side=='R' else 'left'
-            leg_skin = ((0,32) if outer else (0,16)) if side=='R' else ((0,48) if outer else (16,48))
-            arm_skin = ((40,32) if outer else (40,16)) if side=='R' else ((48,48) if outer else (32,48))
+            mirror = legacy_skin and side == 'L'
+            leg_skin = ((0,32) if overlay_uv else (0,16)) if side=='R' or mirror else ((0,48) if overlay_uv else (16,48))
+            arm_skin = ((40,32) if overlay_uv else (40,16)) if side=='R' or mirror else ((48,48) if overlay_uv else (32,48))
             for j,lo,hi,yrange in [('Thigh',.47,.91,(0,.5)),('Leg',.045,.47,(.5,1))]:
-                box(prefix+('Pants' if outer else 'Leg'),j+'_'+side,sign*.127,lo,hi,.228,.23,leg_skin,(4,12,4),yrange,gap)
+                box(prefix+('Pants' if outer else 'Leg'),j+'_'+side,sign*.127,lo,hi,.228,.23,leg_skin,(4,12,4),yrange,gap,mirror_u=mirror)
             for j,lo,hi,yrange in [('Arm',1.12,1.49,(0,.5)),('Hand',.79,1.12,(.5,1))]:
                 box(prefix+('Sleeve' if outer else 'Arm'),j+'_'+side,sign*.345,lo,hi,.166 if slim else .205,
-                    .221,arm_skin,(3 if slim else 4,12,4),yrange,gap)
+                    .221,arm_skin,(3 if slim else 4,12,4),yrange,gap,mirror_u=mirror)
+    return mesh
+
+
+def robed_humanoid(kind):
+    box, mesh = mesh_builder(PIVOTS, JOINTS)
+    box('head', 'Head', 0, 1.5, 2.08, .46, .45, (0, 0), (8, 10, 8))
+    box('head', 'Head', 0, 1.64, 1.86, .15, .18, (24, 0), (2, 4, 2), cz=-.29)
+    if kind == 'witch':
+        box('hat', 'Head', 0, 1.99, 2.09, .64, .61, (0, 32), (10, 2, 10))
+        box('hat', 'Head', -.045, 2.06, 2.27, .37, .36, (2, 43), (6, 4, 6))
+        box('hat', 'Head', -.105, 2.23, 2.48, .2, .19, (12, 47), (3, 4, 3))
+    for joint, low, high, rows in (('Torso', .89, 1.19, (.53, 1)), ('Chest', 1.19, 1.54, (0, .53))):
+        box('torso', joint, 0, low, high, .51, .28, (16, 20), (8, 12, 6), rows)
+    if kind != 'zombie_villager':
+        box('torso', 'Torso', 0, .69, 1.17, .55, .33, (0, 39), (8, 8, 6), (.45, 1))
+    for side, sign, part in (('L', 1, 'left'), ('R', -1, 'right')):
+        for joint, lo, hi, rows in (('Thigh', .46, .9, (0, .5)), ('Leg', .02, .46, (.5, 1))):
+            box(part+'Leg', joint+'_'+side, sign*.13, lo, hi, .237, .24, (0, 22), (4, 12, 4), rows, mirror_u=sign > 0)
+        for joint, lo, hi, rows in (('Arm', 1.12, 1.51, (0, .53)), ('Hand', .75, 1.12, (.53, 1))):
+            box(part+'Arm', joint+'_'+side, sign*.347, lo, hi, .206, .225, (40, 19), (4, 12, 4), rows, mirror_u=sign > 0)
     return mesh
 
 
@@ -438,6 +469,10 @@ def build(resources):
         write(f'{BASE}/{name}.json',(json.dumps(doc,separators=(',',':'),allow_nan=False)+'\n').encode())
     for model,slim in [('biped',False),('biped_slim_arm',True)]:
         asset('entity/'+model,player(slim))
+    asset('entity/biped_old_texture', player(False, legacy_skin=True))
+    asset('entity/biped_outlayer', player(False, drowned_overlay=True))
+    for model in ('zombie_villager', 'illager', 'witch'):
+        asset('entity/'+model, robed_humanoid(model))
     asset('entity/enderman', enderman())
     for name, clip in enderman_motions.clips(frame, track).items():
         asset('animations/enderman/' + name, clip)
@@ -449,6 +484,9 @@ def build(resources):
                       ('iron_golem', entity_models.golem()), ('spider', entity_models.spider()),
                       ('vex', entity_models.vex(PIVOTS))]:
         asset('entity/'+name, rig.mesh(mesh_builder))
+    for family, clips in {**mob_motions.clips(frame, track), **boss_motions.clips(frame, track)}.items():
+        for name, clip in clips.items():
+            asset(f'animations/{family}/{name}', clip)
     for i,(heading,lift,duration) in enumerate(((78,58,.51),(-91,72,.55),(58,118,.79)),1):
         asset(f'animations/biped/combat/sword_auto{i}',attack(heading,lift,duration))
     for direction,sign in [('forward',1),('backward',-1)]:
@@ -516,6 +554,8 @@ def build(resources):
     write('assets/fala_epicfight/textures/utility/effect-white.png', png_rgba(1, 1, lambda x, y: (255, 255, 255, 255)))
     write('assets/fala_epicfight/textures/utility/angle-glint.png', glint_texture())
     write('assets/fala_epicfight/shaders/compute/skin.comp',(HERE/'skin.comp').read_bytes())
+    write('assets/epicfight/sounds.json', (json.dumps(sound_events.definitions(), indent=2) + '\n').encode())
+    write('assets/epicfight/sounds/compat/silence.ogg', (HERE/'silence.ogg').read_bytes())
     notice=resources/'META-INF/fala-replacement-assets'
     notice.mkdir(parents=True,exist_ok=True)
     (notice/'CC0-1.0.txt').write_bytes((HERE/'CC0-1.0.txt').read_bytes())
