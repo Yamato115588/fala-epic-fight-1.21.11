@@ -30,7 +30,7 @@ final class ReplacementAssetTest {
         var manifest = object(ReplacementAssetTest.class.getResourceAsStream("/META-INF/fala-replacement-assets/manifest.json").readAllBytes());
         check(manifest.get("license").getAsString().equals("CC0-1.0"), "asset license");
         var hashes = manifest.getAsJsonObject("sha256");
-        check(hashes.size() == 154, "expected independent asset inventory");
+        check(hashes.size() == 166, "expected independent asset inventory");
         var packInfo = new PackLocationInfo("fala-assets", Component.literal("Fala"), PackSource.DEFAULT, Optional.empty());
         try (var pack = new PathPackResources(packInfo, directory)) {
             for (var item : hashes.entrySet()) {
@@ -58,6 +58,23 @@ final class ReplacementAssetTest {
             AssetResourceSource.open(null,Identifier.fromNamespaceAndPath("fala_epicfight","absent.json"));
             throw new AssertionError("missing asset");
         } catch (FileNotFoundException expected) { }
+        for (String mob : List.of("enderman", "creeper", "skeleton", "spider", "iron_golem", "ravager",
+                "vex", "piglin", "hoglin", "dragon", "wither")) {
+            var modelData = read("entity/" + mob);
+            var armature = modelData.getAsJsonObject("armature");
+            Set<String> hierarchy = new HashSet<>();
+            gather(armature.getAsJsonArray("hierarchy").get(0).getAsJsonObject(), hierarchy);
+            var jointNames = armature.getAsJsonArray("joints");
+            check(hierarchy.size() == jointNames.size(), mob + " joint count");
+            for (var joint : jointNames) check(hierarchy.contains(joint.getAsString()), mob + " joint");
+            var geometry = modelData.getAsJsonObject("vertices");
+            check(array(geometry, "vindices").size() == array(geometry, "positions").size()/3*2, mob + " weights");
+            if (mob.equals("enderman")) {
+                check(hierarchy.contains("Head_Top"), "Enderman jaw joint");
+                check(geometry.getAsJsonObject("parts").keySet().equals(Set.of("headTop","headBottom",
+                        "torso","leftArm","rightArm","leftLeg","rightLeg")), "Enderman mesh parts");
+            }
+        }
         JsonObject player = read("entity/biped");
         JsonArray joints = player.getAsJsonObject("armature").getAsJsonArray("joints");
         String[] armorOrder = {"Root","Thigh_R","Leg_R","Knee_R","Thigh_L","Leg_L","Knee_L","Torso","Chest","Head",
@@ -84,7 +101,7 @@ final class ReplacementAssetTest {
                       && indices.get(i+2).getAsInt()<normalCount,"position, UV and normal indices");
             }
         }
-        for (String clip : new String[]{"living/idle","living/walk","living/run","skill/guard_sword","skill/step_forward","skill/step_backward","skill/step_left","skill/step_right","combat/sword_auto1","combat/sword_auto2","combat/sword_auto3","skill/roll_forward","skill/roll_backward"}) {
+        for (String clip : new String[]{"living/fall","living/idle","living/walk","living/run","skill/guard_sword","skill/step_forward","skill/step_backward","skill/step_left","skill/step_right","combat/sword_auto1","combat/sword_auto2","combat/sword_auto3","skill/roll_forward","skill/roll_backward"}) {
             JsonArray tracks=read("animations/biped/"+clip).getAsJsonArray("animation");
             boolean hasMovement=false;
             for (var element:tracks) {
@@ -126,7 +143,7 @@ final class ReplacementAssetTest {
             check(indices.size() > 0 && indices.size() % 9 == 0, "triangulated particle " + effect);
             for (var index : indices) check(index.getAsInt() >= 0 && index.getAsInt() < size, "particle index " + effect);
         }
-        System.out.println("PASS: " + hashes.size() + " CC0 resources, pack override and bundled lookup, player rigs, 13 motions and ribbon texture");
+        System.out.println("PASS: " + hashes.size() + " CC0 resources, pack override and bundled lookup, player rigs, 14 motions and ribbon texture");
     }
     private static JsonArray array(JsonObject object,String name) {
         return object.getAsJsonObject(name).getAsJsonArray("array");

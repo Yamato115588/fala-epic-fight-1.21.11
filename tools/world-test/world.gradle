@@ -1,0 +1,28 @@
+def probe = gradle.startParameter.initScripts.find { it.name == 'world.gradle' }.parentFile
+rootProject { project ->
+    project.plugins.withId('java') {
+        def dest = project.layout.buildDirectory.dir('world-probe/classes')
+        def compileProbe = project.tasks.register('compileWorldProbe', JavaCompile) {
+            dependsOn project.tasks.named('classes')
+            source new File(probe, 'PortWorldTest.java')
+            classpath = project.sourceSets.main.output + project.configurations.compileClasspath
+            destinationDirectory.set(dest)
+            options.release = 21
+            options.compilerArgs.add('-proc:none')
+        }
+        def probeJar = project.tasks.register('worldProbeJar', Jar) {
+            dependsOn compileProbe
+            from(dest)
+            from(new File(probe, 'fabric.mod.json'))
+            destinationDirectory.set(project.layout.buildDirectory.dir('world-probe'))
+            archiveFileName.set('world-probe.jar')
+        }
+        project.tasks.matching { it.name == 'runClient' }.configureEach {
+            dependsOn probeJar
+            systemProperty 'fabric.addMods', probeJar.get().archiveFile.get().asFile.absolutePath
+            systemProperty 'fabric.client.gametest', 'true'
+            systemProperty 'fabric.client.gametest.modid', 'fala_world_test'
+            systemProperty 'fala.test.dedicated', project.hasProperty('testDedicated')
+        }
+    }
+}

@@ -1,0 +1,11 @@
+--- a/src/main/java/yesman/epicfight/client/renderer/patched/layer/WearableItemLayer.java
++++ b/src/main/java/yesman/epicfight/client/renderer/patched/layer/WearableItemLayer.java
+@@ -19,2 +19,3 @@
+ import net.minecraft.client.renderer.Sheets;
++import net.minecraft.data.AtlasIds;
+ import net.minecraft.client.renderer.entity.layers.HumanoidArmorLayer;
+@@ -91,3 +92,3 @@
+ 		this.firstPersonModel = firstPersonModel;
+-		this.armorTrimAtlas = Minecraft.getInstance().getAtlasManager().getAtlasOrThrow(Sheets.ARMOR_TRIMS_SHEET);
++		this.armorTrimAtlas = Minecraft.getInstance().getAtlasManager().getAtlasOrThrow(AtlasIds.ARMOR_TRIMS);
+ 	}

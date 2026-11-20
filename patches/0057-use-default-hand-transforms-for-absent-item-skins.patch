@@ -1,0 +1,17 @@
+--- a/src/main/java/yesman/epicfight/client/events/engine/RenderEngine.java
++++ b/src/main/java/yesman/epicfight/client/events/engine/RenderEngine.java
+@@ -192,9 +192,9 @@
+ 
+         RenderItemBase baseRenderer = new RenderItemBase(new JsonObject());
+-        RenderTwoHandedRangedWeapon bowRenderer = new RenderTwoHandedRangedWeapon(objects.get(BuiltInRegistries.ITEM.getKey(Items.BOW)).getAsJsonObject());
+-        RenderTwoHandedRangedWeapon crossbowRenderer = new RenderTwoHandedRangedWeapon(objects.get(BuiltInRegistries.ITEM.getKey(Items.CROSSBOW)).getAsJsonObject());
+-        RenderTrident tridentRenderer = new RenderTrident(objects.get(BuiltInRegistries.ITEM.getKey(Items.TRIDENT)).getAsJsonObject());
+-        RenderFilledMap mapRenderer = new RenderFilledMap(objects.get(BuiltInRegistries.ITEM.getKey(Items.FILLED_MAP)).getAsJsonObject());
+-        RenderShield shieldRenderer = new RenderShield(objects.get(BuiltInRegistries.ITEM.getKey(Items.SHIELD)).getAsJsonObject());
++        RenderTwoHandedRangedWeapon bowRenderer = new RenderTwoHandedRangedWeapon(objects.getOrDefault(BuiltInRegistries.ITEM.getKey(Items.BOW), new JsonObject()));
++        RenderTwoHandedRangedWeapon crossbowRenderer = new RenderTwoHandedRangedWeapon(objects.getOrDefault(BuiltInRegistries.ITEM.getKey(Items.CROSSBOW), new JsonObject()));
++        RenderTrident tridentRenderer = new RenderTrident(objects.getOrDefault(BuiltInRegistries.ITEM.getKey(Items.TRIDENT), new JsonObject()));
++        RenderFilledMap mapRenderer = new RenderFilledMap(objects.getOrDefault(BuiltInRegistries.ITEM.getKey(Items.FILLED_MAP), new JsonObject()));
++        RenderShield shieldRenderer = new RenderShield(objects.getOrDefault(BuiltInRegistries.ITEM.getKey(Items.SHIELD), new JsonObject()));
+ 
+         // Render by item classes

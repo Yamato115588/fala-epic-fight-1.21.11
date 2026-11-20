@@ -3,6 +3,7 @@
 """Build original player geometry and keyframes from dimensions, pivots and motion curves."""
 from hashlib import sha256
 import json
+import entity_models
 from math import cos, pi, radians, sin
 import struct
 import zlib
@@ -39,25 +40,25 @@ def file_coords(p):
     return [round(p[0], 6), round(-p[2], 6), round(p[1], 6)]
 
 
-def skeleton():
+def skeleton(pivots=PIVOTS, joints=JOINTS):
     def node(name):
-        parent, position = PIVOTS[name]
-        origin = PIVOTS[parent][1] if parent else (0, 0, 0)
+        parent, position = pivots[name]
+        origin = pivots[parent][1] if parent else (0, 0, 0)
         x, y, z = [a-b for a,b in zip(position, origin)]
         # Only the root is converted by the reader. Bake the inverse basis into it.
         matrix = ([1,0,0,x, 0,0,-1,-z, 0,1,0,y, 0,0,0,1] if parent is None
                   else [1,0,0,x, 0,1,0,y, 0,0,1,z, 0,0,0,1])
         return {'name': name, 'transform': [round(v,6) for v in matrix],
-                'children': [node(child) for child, (p, _) in PIVOTS.items() if p == name]}
-    return {'armature_format': 'MATRIX', 'joints': JOINTS, 'hierarchy': [node('Root')]}
+                'children': [node(child) for child, (p, _) in pivots.items() if p == name]}
+    return {'armature_format': 'MATRIX', 'joints': joints, 'hierarchy': [node('Root')]}
 
 
-def player(slim):
+def mesh_builder(pivots, joints, texture_height=64):
     positions, normals, uvs, influences, counts, parts = [], [], [], [], [], {}
     # Six outward-facing cube faces and their skin-net rectangles.
     faces = [(0,3,2,1), (4,5,6,7), (0,4,7,3), (1,2,6,5), (3,7,6,2), (0,1,5,4)]
     dirs = [(0,0,-1),(0,0,1),(-1,0,0),(1,0,0),(0,1,0),(0,-1,0)]
-    def box(part, joint, cx, low, high, width, depth, skin, dims, slice_y=(0.,1.), expand=0.):
+    def box(part, joint, cx, low, high, width, depth, skin, dims, slice_y=(0.,1.), expand=0., cz=0.):
         w, h, d = dims
         s, t = skin
         u0, u1 = s+d, s+d+w
@@ -65,13 +66,13 @@ def player(slim):
                  (u0,t,w,d), (u1,t,w,d)]
         x0, x1 = cx-width/2-expand, cx+width/2+expand
         y0, y1 = low-expand, high+expand
-        z0, z1 = -depth/2-expand, depth/2+expand
+        z0, z1 = cz-depth/2-expand, cz+depth/2+expand
         points = [(x0,y0,z0),(x1,y0,z0),(x1,y1,z0),(x0,y1,z0),
                   (x0,y0,z1),(x1,y0,z1),(x1,y1,z1),(x0,y1,z1)]
         base = len(positions)//3
         for point in points:
             positions.extend(file_coords(point))
-            influences.extend((JOINTS.index(joint), 0))
+            influences.extend((joints.index(joint), 0))
             counts.append(1)
         indices = parts.setdefault(part, {'array': []})['array']
         for face_idx, (corners, direction, rect) in enumerate(zip(faces, dirs, rects)):
@@ -91,9 +92,22 @@ def player(slim):
                     row = lo if points[index][1] == y1 else hi
                 else:
                     column, row = ((0,0),(0,1),(1,1),(1,0))[i]
-                uvs.extend((round((u+du*column)/64,7), round((v+dv*row)/64,7)))
+                uvs.extend((round((u+du*column)/64,7), round((v+dv*row)/texture_height,7)))
             for i in (0,1,2, 0,2,3):
                 indices.extend((base+corners[i],uvbase+i,normal_idx))
+    return box, {'mesh_loader':'skinned_mesh','armature':skeleton(pivots, joints),
+            'vertices':{**{k:{'array':v} for k,v in [('positions',positions),('normals',normals),('uvs',uvs),
+                       ('vindices',influences),('vcounts',counts),('weights',[1])]},'parts':parts}}
+
+def player(slim, piglin=False):
+    pivots = dict(PIVOTS)
+    if piglin:
+        for side, sign in [('L', 1), ('R', -1)]:
+            pivots['Ear_'+side] = ('Head', (sign*.225, 1.85, -.035))
+    box, mesh = mesh_builder(pivots, (*JOINTS, 'Ear_L', 'Ear_R') if piglin else JOINTS)
+    if piglin:
+        for side, sign in [('L', 1), ('R', -1)]:
+            box('head', 'Ear_'+side, sign*.286, 1.68, 1.87, .14, .06, (39, 6), (4, 5, 1))
     for outer in (False,True):
         gap=.011 if outer else 0
         box('hat' if outer else 'head','Head',0,1.53,1.99,.475,.455,
@@ -109,10 +123,28 @@ def player(slim):
             for j,lo,hi,yrange in [('Arm',1.12,1.49,(0,.5)),('Hand',.79,1.12,(.5,1))]:
                 box(prefix+('Sleeve' if outer else 'Arm'),j+'_'+side,sign*.345,lo,hi,.166 if slim else .205,
                     .221,arm_skin,(3 if slim else 4,12,4),yrange,gap)
-    return {'mesh_loader':'skinned_mesh','armature':skeleton(),
-            'vertices':{**{k:{'array':v} for k,v in [('positions',positions),('normals',normals),('uvs',uvs),
-                       ('vindices',influences),('vcounts',counts),('weights',[1])]},'parts':parts}}
+    return mesh
 
+
+def enderman():
+    # Rest pose and geometry authored here. Joint/part names are the Java rig ABI.
+    pivots = {name: (parent, (x, y * 1.53, z)) for name, (parent, (x, y, z)) in PIVOTS.items()}
+    pivots['Head_Top'] = ('Head', (0, 2.51, 0))
+    joints = (*JOINTS, 'Head_Top')
+    box, mesh = mesh_builder(pivots, joints, texture_height=32)
+    box('headBottom', 'Head', 0, 2.33, 2.48, .47, .47, (0, 0), (8, 8, 8), (.7, 1))
+    box('headTop', 'Head_Top', 0, 2.48, 2.82, .48, .48, (0, 0), (8, 8, 8), (0, .7))
+    box('torso', 'Torso', 0, 1.39, 1.98, .47, .22, (32, 16), (8, 12, 4), (.5, 1))
+    box('torso', 'Chest', 0, 1.98, 2.34, .47, .22, (32, 16), (8, 12, 4), (0, .5))
+    for side, prefix, sign in [('R', 'right', -1), ('L', 'left', 1)]:
+        for part, joint, x, low, high, rows in [
+                ('Leg', 'Thigh', .127, .72, 1.39, (0, .5)),
+                ('Leg', 'Leg', .127, .01, .72, (.5, 1)),
+                ('Arm', 'Arm', .345, 1.71, 2.27, (0, .5)),
+                ('Arm', 'Hand', .345, .95, 1.71, (.5, 1))]:
+            box(prefix + part, joint + '_' + side, sign*x, low, high, .125, .125,
+                (56, 0), (2, 30, 2), rows)
+    return mesh
 
 def frame(axis, degrees, pos=(0,0,0)):
     angle=radians(degrees)/2
@@ -369,12 +401,29 @@ def build(resources):
         write(f'{BASE}/{name}.json',(json.dumps(doc,separators=(',',':'),allow_nan=False)+'\n').encode())
     for model,slim in [('biped',False),('biped_slim_arm',True)]:
         asset('entity/'+model,player(slim))
+    asset('entity/enderman', enderman())
+    asset('entity/skeleton', player(True))
+    asset('entity/piglin', player(False, piglin=True))
+    for name in ('creeper', 'hoglin', 'ravager'):
+        asset('entity/'+name, entity_models.quadruped(name).mesh(mesh_builder))
+    for name, rig in [('dragon', entity_models.dragon()), ('wither', entity_models.wither()),
+                      ('iron_golem', entity_models.golem()), ('spider', entity_models.spider()),
+                      ('vex', entity_models.vex(PIVOTS))]:
+        asset('entity/'+name, rig.mesh(mesh_builder))
     for i,(heading,lift,duration) in enumerate(((78,58,.51),(-91,72,.55),(58,118,.79)),1):
         asset(f'animations/biped/combat/sword_auto{i}',attack(heading,lift,duration))
     for direction,sign in [('forward',1),('backward',-1)]:
         asset('animations/biped/skill/roll_'+direction,dodge(sign))
     asset('animations/biped/living/idle',{'format':'ATTRIBUTES','animation':[
         track('Chest',[0,1.1,2.2],[frame((1,0,0),a) for a in (0,2.3,0)])]})
+    times = [0, .32, .64]
+    fall_tracks = [track('Chest', times, [frame((1, 0, 0), a) for a in (-7, -10, -7)])]
+    for side, sign in [('L', 1), ('R', -1)]:
+        fall_tracks.extend([
+            track('Arm_'+side, times, [frame((0, 0, 1), sign*a) for a in (48, 55, 48)]),
+            track('Thigh_'+side, times, [frame((1, 0, 0), sign*a) for a in (15, 18, 15)]),
+            track('Leg_'+side, times, [frame((1, 0, 0), a) for a in (-17, -22, -17)])])
+    asset('animations/biped/living/fall', {'format':'ATTRIBUTES', 'animation':fall_tracks})
     for name, running in [('walk', False), ('run', True)]:
         asset('animations/biped/living/' + name, gait(running))
     for name, dx, dz in [('left', 1, 0), ('right', -1, 0), ('forward', 0, 1), ('backward', 0, -1)]:
