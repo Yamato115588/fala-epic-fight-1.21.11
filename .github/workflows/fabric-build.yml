@@ -61,3 +61,11 @@ jobs:
             ${{ steps.fabric-jar.outputs.path }}
             ${{ steps.fabric-jar.outputs.path }}.sha256
           if-no-files-found: error
+      - name: Smoke-test boss rendering in Minecraft
+        continue-on-error: true
+        timeout-minutes: 6
+        working-directory: ${{ runner.temp }}/epicfight-fabric-work
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
+          ALSOFT_DRIVERS: 'null'
+        run: xvfb-run -a ./gradlew --no-daemon --console=plain --max-workers=2 -I "$GITHUB_WORKSPACE/tools/world-test/world.gradle" -PtestBossRegressions runClient

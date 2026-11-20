@@ -456,6 +456,37 @@ def battle_icons():
     return png_rgba(256, 256, pixel)
 
 
+def particle_descriptions():
+    smoke = [f'minecraft:generic_{i}' for i in reversed(range(8))]
+    arc = [f'minecraft:sweep_{i}' for i in range(8)]
+    return {
+        'enderman_death_emit': smoke,
+        'hit_blunt': ['minecraft:flash', 'minecraft:critical_hit'],
+        'cut': arc,
+        'dust_normal': smoke,
+        'dust_expansive': smoke,
+        'dust_contractive': smoke,
+        'blood': ['minecraft:drip_hang', 'minecraft:drip_fall'],
+        'blade_rush': arc,
+        'breath_flame': ['minecraft:soul_fire_flame', 'minecraft:flame'],
+        'tsunami_splash': [f'minecraft:splash_{i}' for i in range(4)],
+        'feather': ['epicfight:replacement_feather'],
+        'ash_directional': smoke[:4],
+        'catharsis': [f'minecraft:spell_{i}' for i in range(6)],
+    }
+
+
+def feather_mask():
+    def pixel(x, y):
+        stem = 11 - .56 * y
+        span = 3.6 * sin(pi * y / 17) if 0 < y < 17 else 0
+        edge = span - abs(x - stem)
+        alpha = round(232 * min(1, max(0, edge)))
+        shade = 248 if abs(x - stem) < .7 else 217 + (y % 3) * 9
+        return shade, shade, 238, alpha
+    return png_rgba(16, 16, pixel)
+
+
 def build(resources):
     inventory={}
     def write(name,data):
@@ -556,6 +587,9 @@ def build(resources):
     write('assets/fala_epicfight/shaders/compute/skin.comp',(HERE/'skin.comp').read_bytes())
     write('assets/epicfight/sounds.json', (json.dumps(sound_events.definitions(), indent=2) + '\n').encode())
     write('assets/epicfight/sounds/compat/silence.ogg', (HERE/'silence.ogg').read_bytes())
+    for particle, textures in particle_descriptions().items():
+        write(f'assets/epicfight/particles/{particle}.json', (json.dumps({'textures': textures}) + '\n').encode())
+    write('assets/epicfight/textures/particle/replacement_feather.png', feather_mask())
     notice=resources/'META-INF/fala-replacement-assets'
     notice.mkdir(parents=True,exist_ok=True)
     (notice/'CC0-1.0.txt').write_bytes((HERE/'CC0-1.0.txt').read_bytes())

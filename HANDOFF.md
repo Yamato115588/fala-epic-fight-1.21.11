@@ -2,6 +2,20 @@
 
 งานชุดนี้ต่อจาก `eceda04e38d2` บน `fabric-1.21.11` ตรวจ SHA ของโค้ดฉบับปัจจุบันด้วย `git rev-parse HEAD` และดาวน์โหลด JAR กับไฟล์ `.sha256` จาก GitHub Actions ของ commit เดียวกัน
 
+## การทดสอบบอสจาก `8aa3e017d408`
+
+- ทดสอบ Fala Lite ด้วย Client สองตัวที่ตรวจ SHA-256 ตรงกับ JAR ทั้ง 24 ไฟล์ และ Dedicated แบบ loopback ที่ใช้โปรไฟล์ Server 20 JAR โดยเก็บ Figura Extra Bone ฝั่ง Client
+- บน Artifact ของ `8aa3e017d408` สถานะ Flying, Landing และ Ground Battle ของ Ender Dragon มาถึงทั้งสอง Client พร้อมคลิปลงจอด จากนั้นทั้งสอง Client แครชที่ IK ของมังกรซึ่งอ้างเฟรม 9 จาก 9 คีย์เฟรม
+- Wither แสดงท่าเลเซอร์ เป้าเลเซอร์สามหัว การถูกบล็อก Ghost และการตายตรงกันบน Dedicated และทั้งสอง Client พบ Ghost Clone และเสียง Wither ambient, break block และ death ในเกมจริง
+- บิลด์ทดสอบหลังแก้ IK พบ Client แครชเมื่อชุดเกราะ Wither สร้าง `dust_contractive` โดย SpriteSet ไม่มีรายการภาพ จึงเพิ่ม particle descriptions สำหรับ SpriteSet ทั้ง 13 รายการ โดยอ้างภาพ Minecraft ที่ติดตั้งไว้และใช้ภาพขนนก CC0 ที่สร้างใหม่
+- แก้ IK ให้ใช้เวลาจากเฟรมที่มีจริงบนปลายขา แล้วคำนวณ pose ของแต่ละข้อต่อตามเวลานั้น เพิ่ม smoke test สำหรับ dust sprite และท่าลงจอดใน Minecraft บน GitHub Actions
+
+| งาน | สถานะ |
+| --- | --- |
+| Fala Lite สอง Client แบบ loopback บน `8aa3e017d408` | ทดสอบจริงตามขอบเขตด้านบน |
+| Fala Lite หลังแก้สองจุด และการเดินครบทุกเฟสตามธรรมชาติ | **NOT TESTED** หลังพบแครช เพราะเครื่องรันเกมเดิมกู้คืนไม่สำเร็จ |
+| Multiplayer แบบยืนยันบัญชีจริง | **NOT TESTED** ไม่มีบัญชีทดสอบและปลายทางที่ยืนยันสิทธิ์เข้าถึง |
+
 ## แอนิเมชัน เสียง และการเรนเดอร์
 
 - เพิ่มคลิปออกแบบใหม่ 109 คลิปสำหรับม็อบและท่าร่วมของม็อบมนุษย์ พร้อมเมช 5 แบบสำหรับ Zombie, Drowned, Zombie Villager, Illager และ Witch แอนิเมชัน Enderman และกลไกผู้เล่นจากฐานเดิมอยู่ในชุดแอสเซตด้วย

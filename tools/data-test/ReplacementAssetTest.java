@@ -30,9 +30,10 @@ final class ReplacementAssetTest {
         var manifest = object(ReplacementAssetTest.class.getResourceAsStream("/META-INF/fala-replacement-assets/manifest.json").readAllBytes());
         check(manifest.get("license").getAsString().equals("CC0-1.0"), "asset license");
         var hashes = manifest.getAsJsonObject("sha256");
-        check(hashes.size() == 307, "expected independent asset inventory");
+        check(hashes.size() == 321, "expected independent asset inventory");
         checkMobMotions(hashes);
         checkSounds();
+        checkParticleAtlases();
         var packInfo = new PackLocationInfo("fala-assets", Component.literal("Fala"), PackSource.DEFAULT, Optional.empty());
         try (var pack = new PathPackResources(packInfo, directory)) {
             for (var item : hashes.entrySet()) {
@@ -205,6 +206,19 @@ final class ReplacementAssetTest {
             }
         }
         check(checked == 114, "registered mob motion coverage");
+    }
+
+    private static void checkParticleAtlases() throws Exception {
+        for (String particle : List.of("enderman_death_emit", "hit_blunt", "cut", "dust_normal",
+                "dust_expansive", "dust_contractive", "blood", "blade_rush", "breath_flame",
+                "tsunami_splash", "feather", "ash_directional", "catharsis")) {
+            var id = Identifier.parse("epicfight:particles/" + particle + ".json");
+            try (var input = AssetResourceSource.open(null, id)) {
+                var textures = object(input.readAllBytes()).getAsJsonArray("textures");
+                check(!textures.isEmpty(), "SpriteSet manifest " + particle);
+                for (var name : textures) Identifier.parse(name.getAsString());
+            }
+        }
     }
 
     private static void checkSounds() throws Exception {

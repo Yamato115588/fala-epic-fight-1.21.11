@@ -1,13 +1,21 @@
 package fala.tests;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.Properties;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
+import net.fabricmc.fabric.api.client.gametest.v1.context.TestServerContext;
 import net.minecraft.data.AtlasIds;
+import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
+import net.minecraft.world.level.Level;
 import yesman.epicfight.api.client.model.Meshes;
 import yesman.epicfight.gameasset.Armatures;
 import yesman.epicfight.gameasset.Animations;
+import yesman.epicfight.registry.entries.EpicFightParticles;
+import yesman.epicfight.world.capabilities.EpicFightCapabilities;
+import yesman.epicfight.world.capabilities.entitypatch.boss.enderdragon.EnderDragonPatch;
+import yesman.epicfight.world.capabilities.entitypatch.boss.enderdragon.PatchedPhases;
 
 public final class PortWorldTest implements FabricClientGameTest {
     @Override
@@ -37,6 +45,9 @@ public final class PortWorldTest implements FabricClientGameTest {
             });
             context.takeScreenshot("fala-singleplayer");
             System.out.println("Fala integrated world rendered with a connected player");
+            if (Boolean.getBoolean("fala.test.bossRegressions")) {
+                testBossRendering(context, world.getServer());
+            }
         }
         if (Boolean.getBoolean("fala.test.dedicated")) {
             var properties = new Properties();
@@ -53,6 +64,56 @@ public final class PortWorldTest implements FabricClientGameTest {
                 System.out.println("Fala dedicated world rendered with a connected client");
             }
         }
+    }
+
+    private static void testBossRendering(ClientGameTestContext context, TestServerContext server) {
+        context.runOnClient(client -> {
+            var player = client.player;
+            client.level.addParticle(EpicFightParticles.DUST_CONTRACTIVE.get(),
+                    player.getX() + 1, player.getY() + 1, player.getZ(), -.02, 0, 0);
+        });
+        context.waitTicks(8);
+        System.out.println("FALA_BOSS_SMOKE dust_sprite PASS");
+
+        server.runCommand("gamemode creative @a");
+        server.runCommand("execute in minecraft:the_end run tp @a 0.5 76 13.5 180 0");
+        context.waitFor(client -> client.level != null && client.level.dimension().equals(Level.END)
+                && client.player != null && client.screen == null, 1600);
+        server.runCommand("execute in minecraft:the_end run summon minecraft:ender_dragon 0.5 82 0.5 "
+                + "{NoAI:1b,Tags:[\"fala_ik_probe\"]}");
+
+        var landing = server.computeOnServer(instance -> {
+            var end = instance.getLevel(Level.END);
+            for (var entity : end.getAllEntities()) {
+                if (entity instanceof EnderDragon dragon && entity.getTags().contains("fala_ik_probe")) {
+                    dragon.getPhaseManager().setPhase(PatchedPhases.LANDING);
+                    var target = dragon.getPhaseManager().getPhase(PatchedPhases.LANDING).getLandingPosition();
+                    dragon.setPos(target.x, target.y + 1, target.z);
+                    return target;
+                }
+            }
+            throw new AssertionError("Expected a dragon for the landing regression");
+        });
+        server.runCommand(String.format(Locale.ROOT,
+                "execute in minecraft:the_end run tp @a %.4f %.4f %.4f 180 0",
+                landing.x, landing.y + 4, landing.z + 12));
+        context.waitTicks(16);
+        server.runCommand("execute in minecraft:the_end run epicfight animator play "
+                + "@e[type=minecraft:ender_dragon,tag=fala_ik_probe,limit=1] epicfight:dragon/fly_to_ground");
+        context.waitFor(client -> {
+            for (var entity : client.level.entitiesForRendering()) {
+                if (entity instanceof EnderDragon dragon) {
+                    var patch = EpicFightCapabilities.getEntityPatch(dragon, EnderDragonPatch.class);
+                    if (patch != null && patch.getIKSimulator().isRunning(Armatures.DRAGON.get().legFrontL3)) {
+                        patch.getClientAnimator().getPose(0.5F);
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }, 250);
+        context.waitTicks(10);
+        System.out.println("FALA_BOSS_SMOKE dragon_landing_ik PASS");
     }
 
     private static void waitForTerrain(ClientGameTestContext context) {

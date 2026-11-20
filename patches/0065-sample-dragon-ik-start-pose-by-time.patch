@@ -1,0 +1,21 @@
+--- a/src/main/java/yesman/epicfight/world/capabilities/entitypatch/boss/enderdragon/EnderDragonPatch.java
++++ b/src/main/java/yesman/epicfight/world/capabilities/entitypatch/boss/enderdragon/EnderDragonPatch.java
+@@ -202,9 +202,15 @@
+ 	    		for (BakedInverseKinematicsDefinition bakedIKInfo : ikDefinitions) {
+ 		    		if (!this.ikSimulator.isRunning(bakedIKInfo.endJoint())) continue;
+ 		    		
+-		    		for (String jointName : bakedIKInfo.pathToEndJoint()) {
+-						pose.putJointData(jointName, animation.getTransfroms().get(jointName).getKeyframes()[bakedIKInfo.initialPoseFrame()].transform().copy());
+-					}
++                    var tipFrames = bakedIKInfo.terminalBoneTransform().getKeyframes();
++                    int initialFrame = Mth.clamp(bakedIKInfo.initialPoseFrame(), 0, tipFrames.length - 1);
++                    float initialPoseTime = tipFrames[initialFrame].time();
++                    for (String jointName : bakedIKInfo.pathToEndJoint()) {
++                        var jointTrack = animation.getTransfroms().get(jointName);
++                        if (jointTrack != null) {
++                            pose.putJointData(jointName, jointTrack.getInterpolatedTransform(initialPoseTime).copy());
++                        }
++                    }
+ 		    		
+ 		    		InverseKinematicsSimulator.InverseKinematicsObject ikObject = this.ikSimulator.getRunningObject(bakedIKInfo.endJoint()).get();
+ 		    		JointTransform jt = ikObject.getTipTransform(partialTicks);
