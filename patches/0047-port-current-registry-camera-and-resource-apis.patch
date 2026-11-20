@@ -1,0 +1,911 @@
+diff --git a/src/main/java/yesman/epicfight/EpicFightFabricClient.java b/src/main/java/yesman/epicfight/EpicFightFabricClient.java
+index 1b3b38b..e1d0ca9 100644
+--- a/src/main/java/yesman/epicfight/EpicFightFabricClient.java
++++ b/src/main/java/yesman/epicfight/EpicFightFabricClient.java
+@@ -51,7 +51,6 @@ import yesman.epicfight.client.renderer.blockentity.FractureBlockRenderer;
+ import yesman.epicfight.client.renderer.entity.DroppedNetherStarRenderer;
+ import yesman.epicfight.client.renderer.entity.WitherGhostRenderer;
+ import yesman.epicfight.client.renderer.entity.WitherSkeletonMinionRenderer;
+-import yesman.epicfight.client.renderer.patched.item.EpicFightItemProperties;
+ import yesman.epicfight.client.renderer.patched.item.RenderItemBase;
+ import yesman.epicfight.client.renderer.shader.compute.loader.ComputeShaderProvider;
+ import yesman.epicfight.network.EpicFightClientPayloadRegistration;
+@@ -152,7 +151,6 @@ public class EpicFightFabricClient implements ClientModInitializer {
+         EpicFightKeyMappings.registerKeys();
+         CommonEntityPatchProvider.ClientModule.registerClientPlayerPatches();
+         SkillBookScreen.registerIconItems();
+-        EpicFightItemProperties.registerItemProperties();
+ 
+         // Defer compute shader check and item renderer init to first client tick (OpenGL context not ready during init)
+         ClientTickEvents.END_CLIENT_TICK.register(client -> {
+@@ -195,12 +193,12 @@ public class EpicFightFabricClient implements ClientModInitializer {
+ 
+         // Wire screen event hooks
+         ScreenEvents.AFTER_INIT.register((client, screen, scaledWidth, scaledHeight) -> {
+-            ScreenMouseEvents.allowMouseClick(screen).register((s, mouseX, mouseY, button) ->
++            ScreenMouseEvents.allowMouseClick(screen).register((s, event) ->
+                 !yesman.epicfight.api.client.event.impl.VanillaGUIEventHooks.onMouseButtonPressedInScreen(screen));
+-            ScreenMouseEvents.allowMouseRelease(screen).register((s, mouseX, mouseY, button) ->
++            ScreenMouseEvents.allowMouseRelease(screen).register((s, event) ->
+                 !yesman.epicfight.api.client.event.impl.VanillaGUIEventHooks.onMouseButtonReleasedInScreen(screen));
+-            ScreenKeyboardEvents.allowKeyPress(screen).register((s, key, scancode, modifiers) ->
+-                !yesman.epicfight.api.client.event.impl.VanillaGUIEventHooks.onKeyboardPressedInScreen(screen, key));
++            ScreenKeyboardEvents.allowKeyPress(screen).register((s, event) ->
++                !yesman.epicfight.api.client.event.impl.VanillaGUIEventHooks.onKeyboardPressedInScreen(s, event.key()));
+         });
+     }
+ }
+diff --git a/src/main/java/yesman/epicfight/api/client/animation/property/TrailInfo.java b/src/main/java/yesman/epicfight/api/client/animation/property/TrailInfo.java
+index 33c8783..8a47b10 100644
+--- a/src/main/java/yesman/epicfight/api/client/animation/property/TrailInfo.java
++++ b/src/main/java/yesman/epicfight/api/client/animation/property/TrailInfo.java
+@@ -193,7 +193,7 @@ public record TrailInfo(
+ 		
+ 		if (trailObj.has("particle_type")) {
+ 			String particleTypeName = GsonHelper.getAsString(trailObj, "particle_type");
+-			SimpleParticleType particleType = (SimpleParticleType)BuiltInRegistries.PARTICLE_TYPE.get(ResourceLocation.parse(particleTypeName));
++			SimpleParticleType particleType = (SimpleParticleType)BuiltInRegistries.PARTICLE_TYPE.getValue(ResourceLocation.parse(particleTypeName));
+ 			trailBuilder.type(particleType);
+ 		}
+ 		
+@@ -273,7 +273,7 @@ public record TrailInfo(
+ 		if (compoundTag.contains("particle_type")) {
+ 			String particleTypeName = compoundTag.getStringOr("particle_type", "");
+ 			
+-			SimpleParticleType particleType = (SimpleParticleType)BuiltInRegistries.PARTICLE_TYPE.get(ResourceLocation.parse(particleTypeName));
++			SimpleParticleType particleType = (SimpleParticleType)BuiltInRegistries.PARTICLE_TYPE.getValue(ResourceLocation.parse(particleTypeName));
+ 			trailBuilder.type(particleType);
+ 		}
+ 		
+diff --git a/src/main/java/yesman/epicfight/api/client/camera/EpicFightCameraAPI.java b/src/main/java/yesman/epicfight/api/client/camera/EpicFightCameraAPI.java
+index 2b7fb11..5342c1c 100644
+--- a/src/main/java/yesman/epicfight/api/client/camera/EpicFightCameraAPI.java
++++ b/src/main/java/yesman/epicfight/api/client/camera/EpicFightCameraAPI.java
+@@ -391,7 +391,7 @@ public final class EpicFightCameraAPI {
+     private Matrix4f getCompactProjectionMatrix() {
+         PoseStack posestack = new PoseStack();
+         double fov = this.minecraft.gameRenderer.getFov(this.minecraft.gameRenderer.getMainCamera(), 1.0F, true);
+-        posestack.mulPose(this.minecraft.gameRenderer.getProjectionMatrix(fov));
++        posestack.mulPose(this.minecraft.gameRenderer.getProjectionMatrix((float)fov));
+         return posestack.last().pose();
+     }
+ 
+@@ -420,7 +420,7 @@ public final class EpicFightCameraAPI {
+                 new ServerboundMovePlayerPacket.Rot(
+                     this.cameraYRot,
+                     this.cameraXRot,
+-                    this.minecraft.player.onGround()
++                    this.minecraft.player.onGround(), this.minecraft.player.horizontalCollision
+                 )
+             );
+         }
+@@ -468,7 +468,7 @@ public final class EpicFightCameraAPI {
+                 new ServerboundMovePlayerPacket.Rot(
+                     yRot,
+                     xRot,
+-                    this.minecraft.player.onGround()
++                    this.minecraft.player.onGround(), this.minecraft.player.horizontalCollision
+                 )
+             );
+         }
+@@ -514,7 +514,7 @@ public final class EpicFightCameraAPI {
+             if (blockHitResult != null) {
+                 BlockPos bp = ((BlockHitResult)this.minecraft.hitResult).getBlockPos();
+                 BlockState bs = this.minecraft.level.getBlockState(bp);
+-                return !combatItem.getItem().canAttackBlock(bs, this.minecraft.player.level(), bp, this.minecraft.player) || !combatItem.isCorrectToolForDrops(bs);
++                return !combatItem.canDestroyBlock(bs, this.minecraft.player.level(), bp, this.minecraft.player) || !combatItem.isCorrectToolForDrops(bs);
+             }
+ 
+             return true;
+@@ -964,14 +964,14 @@ public final class EpicFightCameraAPI {
+                 if (this.isLerpingFpv()) {
+                     float xRot = this.getLerpedFpvXRot(partialTick);
+                     float yRot = this.getLerpedFpvYRot(partialTick);
+-                    this.minecraft.cameraEntity.setXRot(xRot);
+-                    this.minecraft.cameraEntity.setYRot(yRot);
++                    this.minecraft.getCameraEntity().setXRot(xRot);
++                    this.minecraft.getCameraEntity().setYRot(yRot);
+                 } else {
+                     AnimationSubFileReader.PovSettings.ViewLimit viewLimit = playerpatch.getPovSettings().viewLimit();
+ 
+                     if (viewLimit != null) {
+-                        float pitch = camera.getXRot();
+-                        float yaw = camera.getYRot();
++                        float pitch = camera.xRot();
++                        float yaw = camera.yRot();
+                         float clampedXRot = Mth.clamp(pitch, viewLimit.xRotMin(), viewLimit.xRotMax());
+                         float bodyY = MathUtils.findNearestRotation(yaw, playerpatch.getYRot());
+                         float clampedYRot = Mth.clamp(yaw, bodyY + viewLimit.yRotMin(), bodyY + viewLimit.yRotMax());
+@@ -1004,7 +1004,7 @@ public final class EpicFightCameraAPI {
+                     CAMERA_ROTATION_EULER.z = (float)Math.toDegrees(CAMERA_ROTATION_EULER.z);
+ 
+                     camera.move(translation.x, translation.y, translation.z);
+-                    camera.setRotation(camera.getYRot() + CAMERA_ROTATION_EULER.y, camera.getXRot() + CAMERA_ROTATION_EULER.x);
++                    camera.setRotation(camera.yRot() + CAMERA_ROTATION_EULER.y, camera.xRot() + CAMERA_ROTATION_EULER.x);
+                 }
+             }
+         }
+diff --git a/src/main/java/yesman/epicfight/api/client/event/impl/VanillaGUIEventHooks.java b/src/main/java/yesman/epicfight/api/client/event/impl/VanillaGUIEventHooks.java
+index 11e16cf..5ce7ab3 100644
+--- a/src/main/java/yesman/epicfight/api/client/event/impl/VanillaGUIEventHooks.java
++++ b/src/main/java/yesman/epicfight/api/client/event/impl/VanillaGUIEventHooks.java
+@@ -1,6 +1,5 @@
+ package yesman.epicfight.api.client.event.impl;
+ 
+-import com.mojang.datafixers.util.Pair;
+ import net.minecraft.client.KeyboardHandler;
+ import net.minecraft.client.Minecraft;
+ import net.minecraft.client.MouseHandler;
+@@ -14,7 +13,7 @@ import yesman.epicfight.world.capabilities.EpicFightCapabilities;
+ import yesman.epicfight.world.capabilities.item.CapabilityItem;
+ 
+ public final class VanillaGUIEventHooks {
+-    private static final Pair<ResourceLocation, ResourceLocation> OFFHAND_TEXTURE = Pair.of(InventoryMenu.BLOCK_ATLAS, InventoryMenu.EMPTY_ARMOR_SLOT_SHIELD);
++    private static final ResourceLocation OFFHAND_TEXTURE = InventoryMenu.EMPTY_ARMOR_SLOT_SHIELD;
+ 
+     /// Called when the player presses mouse buttons in any [Screen]
+     ///
+diff --git a/src/main/java/yesman/epicfight/api/client/model/Meshes.java b/src/main/java/yesman/epicfight/api/client/model/Meshes.java
+index 8e3b46c..a502695 100644
+--- a/src/main/java/yesman/epicfight/api/client/model/Meshes.java
++++ b/src/main/java/yesman/epicfight/api/client/model/Meshes.java
+@@ -115,10 +115,8 @@ public class Meshes implements PreparableReloadListener {
+ 	}
+ 	
+ 	@Override
+-	public CompletableFuture<Void> reload(PreparableReloadListener.PreparationBarrier stage, ResourceManager resourceManager, ProfilerFiller preparationsProfiler, ProfilerFiller reloadProfiler, Executor backgroundExecutor, Executor gameExecutor) {
+-		return CompletableFuture.runAsync(() -> {
+-			Meshes.reload(resourceManager);
+-		}, gameExecutor).thenCompose(stage::wait);
++	public CompletableFuture<Void> reload(SharedState state, Executor backgroundExecutor, PreparationBarrier stage, Executor gameExecutor) {
++		return stage.wait(state.resourceManager()).thenAcceptAsync(Meshes::reload, gameExecutor);
+ 	}
+ 	
+ 	@FunctionalInterface
+diff --git a/src/main/java/yesman/epicfight/api/client/model/SkinnedMesh.java b/src/main/java/yesman/epicfight/api/client/model/SkinnedMesh.java
+index 847c248..20fa887 100644
+--- a/src/main/java/yesman/epicfight/api/client/model/SkinnedMesh.java
++++ b/src/main/java/yesman/epicfight/api/client/model/SkinnedMesh.java
+@@ -90,7 +90,7 @@ public class SkinnedMesh extends StaticMesh<SkinnedMeshPart> {
+ 			if (RenderSystem.isOnRenderThread()) {
+ 				this.computerShaderSetup = ComputeShaderProvider.getComputeShaderSetup(this);
+ 			} else {
+-				RenderSystem.recordRenderCall(() -> {
++				net.minecraft.client.Minecraft.getInstance().execute(() -> {
+ 					this.computerShaderSetup = ComputeShaderProvider.getComputeShaderSetup(this);
+ 				});
+ 			}
+@@ -103,7 +103,7 @@ public class SkinnedMesh extends StaticMesh<SkinnedMeshPart> {
+ 				this.computerShaderSetup.destroyBuffers();
+ 			}
+ 		} else {
+-			RenderSystem.recordRenderCall(() -> {
++			net.minecraft.client.Minecraft.getInstance().execute(() -> {
+ 				if (this.computerShaderSetup != null) {
+ 					this.computerShaderSetup.destroyBuffers();
+ 				}
+diff --git a/src/main/java/yesman/epicfight/api/client/model/transformer/HumanoidModelBaker.java b/src/main/java/yesman/epicfight/api/client/model/transformer/HumanoidModelBaker.java
+index 55ae823..d78d28e 100644
+--- a/src/main/java/yesman/epicfight/api/client/model/transformer/HumanoidModelBaker.java
++++ b/src/main/java/yesman/epicfight/api/client/model/transformer/HumanoidModelBaker.java
+@@ -67,7 +67,7 @@ public class HumanoidModelBaker {
+ 		JsonObject root = new JsonObject();
+ 		JsonObject pack = new JsonObject();
+ 		pack.addProperty("description", "epicfight_custom_armor_models");
+-		pack.addProperty("pack_format", SharedConstants.getCurrentVersion().getPackVersion(PackType.CLIENT_RESOURCES));
++		pack.addProperty("pack_format", SharedConstants.getCurrentVersion().packVersion(PackType.CLIENT_RESOURCES).major());
+ 		root.add("pack", pack);
+ 		out.putNextEntry(zipEntry);
+ 		out.write(gson.toJson(root).getBytes());
+diff --git a/src/main/java/yesman/epicfight/api/client/physics/cloth/ClothSimulator.java b/src/main/java/yesman/epicfight/api/client/physics/cloth/ClothSimulator.java
+index cfeba05..ae8fbd4 100644
+--- a/src/main/java/yesman/epicfight/api/client/physics/cloth/ClothSimulator.java
++++ b/src/main/java/yesman/epicfight/api/client/physics/cloth/ClothSimulator.java
+@@ -234,7 +234,7 @@ public class ClothSimulator extends AbstractSimulator<ResourceLocation, ClothObj
+ 					}
+ 				}
+ 				
+-				float deltaFrameTime = Minecraft.getInstance().getTimer().getGameTimeDeltaTicks();
++				float deltaFrameTime = Minecraft.getInstance().getDeltaTracker().getGameTimeDeltaTicks();
+ 				float subStebInvert = 1.0F / SUB_STEPS;
+ 				float subSteppingDeltaTime = deltaFrameTime * subStebInvert;
+ 				float gravity = simulatableObj.getGravity() * subSteppingDeltaTime * EpicFightSharedConstants.A_TICK;
+diff --git a/src/main/java/yesman/epicfight/api/data/reloader/MobPatchReloadListener.java b/src/main/java/yesman/epicfight/api/data/reloader/MobPatchReloadListener.java
+index 7969dfb..4510390 100644
+--- a/src/main/java/yesman/epicfight/api/data/reloader/MobPatchReloadListener.java
++++ b/src/main/java/yesman/epicfight/api/data/reloader/MobPatchReloadListener.java
+@@ -333,7 +333,7 @@ public class MobPatchReloadListener extends SimpleJsonResourceReloadListener<Jso
+ 			provider.scale = tag.getCompoundOrEmpty("attributes").contains("scale") ? (float)tag.getCompoundOrEmpty("attributes").getDoubleOr("scale", 0.0D) : 1.0F;
+ 
+             if (tag.contains("swing_sound")) {
+-                SoundEvent soundEvent = BuiltInRegistries.SOUND_EVENT.get(ResourceLocation.parse(tag.getStringOr("swing_sound", "")));
++                SoundEvent soundEvent = BuiltInRegistries.SOUND_EVENT.getValue(ResourceLocation.parse(tag.getStringOr("swing_sound", "")));
+ 
+                 if (soundEvent == null) {
+                     EpicFight.LOGGER.warn("Can't find a swing sound {} for the next mot patch: {}", tag.getStringOr("swing_sound", ""), entityType.toString());
+@@ -343,7 +343,7 @@ public class MobPatchReloadListener extends SimpleJsonResourceReloadListener<Jso
+             }
+ 
+             if (tag.contains("hit_sound")) {
+-                SoundEvent soundEvent = BuiltInRegistries.SOUND_EVENT.get(ResourceLocation.parse(tag.getStringOr("hit_sound", "")));
++                SoundEvent soundEvent = BuiltInRegistries.SOUND_EVENT.getValue(ResourceLocation.parse(tag.getStringOr("hit_sound", "")));
+ 
+                 if (soundEvent == null) {
+                     EpicFight.LOGGER.warn("Can't find a hit sound {} for the next mot patch: {}", tag.getStringOr("hit_sound", ""), entityType.toString());
+@@ -353,7 +353,7 @@ public class MobPatchReloadListener extends SimpleJsonResourceReloadListener<Jso
+             }
+ 
+             if (tag.contains("hit_particle")) {
+-                HitParticleType hitParticle = (HitParticleType)BuiltInRegistries.PARTICLE_TYPE.get(ResourceLocation.parse(tag.getStringOr("hit_particle", "")));
++                HitParticleType hitParticle = (HitParticleType)BuiltInRegistries.PARTICLE_TYPE.getValue(ResourceLocation.parse(tag.getStringOr("hit_particle", "")));
+ 
+                 if (hitParticle == null) {
+                     EpicFight.LOGGER.warn("Can't find a hit particle type {} for the next mot patch: {}", tag.getStringOr("hit_particle", ""), entityType.toString());
+diff --git a/src/main/java/yesman/epicfight/api/event/impl/VanillaEntityEventHooks.java b/src/main/java/yesman/epicfight/api/event/impl/VanillaEntityEventHooks.java
+index 4266fdb..4797c51 100644
+--- a/src/main/java/yesman/epicfight/api/event/impl/VanillaEntityEventHooks.java
++++ b/src/main/java/yesman/epicfight/api/event/impl/VanillaEntityEventHooks.java
+@@ -177,7 +177,7 @@ public final class VanillaEntityEventHooks {
+     /// @return whether cancel the taken damage
+     public static boolean onDamageIncomes(LivingEntity entity, DamageSource damageSource, float amount) {
+         // Let the event passes in the cases we don't want to handle without canceling it to avoid potential issue with other mods
+-        if (entity.level().isClientSide() || entity.isInvulnerableTo(damageSource) || entity.invulnerableTime > 10 && amount <= entity.lastHurt || entity.getHealth() <= 0.0F) return false;
++        if (!(entity.level() instanceof net.minecraft.server.level.ServerLevel level) || entity.isInvulnerableTo(level, damageSource) || entity.invulnerableTime > 10 && amount <= entity.lastHurt || entity.getHealth() <= 0.0F) return false;
+ 
+         if (damageSource instanceof EpicFightDamageSource epicfightDamagesource && damageSource.getEntity() instanceof ServerPlayer serverplayer) {
+             ServerPlayerPatch playerpatch = EpicFightCapabilities.getServerPlayerPatch(serverplayer);
+diff --git a/src/main/java/yesman/epicfight/api/event/impl/VanillaWorldEventHooks.java b/src/main/java/yesman/epicfight/api/event/impl/VanillaWorldEventHooks.java
+index d00b112..02414be 100644
+--- a/src/main/java/yesman/epicfight/api/event/impl/VanillaWorldEventHooks.java
++++ b/src/main/java/yesman/epicfight/api/event/impl/VanillaWorldEventHooks.java
+@@ -35,7 +35,7 @@ public final class VanillaWorldEventHooks {
+ 
+         payloadBundleBuilder.send((first, others) -> EpicFightNetworkManager.sendToPlayer(first, player, others));
+ 
+-        if (!player.getServer().isSingleplayerOwner(player.getGameProfile())) {
++        if (!player.level().getServer().isSingleplayerOwner(player.getGameProfile())) {
+             sendLevelData(player);
+         } else {
+             EpicFightCapabilities.getUnparameterizedEntityPatch(player, ServerPlayerPatch.class).ifPresent(serverplayerpatch -> {
+@@ -72,7 +72,7 @@ public final class VanillaWorldEventHooks {
+             EpicFightNetworkManager.sendToPlayer(skillParamsPacket, player);
+         });
+ 
+-        SPDatapackSync animationPacket = new SPDatapackSync(player.getServer().isResourcePackRequired() ? SPDatapackSync.PacketType.MANDATORY_RESOURCE_PACK_ANIMATION : SPDatapackSync.PacketType.RESOURCE_PACK_ANIMATION);
++        SPDatapackSync animationPacket = new SPDatapackSync(player.level().getServer().isResourcePackRequired() ? SPDatapackSync.PacketType.MANDATORY_RESOURCE_PACK_ANIMATION : SPDatapackSync.PacketType.RESOURCE_PACK_ANIMATION);
+         SPDatapackSync armorPacket = new SPDatapackSync(SPDatapackSync.PacketType.ARMOR);
+         SPDatapackSync weaponPacket = new SPDatapackSync(SPDatapackSync.PacketType.WEAPON);
+         SPDatapackSync mobCapabilityPacket = new SPDatapackSync(SPDatapackSync.PacketType.MOB);
+diff --git a/src/main/java/yesman/epicfight/api/ex_cap/managers/ItemPresetManager.java b/src/main/java/yesman/epicfight/api/ex_cap/managers/ItemPresetManager.java
+index 5065b8c..1db3bee 100644
+--- a/src/main/java/yesman/epicfight/api/ex_cap/managers/ItemPresetManager.java
++++ b/src/main/java/yesman/epicfight/api/ex_cap/managers/ItemPresetManager.java
+@@ -54,7 +54,7 @@ public class ItemPresetManager {
+         BUILDERS.values().forEach( builder -> {
+             if (builder instanceof WeaponCapability.Builder weaponBuilder)
+             {
+-                EpicFightRegistries.WEAPON_DATA.holders().forEach(
++                EpicFightRegistries.WEAPON_DATA.listElements().forEach(
+                         weaponBuilder::registerCustomData
+                 );
+             }
+diff --git a/src/main/java/yesman/epicfight/api/ex_cap/managers/MovesetManager.java b/src/main/java/yesman/epicfight/api/ex_cap/managers/MovesetManager.java
+index eff67ef..32a78f6 100644
+--- a/src/main/java/yesman/epicfight/api/ex_cap/managers/MovesetManager.java
++++ b/src/main/java/yesman/epicfight/api/ex_cap/managers/MovesetManager.java
+@@ -25,7 +25,7 @@ public class MovesetManager
+         EpicFightRegistries.MOVESETS.entrySet().forEach(entry -> MOVESETS.put(entry.getKey().identifier(), entry.getValue()));
+         MOVESETS.putAll(BUILDER_DECLARED_MOVESETS);
+         MOVESETS.putAll(event.getMovesets());
+-        MOVESETS.values().forEach( builder -> EpicFightRegistries.MOVESET_DATA.holders().forEach(builder::registerCustomData));
++        MOVESETS.values().forEach( builder -> EpicFightRegistries.MOVESET_DATA.listElements().forEach(builder::registerCustomData));
+         ModifierManager.modifyMovesets();
+     }
+ 
+diff --git a/src/main/java/yesman/epicfight/api/utils/HitEntityList.java b/src/main/java/yesman/epicfight/api/utils/HitEntityList.java
+index 87bd2a3..e921607 100644
+--- a/src/main/java/yesman/epicfight/api/utils/HitEntityList.java
++++ b/src/main/java/yesman/epicfight/api/utils/HitEntityList.java
+@@ -101,7 +101,8 @@ public class HitEntityList {
+ 						
+ 						for (WrappedGoal goal : targetingAi.getAvailableGoals()) {
+ 							if (goal.getGoal() instanceof NearestAttackableTargetGoal<?> targetGoal) {
+-								if (targetGoal.targetType.isAssignableFrom(attacker.getOriginal().getClass()) && targetGoal.targetConditions.test(mob, attacker.getOriginal())) {
++								if (mob.level() instanceof net.minecraft.server.level.ServerLevel serverLevel && targetGoal.targetType.isAssignableFrom(attacker.getOriginal().getClass())
++                                    && targetGoal.targetConditions.test(serverLevel, mob, attacker.getOriginal())) {
+ 									secondTargets.add(mob);
+ 									continue Outer;
+ 								}
+diff --git a/src/main/java/yesman/epicfight/api/utils/LevelUtil.java b/src/main/java/yesman/epicfight/api/utils/LevelUtil.java
+index 9daa98a..ce4da6e 100644
+--- a/src/main/java/yesman/epicfight/api/utils/LevelUtil.java
++++ b/src/main/java/yesman/epicfight/api/utils/LevelUtil.java
+@@ -50,7 +50,7 @@ public class LevelUtil {
+ 		if (livingEntity.getType().is(EntityTypeTags.FALL_DAMAGE_IMMUNE)) {
+ 			return 0;
+ 		} else {
+-			MobEffectInstance mobeffectinstance = livingEntity.getEffect(MobEffects.JUMP);
++			MobEffectInstance mobeffectinstance = livingEntity.getEffect(MobEffects.JUMP_BOOST);
+ 			float f = mobeffectinstance == null ? 0.0F : (float) (mobeffectinstance.getAmplifier() + 1);
+ 			return Mth.ceil((distance - 3.0F - f) * modifier);
+ 		}
+diff --git a/src/main/java/yesman/epicfight/api/utils/ParseUtil.java b/src/main/java/yesman/epicfight/api/utils/ParseUtil.java
+index f5b594b..053ea92 100644
+--- a/src/main/java/yesman/epicfight/api/utils/ParseUtil.java
++++ b/src/main/java/yesman/epicfight/api/utils/ParseUtil.java
+@@ -307,9 +307,9 @@ public abstract class ParseUtil {
+ 		compoundtag.keySet().forEach(key -> {
+ 			Tag val = compoundtag.get(key);
+ 			
+-			if (val instanceof ByteTag byteTag && (byteTag.getAsByte() == 0 || byteTag.getAsByte() == 1)) {
++			if (val instanceof ByteTag byteTag && (byteTag.value() == 0 || byteTag.value() == 1)) {
+ 				root.remove(key);
+-				root.addProperty(key, byteTag.getAsByte() == 1);
++				root.addProperty(key, byteTag.value() == 1);
+ 			}
+ 		});
+ 		
+diff --git a/src/main/java/yesman/epicfight/api/utils/math/MathUtils.java b/src/main/java/yesman/epicfight/api/utils/math/MathUtils.java
+index c7b6105..c3c05db 100644
+--- a/src/main/java/yesman/epicfight/api/utils/math/MathUtils.java
++++ b/src/main/java/yesman/epicfight/api/utils/math/MathUtils.java
+@@ -572,8 +572,8 @@ public class MathUtils {
+      */
+     public static Vec2 worldToScreenCoord(Matrix4f projectionMatrix, Camera camera, Vec3 position) {
+         Vector4f relativeCamera = new Vector4f((float)camera.position().x() - (float)position.x(), (float)camera.position().y() - (float)position.y(), (float)camera.position().z() - (float)position.z(), 1.0F);
+-        relativeCamera.rotate(Axis.YP.rotationDegrees(camera.getYRot() + 180.0F));
+-        relativeCamera.rotate(Axis.XP.rotationDegrees(camera.getXRot()));
++        relativeCamera.rotate(Axis.YP.rotationDegrees(camera.yRot() + 180.0F));
++        relativeCamera.rotate(Axis.XP.rotationDegrees(camera.xRot()));
+         relativeCamera.mul(projectionMatrix);
+ 
+         float depth = relativeCamera.w;
+diff --git a/src/main/java/yesman/epicfight/client/online/EpicSkins.java b/src/main/java/yesman/epicfight/client/online/EpicSkins.java
+index 3b9af59..c140cf0 100644
+--- a/src/main/java/yesman/epicfight/client/online/EpicSkins.java
++++ b/src/main/java/yesman/epicfight/client/online/EpicSkins.java
+@@ -124,7 +124,7 @@ public record EpicSkins(Supplier<ResourceLocation> capeTexture, float r, float g
+ 			, Meshes.CAPE_DEFAULT
+ 			, ClothSimulator.ClothObjectBuilder.create()
+ 				.parentJoint(Armatures.BIPED.get().torso)
+-				.putAll(PlayerSkin.Model.WIDE.equals(playerpatch.getOriginal().getSkin().model())
++				.putAll(net.minecraft.world.entity.player.PlayerModelType.WIDE.equals(playerpatch.getOriginal().getSkin().model())
+ 							? ClothColliderPresets.BIPED : ClothColliderPresets.BIPED_SLIM)
+ 			, () -> playerpatch.getOriginal().getSkin().cape() != null
+ 					&& !playerpatch.getOriginal().isInvisible()
+diff --git a/src/main/java/yesman/epicfight/client/online/RemoteAssets.java b/src/main/java/yesman/epicfight/client/online/RemoteAssets.java
+index 3437d2c..17ba761 100644
+--- a/src/main/java/yesman/epicfight/client/online/RemoteAssets.java
++++ b/src/main/java/yesman/epicfight/client/online/RemoteAssets.java
+@@ -4,7 +4,6 @@ import yesman.epicfight.EpicFight;
+ import com.google.common.collect.Maps;
+ import com.google.common.collect.Queues;
+ import net.minecraft.client.Minecraft;
+-import net.minecraft.client.renderer.texture.AbstractTexture;
+ import net.minecraft.client.renderer.texture.MissingTextureAtlasSprite;
+ import net.minecraft.client.renderer.texture.TextureManager;
+ import net.minecraft.resources.ResourceLocation;
+@@ -65,13 +64,11 @@ public class RemoteAssets {
+ 	
+ 	public synchronized ResourceLocation getRemoteTexture(String fileName) {
+ 		ResourceLocation textureLocation = ResourceLocation.fromNamespaceAndPath(EpicFight.EPICSKINS_MODID, "textures/remote/" + fileName);
+-		AbstractTexture texture = TEXTURE_MANAGER.getTexture(textureLocation, MissingTextureAtlasSprite.getTexture());
+-		
+-		if (texture == MissingTextureAtlasSprite.getTexture()) {
+-			AbstractTexture httptexture = new RemoteTexture(EpicFightSharedConstants.webServerDomain() + "/textures/" + fileName, MissingTextureAtlasSprite.getLocation());
+-			TEXTURE_MANAGER.register(textureLocation, httptexture);
+-		}
+-		
++        if (!(TEXTURE_MANAGER.getTexture(textureLocation) instanceof RemoteTexture)) {
++            RemoteTexture remote = new RemoteTexture(EpicFightSharedConstants.webServerDomain() + "/textures/" + fileName, MissingTextureAtlasSprite.getLocation());
++            TEXTURE_MANAGER.registerAndLoad(textureLocation, remote);
++        }
++
+ 		return textureLocation;
+ 	}
+ 
+diff --git a/src/main/java/yesman/epicfight/client/online/texture/RemoteTexture.java b/src/main/java/yesman/epicfight/client/online/texture/RemoteTexture.java
+index 607333b..a7afc86 100644
+--- a/src/main/java/yesman/epicfight/client/online/texture/RemoteTexture.java
++++ b/src/main/java/yesman/epicfight/client/online/texture/RemoteTexture.java
+@@ -1,100 +1,71 @@
+ package yesman.epicfight.client.online.texture;
+ 
+ import com.mojang.blaze3d.platform.NativeImage;
+-import com.mojang.blaze3d.platform.TextureUtil;
+-import com.mojang.blaze3d.systems.RenderSystem;
+ import com.mojang.logging.LogUtils;
+-import net.minecraft.Util;
+-import net.minecraft.client.Minecraft;
+-import net.minecraft.client.renderer.texture.SimpleTexture;
+-import net.minecraft.resources.ResourceLocation;
+-import net.minecraft.server.packs.resources.ResourceManager;
+-import org.slf4j.Logger;
+-
+-import javax.annotation.Nullable;
++import java.io.ByteArrayInputStream;
+ import java.io.IOException;
+-import java.io.InputStream;
+ import java.net.HttpURLConnection;
+ import java.net.URI;
+ import java.util.concurrent.CompletableFuture;
++import net.minecraft.client.Minecraft;
++import net.minecraft.client.renderer.texture.SimpleTexture;
++import net.minecraft.client.renderer.texture.TextureContents;
++import net.minecraft.resources.Identifier;
++import net.minecraft.server.packs.resources.ResourceManager;
++import net.minecraft.util.Util;
++import org.slf4j.Logger;
+ 
+ public class RemoteTexture extends SimpleTexture {
+-	private static final Logger LOGGER = LogUtils.getLogger();
+-	@Nullable
+-	private final String urlString;
+-	@Nullable
+-	private CompletableFuture<?> future;
+-	
+-	public RemoteTexture(String pUrlString, ResourceLocation defaultLocation) {
+-		super(defaultLocation);
+-		
+-		this.urlString = pUrlString;
+-	}
+-	
+-	private void loadCallback(NativeImage pImage) {
+-		Minecraft.getInstance().execute(() -> {
+-			if (!RenderSystem.isOnRenderThread()) {
+-				RenderSystem.recordRenderCall(() -> {
+-					this.upload(pImage);
+-				});
+-			} else {
+-				this.upload(pImage);
+-			}
+-		});
+-	}
+-	
+-	private void upload(NativeImage pImage) {
+-		TextureUtil.prepareImage(this.getId(), pImage.getWidth(), pImage.getHeight());
+-		pImage.upload(0, 0, 0, true);
+-	}
+-	
+-	@Override
+-	public void load(ResourceManager pResourceManager) throws IOException {
+-		if (this.future == null) {
+-			this.future = CompletableFuture.runAsync(() -> {
+-				LOGGER.debug("Downloading http texture from {}", this.urlString);
+-				
+-				try {
+-					HttpURLConnection httpurlconnection = (HttpURLConnection)(URI.create(this.urlString).toURL()).openConnection(Minecraft.getInstance().getProxy());
+-					httpurlconnection.setDoInput(true);
+-					httpurlconnection.setDoOutput(false);
+-					httpurlconnection.connect();
+-					
+-					if (httpurlconnection.getResponseCode() / 100 == 2) {
+-						InputStream inputstream = httpurlconnection.getInputStream();
+-						
+-						Minecraft.getInstance().execute(() -> {
+-							NativeImage nativeimage1 = this.load(inputstream);
+-							
+-							if (nativeimage1 != null) {
+-								this.loadCallback(nativeimage1);
+-							}
+-							
+-							if (httpurlconnection != null) {
+-								httpurlconnection.disconnect();
+-							}
+-						});
+-						
+-						return;
+-					}
+-				} catch (Exception exception) {
+-					LOGGER.error("Couldn't download http texture", (Throwable) exception);
+-					return;
+-				}
+-			}, Util.backgroundExecutor());
+-		}
+-	}
+-	
+-	@Nullable
+-	private NativeImage load(InputStream pStream) {
+-		NativeImage nativeimage = null;
+-		
+-		try {
+-			nativeimage = NativeImage.read(pStream);
+-		} catch (Exception exception) {
+-			LOGGER.warn("Error while loading the skin texture", (Throwable)exception);
+-		}
+-		
+-		return nativeimage;
+-	}
+-}
+\ No newline at end of file
++    private static final Logger LOGGER = LogUtils.getLogger();
++    private final String url;
++    private volatile byte[] bytes;
++    private CompletableFuture<Void> download;
++    private boolean closed;
++
++    public RemoteTexture(String url, Identifier fallback) {
++        super(fallback);
++        this.url = url;
++    }
++
++    @Override
++    public synchronized TextureContents loadContents(ResourceManager resources) throws IOException {
++        if (this.bytes != null) return new TextureContents(NativeImage.read(new ByteArrayInputStream(this.bytes)), null);
++        if (this.download == null) this.download = CompletableFuture.runAsync(this::download, Util.backgroundExecutor());
++        try {
++            return super.loadContents(resources);
++        } catch (java.io.FileNotFoundException missing) {
++            return TextureContents.createMissing();
++        }
++    }
++
++    private void download() {
++        HttpURLConnection connection = null;
++        try {
++            connection = (HttpURLConnection)URI.create(this.url).toURL().openConnection(Minecraft.getInstance().getProxy());
++            connection.setConnectTimeout(10_000);
++            connection.setReadTimeout(15_000);
++            if (connection.getResponseCode() / 100 != 2) throw new IOException("HTTP " + connection.getResponseCode());
++            byte[] content;
++            try (var input = connection.getInputStream()) {
++                content = input.readAllBytes();
++            }
++            NativeImage image = NativeImage.read(new ByteArrayInputStream(content));
++            this.bytes = content;
++            Minecraft.getInstance().execute(() -> {
++                try (var texture = new TextureContents(image, null)) {
++                    if (!closed) this.apply(texture);
++                }
++            });
++        } catch (IOException | IllegalArgumentException exception) {
++            LOGGER.warn("Could not load remote texture {}", this.url, exception);
++        } finally {
++            if (connection != null) connection.disconnect();
++        }
++    }
++
++    @Override
++    public void close() {
++        this.closed = true;
++        super.close();
++    }
++}
+diff --git a/src/main/java/yesman/epicfight/client/renderer/patched/item/EpicFightItemProperties.java b/src/main/java/yesman/epicfight/client/renderer/patched/item/EpicFightItemProperties.java
+deleted file mode 100644
+index 1c5a4dc..0000000
+--- a/src/main/java/yesman/epicfight/client/renderer/patched/item/EpicFightItemProperties.java
++++ /dev/null
+@@ -1,23 +0,0 @@
+-package yesman.epicfight.client.renderer.patched.item;
+-
+-import net.minecraft.client.renderer.item.ItemProperties;
+-import net.minecraft.core.Holder;
+-import net.minecraft.resources.ResourceLocation;
+-import yesman.epicfight.EpicFight;
+-import yesman.epicfight.registry.entries.EpicFightItems;
+-import yesman.epicfight.skill.Skill;
+-import yesman.epicfight.world.item.SkillBookItem;
+-
+-public class EpicFightItemProperties {
+-	public static void registerItemProperties() {
+-		ItemProperties.register(EpicFightItems.SKILLBOOK.get(), EpicFight.identifier("skill"), (itemstack, level, entity, i) -> {
+-            Holder<Skill> skill = SkillBookItem.getContainSkill(itemstack).orElse(null);
+-
+-            if (skill != null) {
+-                return skill.value().getCategory().universalOrdinal();
+-            }
+-
+-            return Float.NEGATIVE_INFINITY;
+-        });
+-	}
+-}
+\ No newline at end of file
+diff --git a/src/main/java/yesman/epicfight/client/world/util/FakeLevel.java b/src/main/java/yesman/epicfight/client/world/util/FakeLevel.java
+index 85c5b5a..dd193dc 100644
+--- a/src/main/java/yesman/epicfight/client/world/util/FakeLevel.java
++++ b/src/main/java/yesman/epicfight/client/world/util/FakeLevel.java
+@@ -61,13 +61,13 @@ public class FakeLevel extends ClientLevel {
+ 			// new FakeClientPacketListener(refLevel, minecraft), << the original approach, making a fake connection
+ 			new ClientLevel.ClientLevelData(Difficulty.NORMAL, false, false),
+ 			Level.OVERWORLD,
+-			refLevel.registryAccess().registryOrThrow(Registries.DIMENSION_TYPE).getHolderOrThrow(BuiltinDimensionTypes.OVERWORLD),
++			refLevel.registryAccess().lookupOrThrow(Registries.DIMENSION_TYPE).getOrThrow(BuiltinDimensionTypes.OVERWORLD),
+ 			0,
+ 			0,
+-			minecraft::getProfiler,
+ 			minecraft.levelRenderer,
+ 			true,
+-			0
++			0,
++            refLevel.getSeaLevel()
+ 		);
+ 		
+ 		this.refLevel = refLevel;
+@@ -77,10 +77,6 @@ public class FakeLevel extends ClientLevel {
+     /// preventing payloads are shipping from fake level.
+     ///
+     /// Left only getter methods as is: [#enabledFeatures]. [#potionBrewing], [#getScoreboard], [#getRecipeManager]
+-    @Override
+-    public void disconnect() {
+-    }
+-
+     @Override
+     public void sendPacketToServer(Packet<?> packet) {
+     }
+diff --git a/src/main/java/yesman/epicfight/data/loot/function/SetSkillFunction.java b/src/main/java/yesman/epicfight/data/loot/function/SetSkillFunction.java
+index 30ed33a..5c92a9e 100644
+--- a/src/main/java/yesman/epicfight/data/loot/function/SetSkillFunction.java
++++ b/src/main/java/yesman/epicfight/data/loot/function/SetSkillFunction.java
+@@ -71,7 +71,7 @@ public class SetSkillFunction extends LootItemConditionalFunction {
+ 	 */
+ 	private static Holder<Skill> normalizeSkill(Holder<Skill> holder) {
+ 		return holder.unwrapKey()
+-				.flatMap(EpicFightRegistries.SKILL::getHolder)
++				.flatMap(EpicFightRegistries.SKILL::get)
+ 				.map(reference -> (Holder<Skill>) reference)
+ 				.orElse(holder);
+ 	}
+diff --git a/src/main/java/yesman/epicfight/mixin/client/MinecraftAccessor.java b/src/main/java/yesman/epicfight/mixin/client/MinecraftAccessor.java
+deleted file mode 100644
+index 4361294..0000000
+--- a/src/main/java/yesman/epicfight/mixin/client/MinecraftAccessor.java
++++ /dev/null
+@@ -1,12 +0,0 @@
+-package yesman.epicfight.mixin.client;
+-
+-import net.minecraft.client.Minecraft;
+-import net.minecraft.client.color.item.ItemColors;
+-import org.spongepowered.asm.mixin.Mixin;
+-import org.spongepowered.asm.mixin.gen.Accessor;
+-
+-@Mixin(Minecraft.class)
+-public interface MinecraftAccessor {
+-    @Accessor("itemColors")
+-    ItemColors epicfight$getItemColors();
+-}
+diff --git a/src/main/java/yesman/epicfight/mixin/client/MixinMeshData.java b/src/main/java/yesman/epicfight/mixin/client/MixinMeshData.java
+index 34db4fe..91252c4 100644
+--- a/src/main/java/yesman/epicfight/mixin/client/MixinMeshData.java
++++ b/src/main/java/yesman/epicfight/mixin/client/MixinMeshData.java
+@@ -40,8 +40,10 @@ public class MixinMeshData {
+ 		if (this.drawState.mode() == VertexFormat.Mode.TRIANGLES) {
+ 			
+ 			Vector3f[] centroids = unpackTriangleCentroids(this.vertexBuffer.byteBuffer(), this.drawState.vertexCount(), this.drawState.mode().primitiveStride, this.drawState.format());
+-            int[] aint = sorting.sort(centroids);
+-            long i = bufferBuilder.reserve(aint.length * 6 * this.drawState.indexType().bytes);
++            var points = new com.mojang.blaze3d.vertex.CompactVectorArray(centroids.length);
++            for (int k = 0; k < centroids.length; k++) points.set(k, centroids[k]);
++            int[] aint = sorting.sort(points);
++            long i = bufferBuilder.reserve(aint.length * 3 * this.drawState.indexType().bytes);
+             IntConsumer intconsumer = indexWriter(i, this.drawState.indexType());
+ 
+             for (int j : aint) {
+diff --git a/src/main/java/yesman/epicfight/registry/callbacks/SkillCallbacks.java b/src/main/java/yesman/epicfight/registry/callbacks/SkillCallbacks.java
+index aff965e..2f6a939 100644
+--- a/src/main/java/yesman/epicfight/registry/callbacks/SkillCallbacks.java
++++ b/src/main/java/yesman/epicfight/registry/callbacks/SkillCallbacks.java
+@@ -14,7 +14,7 @@ public class SkillCallbacks implements RegistryCallback.BakeCallback<Skill> {
+ 	@Override
+ 	public void onBake(Registry<Skill> registry) {
+ 		// dereferencing holder in skill instance
+-		registry.holders().forEach(holder -> {
++		registry.listElements().forEach(holder -> {
+ 			holder.value().setHolder(holder);
+ 		});
+ 	}
+diff --git a/src/main/java/yesman/epicfight/registry/entries/EpicFightConditions.java b/src/main/java/yesman/epicfight/registry/entries/EpicFightConditions.java
+index ad6f6fa..a38b8a6 100644
+--- a/src/main/java/yesman/epicfight/registry/entries/EpicFightConditions.java
++++ b/src/main/java/yesman/epicfight/registry/entries/EpicFightConditions.java
+@@ -35,7 +35,7 @@ public final class EpicFightConditions {
+ 	
+ 	@SuppressWarnings("unchecked")
+ 	public static <T extends Condition<?>> Supplier<T> getConditionOrNull(ResourceLocation key) throws ClassCastException {
+-		return (Supplier<T>) EpicFightRegistries.CONDITION.get(key);
++		return (Supplier<T>) EpicFightRegistries.CONDITION.getValue(key);
+ 	}
+ 	
+ 	//EntityPatch conditions
+diff --git a/src/main/java/yesman/epicfight/registry/entries/EpicFightMobEffects.java b/src/main/java/yesman/epicfight/registry/entries/EpicFightMobEffects.java
+index abcf56f..a6cf5f5 100644
+--- a/src/main/java/yesman/epicfight/registry/entries/EpicFightMobEffects.java
++++ b/src/main/java/yesman/epicfight/registry/entries/EpicFightMobEffects.java
+@@ -40,7 +40,7 @@ public final class EpicFightMobEffects {
+ 	);
+ 	
+ 	public static void addOffhandModifier() {
+-		MobEffects.DIG_SPEED.value().addAttributeModifier(EpicFightAttributes.OFFHAND_ATTACK_SPEED, EpicFight.identifier("offhand_dig_modifier"), 0.1D, AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL);
+-		MobEffects.DIG_SLOWDOWN.value().addAttributeModifier(EpicFightAttributes.OFFHAND_ATTACK_SPEED, EpicFight.identifier("offhand_dig_modifier"), -0.1D, AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL);
++		MobEffects.HASTE.value().addAttributeModifier(EpicFightAttributes.OFFHAND_ATTACK_SPEED, EpicFight.identifier("offhand_dig_modifier"), 0.1D, AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL);
++		MobEffects.MINING_FATIGUE.value().addAttributeModifier(EpicFightAttributes.OFFHAND_ATTACK_SPEED, EpicFight.identifier("offhand_dig_modifier"), -0.1D, AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL);
+ 	}
+ }
+\ No newline at end of file
+diff --git a/src/main/java/yesman/epicfight/skill/dodge/KnockdownWakeupSkill.java b/src/main/java/yesman/epicfight/skill/dodge/KnockdownWakeupSkill.java
+index 6273597..cba0233 100644
+--- a/src/main/java/yesman/epicfight/skill/dodge/KnockdownWakeupSkill.java
++++ b/src/main/java/yesman/epicfight/skill/dodge/KnockdownWakeupSkill.java
+@@ -28,7 +28,7 @@ public class KnockdownWakeupSkill extends DodgeSkill {
+ 		
+ 		final MovementDirection movementDirection = MovementDirection.fromInputState(InputManager.getInputState(localPlayer.input));
+         final int horizon = movementDirection.horizontal();
+-        final float yRot = Minecraft.getInstance().gameRenderer.getMainCamera().getYRot();
++        final float yRot = Minecraft.getInstance().gameRenderer.getMainCamera().yRot();
+ 		
+ 		arguments.putInt("direction", horizon >= 0 ? 0 : 1);
+ 		arguments.putFloat("yRot", yRot);
+diff --git a/src/main/java/yesman/epicfight/world/capabilities/entitypatch/HurtableEntityPatch.java b/src/main/java/yesman/epicfight/world/capabilities/entitypatch/HurtableEntityPatch.java
+index 1e75c74..c8940c5 100644
+--- a/src/main/java/yesman/epicfight/world/capabilities/entitypatch/HurtableEntityPatch.java
++++ b/src/main/java/yesman/epicfight/world/capabilities/entitypatch/HurtableEntityPatch.java
+@@ -141,7 +141,7 @@ public abstract class HurtableEntityPatch<T extends LivingEntity> extends Entity
+ 		
+ 		if (power > 0.0D) {
+ 			this.original.hurtMarked = true;
+-			this.original.hasImpulse = true;
++			this.original.needsSync = true;
+ 			Vec3 vec3 = this.original.getDeltaMovement();
+ 			Vec3 vec31 = (new Vec3(d1, 0.0D, d0)).normalize().scale(power);
+ 			this.original.setDeltaMovement(vec3.x / 2.0D - vec31.x, this.original.onGround() ? Math.min(0.4D, vec3.y / 2.0D) : vec3.y, vec3.z / 2.0D - vec31.z);
+diff --git a/src/main/java/yesman/epicfight/world/capabilities/entitypatch/boss/WitherPatch.java b/src/main/java/yesman/epicfight/world/capabilities/entitypatch/boss/WitherPatch.java
+index 6c3800b..0696875 100644
+--- a/src/main/java/yesman/epicfight/world/capabilities/entitypatch/boss/WitherPatch.java
++++ b/src/main/java/yesman/epicfight/world/capabilities/entitypatch/boss/WitherPatch.java
+@@ -527,7 +527,8 @@ public class WitherPatch extends MobPatch<WitherBoss> implements BossPatch<Withe
+ 		}
+ 		
+ 		public List<LivingEntity> getNearbyTargets() {
+-			return WitherPatch.this.original.level().getNearbyEntities(LivingEntity.class, WTIHER_GHOST_TARGETING_CONDITIONS, WitherPatch.this.original, WitherPatch.this.original.getBoundingBox().inflate(20.0D, 5.0D, 20.0D));
++			if (!(WitherPatch.this.original.level() instanceof net.minecraft.server.level.ServerLevel serverLevel)) return List.of();
++			return serverLevel.getNearbyEntities(LivingEntity.class, WTIHER_GHOST_TARGETING_CONDITIONS, WitherPatch.this.original, WitherPatch.this.original.getBoundingBox().inflate(20.0D, 5.0D, 20.0D));
+ 		}
+ 	}
+ 	
+diff --git a/src/main/java/yesman/epicfight/world/capabilities/entitypatch/boss/enderdragon/DragonNeutralizedPhase.java b/src/main/java/yesman/epicfight/world/capabilities/entitypatch/boss/enderdragon/DragonNeutralizedPhase.java
+index 99b739b..040cb73 100644
+--- a/src/main/java/yesman/epicfight/world/capabilities/entitypatch/boss/enderdragon/DragonNeutralizedPhase.java
++++ b/src/main/java/yesman/epicfight/world/capabilities/entitypatch/boss/enderdragon/DragonNeutralizedPhase.java
+@@ -19,7 +19,7 @@ public class DragonNeutralizedPhase extends PatchedDragonPhase {
+ 		this.dragonpatch.getAnimator().playAnimation(Animations.DRAGON_NEUTRALIZED, 0.0F);
+ 		
+ 		if (this.dragonpatch.isLogicalClient()) {
+-			Minecraft.getInstance().getSoundManager().stop(EpicFightSounds.ENDER_DRAGON_CRYSTAL_LINK.get().getLocation(), SoundSource.HOSTILE);
++			Minecraft.getInstance().getSoundManager().stop(EpicFightSounds.ENDER_DRAGON_CRYSTAL_LINK.get().location(), SoundSource.HOSTILE);
+ 			this.dragon.level().addParticle(EpicFightParticles.FORCE_FIELD_END.get(), this.dragon.getX(), this.dragon.getY(), this.dragon.getZ(), 0, 0, 0);
+ 		}
+ 	}
+diff --git a/src/main/java/yesman/epicfight/world/capabilities/entitypatch/boss/enderdragon/PatchedDragonPhase.java b/src/main/java/yesman/epicfight/world/capabilities/entitypatch/boss/enderdragon/PatchedDragonPhase.java
+index ac8aa5b..aac69f4 100644
+--- a/src/main/java/yesman/epicfight/world/capabilities/entitypatch/boss/enderdragon/PatchedDragonPhase.java
++++ b/src/main/java/yesman/epicfight/world/capabilities/entitypatch/boss/enderdragon/PatchedDragonPhase.java
+@@ -1,4 +1,4 @@
+-package yesman.epicfight.world.capabilities.entitypatch.boss.enderdragon;
++package yesman.epicfight.world.capabilities.entitypatch.boss.enderdragon;
+ 
+ import java.util.List;
+ 
+@@ -35,6 +35,7 @@ public abstract class PatchedDragonPhase extends AbstractDragonPhaseInstance {
+ 	}
+ 	
+ 	protected List<Player> getPlayersNearbyWithin(double within) {
+-		return this.dragon.level().getNearbyPlayers(EnderDragonPatch.DRAGON_TARGETING, this.dragon, this.dragon.getBoundingBox().inflate(within, within, within));
++		if (!(this.dragon.level() instanceof net.minecraft.server.level.ServerLevel serverLevel)) return List.of();
++		return serverLevel.getNearbyPlayers(EnderDragonPatch.DRAGON_TARGETING, this.dragon, this.dragon.getBoundingBox().inflate(within, within, within));
+ 	}
+ }
+\ No newline at end of file
+diff --git a/src/main/java/yesman/epicfight/world/capabilities/item/WeaponTypeReloadListener.java b/src/main/java/yesman/epicfight/world/capabilities/item/WeaponTypeReloadListener.java
+index cdce690..b0564cb 100644
+--- a/src/main/java/yesman/epicfight/world/capabilities/item/WeaponTypeReloadListener.java
++++ b/src/main/java/yesman/epicfight/world/capabilities/item/WeaponTypeReloadListener.java
+@@ -140,7 +140,7 @@ public class WeaponTypeReloadListener extends SimpleJsonResourceReloadListener<J
+         builder.canBePlacedOffhand(!tag.contains("usable_in_offhand") || tag.getBooleanOr("usable_in_offhand", false));
+ 
+         if (tag.contains("hit_particle")) {
+-            Optional<Holder.Reference<ParticleType<?>>> particleType = BuiltInRegistries.PARTICLE_TYPE.get(ResourceLocation.parse(tag.getStringOr("hit_particle", "")));
++            Optional<Holder.Reference<ParticleType<?>>> particleType = BuiltInRegistries.PARTICLE_TYPE.getValue(ResourceLocation.parse(tag.getStringOr("hit_particle", "")));
+             particleType.ifPresent( particleHolder -> {
+                 if (!(particleHolder.value() instanceof HitParticleType)) {
+                     EpicFight.LOGGER.warn("{} is not a hit particle type in {}", tag.getStringOr("hit_particle", ""), rl);
+@@ -152,13 +152,13 @@ public class WeaponTypeReloadListener extends SimpleJsonResourceReloadListener<J
+         }
+ 
+         if (tag.contains("swing_sound")) {
+-            Holder<SoundEvent> sound = BuiltInRegistries.SOUND_EVENT.get(ResourceLocation.parse(tag.getStringOr("swing_sound", ""))).get();
++            Holder<SoundEvent> sound = BuiltInRegistries.SOUND_EVENT.getValue(ResourceLocation.parse(tag.getStringOr("swing_sound", ""))).get();
+ 
+             builder.swingSound(sound);
+         }
+ 
+         if (tag.contains("hit_sound")) {
+-            Holder<SoundEvent> sound = BuiltInRegistries.SOUND_EVENT.get(ResourceLocation.parse(tag.getStringOr("hit_sound", ""))).get();
++            Holder<SoundEvent> sound = BuiltInRegistries.SOUND_EVENT.getValue(ResourceLocation.parse(tag.getStringOr("hit_sound", ""))).get();
+ 
+             builder.hitSound(sound);
+         }
+@@ -188,7 +188,7 @@ public class WeaponTypeReloadListener extends SimpleJsonResourceReloadListener<J
+ 
+         for (String key : innateSkillsTag.keySet()) {
+             Style style = Style.ENUM_MANAGER.getOrThrow(key);
+-            Skill skill = EpicFightRegistries.SKILL.get(ResourceLocation.parse(innateSkillsTag.getStringOr(key, "")));
++            Skill skill = EpicFightRegistries.SKILL.getValue(ResourceLocation.parse(innateSkillsTag.getStringOr(key, "")));
+ 
+             builder.innateSkill(style, itemstack -> skill);
+         }
+diff --git a/src/main/java/yesman/epicfight/world/capabilities/projectile/ThrownTridentPatch.java b/src/main/java/yesman/epicfight/world/capabilities/projectile/ThrownTridentPatch.java
+index 79be132..cf9317d 100644
+--- a/src/main/java/yesman/epicfight/world/capabilities/projectile/ThrownTridentPatch.java
++++ b/src/main/java/yesman/epicfight/world/capabilities/projectile/ThrownTridentPatch.java
+@@ -122,7 +122,7 @@ public class ThrownTridentPatch extends ProjectilePatch<ThrownTrident> {
+ 					if (entity instanceof LivingEntity livingentity) {
+ 						f = EnchantmentHelper.modifyDamage((ServerLevel)this.original.level(), this.original.getPickupItemStackOrigin(), livingentity, source, f);
+ 						
+-						if (entity.hurt(source, f)) {
++						if (entity.level() instanceof net.minecraft.server.level.ServerLevel serverLevel && entity.hurtServer(serverLevel, source, f)) {
+ 							entity.playSound(EpicFightSounds.BLADE_HIT.get(), 1.0F, 1.0F);
+ 							((ServerLevel)entity.level()).sendParticles(EpicFightParticles.HIT_BLADE.get(), entity.position().x, entity.position().y + entity.getBbHeight() * 0.5D, entity.position().z, 0, 0, 0, 0, 1.0D);
+ 						}
+diff --git a/src/main/java/yesman/epicfight/world/damagesource/EpicFightDamageSources.java b/src/main/java/yesman/epicfight/world/damagesource/EpicFightDamageSources.java
+index 0497cb4..98d9164 100644
+--- a/src/main/java/yesman/epicfight/world/damagesource/EpicFightDamageSources.java
++++ b/src/main/java/yesman/epicfight/world/damagesource/EpicFightDamageSources.java
+@@ -1,4 +1,4 @@
+-package yesman.epicfight.world.damagesource;
++package yesman.epicfight.world.damagesource;
+ 
+ import javax.annotation.Nullable;
+ 
+@@ -54,6 +54,6 @@ public final class EpicFightDamageSources {
+ 	}
+ 	
+ 	private static Holder<DamageType> getDamageTypeHolder(Entity entity, ResourceKey<DamageType> damageTypeKey) {
+-		return entity.level().registryAccess().registryOrThrow(Registries.DAMAGE_TYPE).getHolderOrThrow(damageTypeKey);
++		return entity.level().registryAccess().lookupOrThrow(Registries.DAMAGE_TYPE).getOrThrow(damageTypeKey);
+ 	}
+ }
+\ No newline at end of file
+diff --git a/src/main/java/yesman/epicfight/world/entity/DeathHarvestOrb.java b/src/main/java/yesman/epicfight/world/entity/DeathHarvestOrb.java
+index 3d4299d..3af1bbe 100644
+--- a/src/main/java/yesman/epicfight/world/entity/DeathHarvestOrb.java
++++ b/src/main/java/yesman/epicfight/world/entity/DeathHarvestOrb.java
+@@ -39,6 +39,12 @@ public class DeathHarvestOrb extends Entity {
+ 		this.randVec = new Vec3(randX, randY, randZ).normalize();
+ 	}
+ 	
++    @Override
++    public boolean hurtServer(net.minecraft.server.level.ServerLevel level, net.minecraft.world.damagesource.DamageSource source, float amount) {
++        // This transient orb awards the existing skill resource when it reaches its owner.
++        return false;
++    }
++
+ 	@Override
+ 	public void tick() {
+ 		this.noPhysics = true;
+diff --git a/src/main/java/yesman/epicfight/world/level/block/FractureBlock.java b/src/main/java/yesman/epicfight/world/level/block/FractureBlock.java
+index 256b7c2..f3ab57a 100644
+--- a/src/main/java/yesman/epicfight/world/level/block/FractureBlock.java
++++ b/src/main/java/yesman/epicfight/world/level/block/FractureBlock.java
+@@ -38,10 +38,6 @@ public class FractureBlock extends BaseEntityBlock {
+         return fractureBlockState;
+     }
+ 
+-    @Override
+-    protected ImmutableMap<BlockState, VoxelShape> getShapeForEachState(Function<BlockState, VoxelShape> p_152459_) {
+-        return this.stateDefinition.getPossibleStates().stream().collect(ImmutableMap.toImmutableMap(Function.identity(), p_152459_));
+-    }
+ 
+     @Nullable
+     @Override
+diff --git a/src/main/resources/epicfight.mixins.json b/src/main/resources/epicfight.mixins.json
+index 1b5793d..5f48066 100644
+--- a/src/main/resources/epicfight.mixins.json
++++ b/src/main/resources/epicfight.mixins.json
+@@ -46,7 +46,6 @@
+         "client.ElytraLayerAccessor",
+         "client.ContainerObjectSelectionListEntryAccessor",
+         "client.KeyMappingAccessor",
+-        "client.MinecraftAccessor"
+     ],
+     "mixins": [
+         "common.MixinDefaultAttributes",
