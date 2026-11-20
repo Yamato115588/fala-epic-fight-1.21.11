@@ -30,7 +30,7 @@ final class ReplacementAssetTest {
         var manifest = object(ReplacementAssetTest.class.getResourceAsStream("/META-INF/fala-replacement-assets/manifest.json").readAllBytes());
         check(manifest.get("license").getAsString().equals("CC0-1.0"), "asset license");
         var hashes = manifest.getAsJsonObject("sha256");
-        check(hashes.size() == 166, "expected independent asset inventory");
+        check(hashes.size() == 188, "expected independent asset inventory");
         var packInfo = new PackLocationInfo("fala-assets", Component.literal("Fala"), PackSource.DEFAULT, Optional.empty());
         try (var pack = new PathPackResources(packInfo, directory)) {
             for (var item : hashes.entrySet()) {
@@ -73,6 +73,22 @@ final class ReplacementAssetTest {
                 check(hierarchy.contains("Head_Top"), "Enderman jaw joint");
                 check(geometry.getAsJsonObject("parts").keySet().equals(Set.of("headTop","headBottom",
                         "torso","leftArm","rightArm","leftLeg","rightLeg")), "Enderman mesh parts");
+                for (String motion : List.of("idle", "walk", "rage_idle", "rage_walk", "hit_short", "hit_long",
+                        "neutralized", "convert_rage", "tp_kick1", "tp_kick2", "rush_kick", "jump_kick",
+                        "knee", "kick_twice", "grasp", "teleport", "death")) {
+                    var tracks = read("animations/enderman/" + motion).getAsJsonArray("animation");
+                    check(!tracks.isEmpty(), "Enderman tracks: " + motion);
+                    for (var element : tracks) {
+                        var channel = element.getAsJsonObject();
+                        check(hierarchy.contains(channel.get("name").getAsString()), "Enderman joint: " + motion);
+                        var times = channel.getAsJsonArray("time");
+                        check(times.size() > 1 && times.size() == channel.getAsJsonArray("transform").size(),
+                                "Enderman keyframes: " + motion);
+                        for (int i = 1; i < times.size(); i++) {
+                            check(times.get(i).getAsDouble() > times.get(i - 1).getAsDouble(), "Enderman timing: " + motion);
+                        }
+                    }
+                }
             }
         }
         JsonObject player = read("entity/biped");
@@ -101,7 +117,7 @@ final class ReplacementAssetTest {
                       && indices.get(i+2).getAsInt()<normalCount,"position, UV and normal indices");
             }
         }
-        for (String clip : new String[]{"living/fall","living/idle","living/walk","living/run","skill/guard_sword","skill/step_forward","skill/step_backward","skill/step_left","skill/step_right","combat/sword_auto1","combat/sword_auto2","combat/sword_auto3","skill/roll_forward","skill/roll_backward"}) {
+        for (String clip : new String[]{"living/equip_item","living/fall","living/idle","living/walk","living/run","skill/guard_sword","skill/step_forward","skill/step_backward","skill/step_left","skill/step_right","combat/sword_auto1","combat/sword_auto2","combat/sword_auto3","skill/roll_forward","skill/roll_backward"}) {
             JsonArray tracks=read("animations/biped/"+clip).getAsJsonArray("animation");
             boolean hasMovement=false;
             for (var element:tracks) {
@@ -143,7 +159,7 @@ final class ReplacementAssetTest {
             check(indices.size() > 0 && indices.size() % 9 == 0, "triangulated particle " + effect);
             for (var index : indices) check(index.getAsInt() >= 0 && index.getAsInt() < size, "particle index " + effect);
         }
-        System.out.println("PASS: " + hashes.size() + " CC0 resources, pack override and bundled lookup, player rigs, 14 motions and ribbon texture");
+        System.out.println("PASS: " + hashes.size() + " CC0 resources, pack override and bundled lookup, player rigs, 15 motions and ribbon texture");
     }
     private static JsonArray array(JsonObject object,String name) {
         return object.getAsJsonObject(name).getAsJsonArray("array");

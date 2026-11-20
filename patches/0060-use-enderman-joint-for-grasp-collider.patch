@@ -1,0 +1,11 @@
+--- a/src/main/java/yesman/epicfight/gameasset/Animations.java
++++ b/src/main/java/yesman/epicfight/gameasset/Animations.java
+@@ -1333,7 +1333,7 @@
+                     new Phase(0.6F, 0.75F, 0.75F, 0.81F, 1.6F, Float.MAX_VALUE, Armatures.ENDERMAN.get().legL, ColliderPreset.ENDERMAN_LIMB))
+                 .addProperty(ActionAnimationProperty.STOP_MOVEMENT, true));
+         ENDERMAN_GRASP = builder.nextAccessor("enderman/grasp", (accessor) ->
+-            new AttackAnimation(0.06F, 0.5F, 0.45F, 1.0F, 1.0F, ColliderPreset.ENDERMAN_LIMB, Armatures.BIPED.get().toolR, accessor, Armatures.ENDERMAN)
++            new AttackAnimation(0.06F, 0.5F, 0.45F, 1.0F, 1.0F, ColliderPreset.ENDERMAN_LIMB, Armatures.ENDERMAN.get().toolR, accessor, Armatures.ENDERMAN)
+                 .addProperty(StaticAnimationProperty.POSE_MODIFIER, Animations.ReusableSources.COMBO_ATTACK_DIRECTION_MODIFIER));
+         ENDERMAN_DEATH = builder.nextAccessor("enderman/death", (accessor) -> new LongHitAnimation(0.16F, accessor, Armatures.ENDERMAN));
+         ENDERMAN_TP_EMERGENCE = builder.nextAccessor("enderman/teleport", (accessor) ->

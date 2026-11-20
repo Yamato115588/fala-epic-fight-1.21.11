@@ -4,6 +4,7 @@
 from hashlib import sha256
 import json
 import entity_models
+import enderman_motions
 from math import cos, pi, radians, sin
 import struct
 import zlib
@@ -402,6 +403,8 @@ def build(resources):
     for model,slim in [('biped',False),('biped_slim_arm',True)]:
         asset('entity/'+model,player(slim))
     asset('entity/enderman', enderman())
+    for name, clip in enderman_motions.clips(frame, track).items():
+        asset('animations/enderman/' + name, clip)
     asset('entity/skeleton', player(True))
     asset('entity/piglin', player(False, piglin=True))
     for name in ('creeper', 'hoglin', 'ravager'):
@@ -424,6 +427,17 @@ def build(resources):
             track('Thigh_'+side, times, [frame((1, 0, 0), sign*a) for a in (15, 18, 15)]),
             track('Leg_'+side, times, [frame((1, 0, 0), a) for a in (-17, -22, -17)])])
     asset('animations/biped/living/fall', {'format':'ATTRIBUTES', 'animation':fall_tracks})
+    equip_times = [0, .12, .25, .4]
+    def equip_track(joint, axis, degrees):
+        return track(joint, equip_times, [frame(axis, angle) for angle in degrees])
+    asset('animations/biped/living/equip_item', {'format':'ATTRIBUTES', 'animation':[
+        equip_track('Shoulder_R', (0, 1, 0), [0, -14, -7, 0]),
+        equip_track('Arm_R', (1, 0, 0), [12, 24, -47, -8]),
+        equip_track('Hand_R', (0, 0, 1), [0, -16, 12, 0])]})
+    # MirroredAnimation and ReversedAnimation derive the other three clips from this one.
+    for name in ('equip_item', 'unequip_item', 'equip_item_offhand', 'unequip_item_offhand'):
+        asset('animations/biped/living/data/'+name, {
+            'layer': 'COMPOSITE_LAYER', 'priority': 'HIGHEST' if name.endswith('_offhand') else 'HIGH'})
     for name, running in [('walk', False), ('run', True)]:
         asset('animations/biped/living/' + name, gait(running))
     for name, dx, dz in [('left', 1, 0), ('right', -1, 0), ('forward', 0, 1), ('backward', 0, -1)]:

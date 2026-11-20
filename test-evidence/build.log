@@ -1,0 +1,37 @@
+Minecraft 1.21.11 | Java 21 | Fabric
+
+./gradlew compileJava
+> Task :compileJava
+BUILD SUCCESSFUL in 26s
+
+./gradlew clean build
+> Task :clean
+> Task :compileJava FROM-CACHE
+> Task :processResources
+> Task :classes
+> Task :apiJar
+> Task :apiSourcesJar
+> Task :jar
+> Task :processIncludeJars
+> Task :sourcesJar
+> Task :compileTestJava FROM-CACHE
+> Task :processTestResources NO-SOURCE
+> Task :testClasses UP-TO-DATE
+> Task :test
+> Task :validateAccessWidener UP-TO-DATE
+> Task :check
+> Task :remapJar
+> Task :remapSourcesJar
+> Task :assemble
+> Task :build
+BUILD SUCCESSFUL in 22s
+13 actionable tasks: 10 executed, 2 from cache, 1 up-to-date
+
+./gradlew -I tools/data-test/data.gradle testPortData
+> Task :compilePortDataTest FROM-CACHE
+> Task :processResources UP-TO-DATE
+> Task :testPortData
+BUILD SUCCESSFUL in 25s
+3 actionable tasks: 1 executed, 1 from cache, 1 up-to-date
+
+a2d8368e24d6e1acee9817ad29f8bd0a3da68ac6fdb62a4cc3c293152ea886a5  epicfight-fabric-1.21.11.jar

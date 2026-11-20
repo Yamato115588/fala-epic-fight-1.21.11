@@ -1,0 +1,44 @@
+--- a/src/main/java/yesman/epicfight/api/asset/JsonAssetLoader.java
++++ b/src/main/java/yesman/epicfight/api/asset/JsonAssetLoader.java
+@@ -70,7 +70,7 @@
+             reader.setLenient(true);
+             this.rootJson = Streams.parse(reader).getAsJsonObject();
+         } catch (Exception e) {
+-            throw new AssetLoadingException("Can't read " + resourceLocation + " because of " + e);
++            throw new AssetLoadingException("Can't read " + resourceLocation + " because of " + e, e);
+         }
+         this.filehash = ParseUtil.getBytesSHA256Hash(this.rootJson.toString().getBytes(StandardCharsets.UTF_8));
+     }
+--- a/src/main/java/yesman/epicfight/api/client/model/transformer/HumanoidModelBaker.java
++++ b/src/main/java/yesman/epicfight/api/client/model/transformer/HumanoidModelBaker.java
+@@ -4,6 +4,7 @@
+ import java.io.File;
+ import java.io.FileOutputStream;
+ import java.io.IOException;
++import java.io.FileNotFoundException;
+ import java.util.ArrayList;
+ import java.util.HashMap;
+ import java.util.HashSet;
+@@ -29,6 +30,7 @@
+ import net.minecraft.world.item.Item;
+ import net.minecraft.world.item.ItemStack;
+ import yesman.epicfight.api.client.model.SkinnedMesh;
++import yesman.epicfight.api.exception.AssetLoadingException;
+ import yesman.epicfight.client.mesh.HumanoidMesh;
+ import yesman.epicfight.main.EpicFightMod;
+ 
+@@ -102,7 +104,13 @@
+ 
+ 			if (skinnedArmorModel == null) {
+ 				if (!modelReplaced) {
+-					return entityMesh.getHumanoidArmorModel(slot).get();
++					try {
++						return entityMesh.getHumanoidArmorModel(slot).get();
++					} catch (AssetLoadingException exception) {
++						if (!(exception.getCause() instanceof FileNotFoundException)) {
++							throw exception;
++						}
++					}
+ 				}
+ 				skinnedArmorModel = VANILLA_TRANSFORMER.transformArmorModel(humanoidModel);
+ 			}

@@ -2,7 +2,9 @@
 
 งานต่อยอดอยู่บนสาขา `fabric-1.21.11` ของ Fala SiayaCraft ใช้ซอร์ส Epic Fight Fabric ที่ `866a2a1e4268d0d7897c6a5be4ef1e58e47d7443` เป็นฐานและตรวจ SHA-256 ของ archive ก่อนใช้แพตช์ สถานะก่อนเริ่มแก้คือ commit `fcb6bf0bba29dcba2f0fe3c951a4eaa55d9a2382` ซึ่ง `compileJava` รายงาน 2,521 รายการเมื่อขยายขีดจำกัดของ `javac` ตัวเลขนับข้อความวินิจฉัยและอาจมีหลายรายการจาก API ต้นเหตุเดียวกัน
 
-## การตรวจล่าสุด
+สถานะปัจจุบันและข้อจำกัดอยู่ใน [HANDOFF.md](HANDOFF.md) ผลด้านล่างบันทึกสถานะก่อนแก้ atlas และ Enderman
+
+## การตรวจที่ฐาน c1adf84f57a9
 
 | การตรวจ | ผล |
 | --- | --- |
@@ -48,7 +50,7 @@ python3 "$PORT_REPO/tools/check_fabric_jar.py" build/libs
 
 ถ้ามี archive ที่ใช้ตรงกันให้ส่ง `--upstream-archive /path/to/archive.tar.gz` ให้สคริปต์เตรียมซอร์ส แก้ซอร์สในรูปแพตช์ตามลำดับใน `patches/` เพื่อให้ build ใหม่ทำซ้ำได้
 
-## งานค้างที่ขวางการเปิดเกม
+## ปัญหาที่พบที่ฐาน c1adf84f57a9
 
 - `WearableItemLayer` ต้องขอ armor trim atlas ด้วย logical atlas ID ของ 1.21.11 แล้วทดสอบ reload ทรัพยากรซ้ำ
 - เติมแอสเซตทดแทนที่การเริ่มเกมต้องใช้ เริ่มจาก rig ที่ตัวโหลดร้องขอคือ `epicfight:animmodels/entity/enderman.json` จากนั้นตรวจการลงทะเบียนและโหลดแอนิเมชันในไคลเอนต์และ dedicated server

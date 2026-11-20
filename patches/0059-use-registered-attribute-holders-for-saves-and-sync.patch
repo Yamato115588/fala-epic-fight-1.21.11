@@ -1,0 +1,124 @@
+--- a/src/main/java/yesman/epicfight/platform/fabric/event/EntityAttributeCreationEvent.java
++++ b/src/main/java/yesman/epicfight/platform/fabric/event/EntityAttributeCreationEvent.java
+@@ -2,34 +2,10 @@
+ 
++import net.fabricmc.fabric.api.object.builder.v1.entity.FabricDefaultAttributeRegistry;
+ import net.minecraft.world.entity.EntityType;
++import net.minecraft.world.entity.LivingEntity;
+ import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
+-import net.minecraft.world.entity.ai.attributes.DefaultAttributes;
+ 
+-import java.util.HashMap;
+-import java.util.Map;
+-
+-/// Fabric-compatible replacement for NeoForge's EntityAttributeCreationEvent.
+-/// On Fabric, attribute suppliers for custom entities are registered via FabricDefaultAttributeRegistry.
+-/// This class collects the suppliers and applies them via MixinDefaultAttributes.
+ public class EntityAttributeCreationEvent {
+-
+-    private static final Map<EntityType<?>, AttributeSupplier> PENDING_SUPPLIERS = new HashMap<>();
+-
+-    public void put(EntityType<?> entityType, AttributeSupplier supplier) {
+-        PENDING_SUPPLIERS.put(entityType, supplier);
+-    }
+-
+-    /// Returns all pending attribute suppliers. Called by MixinDefaultAttributes to inject
+-    /// custom entity attribute suppliers into the vanilla DefaultAttributes system.
+-    public static Map<EntityType<?>, AttributeSupplier> getPendingSuppliers() {
+-        return PENDING_SUPPLIERS;
+-    }
+-
+-    /// Check if a given entity type has a pending attribute supplier
+-    public static boolean hasSupplier(EntityType<?> entityType) {
+-        return PENDING_SUPPLIERS.containsKey(entityType);
+-    }
+-
+-    /// Get the pending attribute supplier for a given entity type
+-    public static AttributeSupplier getSupplier(EntityType<?> entityType) {
+-        return PENDING_SUPPLIERS.get(entityType);
++    public void put(EntityType<? extends LivingEntity> entityType, AttributeSupplier supplier) {
++        FabricDefaultAttributeRegistry.register(entityType, supplier);
+     }
+--- a/src/main/java/yesman/epicfight/mixin/common/MixinDefaultAttributes.java
++++ b/src/main/java/yesman/epicfight/mixin/common/MixinDefaultAttributes.java
+@@ -15,3 +15,2 @@
+ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+-import yesman.epicfight.platform.fabric.event.EntityAttributeCreationEvent;
+ import yesman.epicfight.platform.fabric.event.EntityAttributeModificationEvent;
+@@ -26,21 +25,4 @@
+ 
+-    @Inject(method = "getSupplier", at = @At("HEAD"), cancellable = true)
+-    private static void epicfight$getSupplier(EntityType<? extends LivingEntity> entityType, CallbackInfoReturnable<AttributeSupplier> cir) {
+-        // Check for custom entity attribute suppliers (creation event)
+-        if (EntityAttributeCreationEvent.hasSupplier(entityType)) {
+-            AttributeSupplier customSupplier = EntityAttributeCreationEvent.getSupplier(entityType);
+-            // Apply modifications on top of the custom supplier
+-            AttributeSupplier modified = applyModifications(entityType, customSupplier);
+-            cir.setReturnValue(modified);
+-        }
+-    }
+-
+     @Inject(method = "getSupplier", at = @At("RETURN"), cancellable = true)
+     private static void epicfight$getSupplierReturn(EntityType<? extends LivingEntity> entityType, CallbackInfoReturnable<AttributeSupplier> cir) {
+-        // Don't interfere with custom entities (already handled in HEAD inject)
+-        if (EntityAttributeCreationEvent.hasSupplier(entityType)) {
+-            return;
+-        }
+-
+-        // For existing entities, apply modifications to the vanilla supplier
+         if (EntityAttributeModificationEvent.hasModifications(entityType)) {
+--- a/src/main/java/yesman/epicfight/mixin/common/MixinLivingEntity.java
++++ b/src/main/java/yesman/epicfight/mixin/common/MixinLivingEntity.java
+@@ -61,12 +61,12 @@
+ 			if (!added.contains(Attributes.ATTACK_DAMAGE)) builder.add(Attributes.ATTACK_DAMAGE);
+-            if (!added.contains(EpicFightAttributes.WEIGHT)) builder.add(EpicFightAttributes.WEIGHT);
+-            if (!added.contains(EpicFightAttributes.IMPACT)) builder.add(EpicFightAttributes.IMPACT);
+-            if (!added.contains(EpicFightAttributes.ARMOR_NEGATION)) builder.add(EpicFightAttributes.ARMOR_NEGATION);
+-            if (!added.contains(EpicFightAttributes.MAX_STRIKES)) builder.add(EpicFightAttributes.MAX_STRIKES);
+-            if (!added.contains(EpicFightAttributes.STUN_ARMOR)) builder.add(EpicFightAttributes.STUN_ARMOR);
+-            if (!added.contains(EpicFightAttributes.ASSASSINATION_RESISTANCE)) builder.add(EpicFightAttributes.ASSASSINATION_RESISTANCE);
+-            if (!added.contains(EpicFightAttributes.OFFHAND_ARMOR_NEGATION)) builder.add(EpicFightAttributes.OFFHAND_ARMOR_NEGATION);
+-            if (!added.contains(EpicFightAttributes.OFFHAND_IMPACT)) builder.add(EpicFightAttributes.OFFHAND_IMPACT);
+-            if (!added.contains(EpicFightAttributes.OFFHAND_MAX_STRIKES)) builder.add(EpicFightAttributes.OFFHAND_MAX_STRIKES);
+-            if (!added.contains(EpicFightAttributes.OFFHAND_ATTACK_SPEED)) builder.add(EpicFightAttributes.OFFHAND_ATTACK_SPEED);
++            if (!added.contains(EpicFightAttributes.WEIGHT.asHolder())) builder.add(EpicFightAttributes.WEIGHT.asHolder());
++            if (!added.contains(EpicFightAttributes.IMPACT.asHolder())) builder.add(EpicFightAttributes.IMPACT.asHolder());
++            if (!added.contains(EpicFightAttributes.ARMOR_NEGATION.asHolder())) builder.add(EpicFightAttributes.ARMOR_NEGATION.asHolder());
++            if (!added.contains(EpicFightAttributes.MAX_STRIKES.asHolder())) builder.add(EpicFightAttributes.MAX_STRIKES.asHolder());
++            if (!added.contains(EpicFightAttributes.STUN_ARMOR.asHolder())) builder.add(EpicFightAttributes.STUN_ARMOR.asHolder());
++            if (!added.contains(EpicFightAttributes.ASSASSINATION_RESISTANCE.asHolder())) builder.add(EpicFightAttributes.ASSASSINATION_RESISTANCE.asHolder());
++            if (!added.contains(EpicFightAttributes.OFFHAND_ARMOR_NEGATION.asHolder())) builder.add(EpicFightAttributes.OFFHAND_ARMOR_NEGATION.asHolder());
++            if (!added.contains(EpicFightAttributes.OFFHAND_IMPACT.asHolder())) builder.add(EpicFightAttributes.OFFHAND_IMPACT.asHolder());
++            if (!added.contains(EpicFightAttributes.OFFHAND_MAX_STRIKES.asHolder())) builder.add(EpicFightAttributes.OFFHAND_MAX_STRIKES.asHolder());
++            if (!added.contains(EpicFightAttributes.OFFHAND_ATTACK_SPEED.asHolder())) builder.add(EpicFightAttributes.OFFHAND_ATTACK_SPEED.asHolder());
+ 
+--- /dev/null
++++ b/src/main/java/yesman/epicfight/mixin/common/MixinAttributeMap.java
+@@ -0,0 +1,21 @@
++package yesman.epicfight.mixin.common;
++
++import net.minecraft.core.Holder;
++import net.minecraft.world.entity.ai.attributes.Attribute;
++import net.minecraft.world.entity.ai.attributes.AttributeMap;
++import org.spongepowered.asm.mixin.Mixin;
++import org.spongepowered.asm.mixin.injection.At;
++import org.spongepowered.asm.mixin.injection.ModifyVariable;
++import yesman.epicfight.registry.deferred_shim.DeferredHolderShim;
++
++@Mixin(AttributeMap.class)
++public abstract class MixinAttributeMap {
++    // Vanilla retains this argument as the key and uses it again for packets and disk saves.
++    @ModifyVariable(method = "getInstance", at = @At("HEAD"), argsOnly = true, ordinal = 0)
++    private Holder<Attribute> epicfight$registeredHolder(Holder<Attribute> attribute) {
++        if (attribute instanceof DeferredHolderShim<Attribute, ?> shim && shim.isBound()) {
++            return shim.asHolder();
++        }
++        return attribute;
++    }
++}
+--- a/src/main/resources/epicfight.mixins.json
++++ b/src/main/resources/epicfight.mixins.json
+@@ -49,2 +49,3 @@
+         "common.MixinDefaultAttributes",
++        "common.MixinAttributeMap",
+         "common.MixinCrossbowAttack",

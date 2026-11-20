@@ -50,10 +50,14 @@ jobs:
         id: fabric-jar
         run: |
           jar=$(python3 tools/check_fabric_jar.py "$RUNNER_TEMP/epicfight-fabric-work/build/libs")
+          (cd "$(dirname "$jar")" && sha256sum -- "$(basename "$jar")") > "$jar.sha256"
+          cat "$jar.sha256"
           printf 'path=%s\n' "$jar" >> "$GITHUB_OUTPUT"
       - name: Upload validated Fabric build
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: epicfight-fabric-1.21.11
-          path: ${{ steps.fabric-jar.outputs.path }}
+          path: |
+            ${{ steps.fabric-jar.outputs.path }}
+            ${{ steps.fabric-jar.outputs.path }}.sha256
           if-no-files-found: error

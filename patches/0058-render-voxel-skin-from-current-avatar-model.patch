@@ -1,0 +1,61 @@
+--- a/src/main/java/yesman/epicfight/compat/skinlayer3d/SkinLayer3DCompat.java
++++ b/src/main/java/yesman/epicfight/compat/skinlayer3d/SkinLayer3DCompat.java
+@@ -15,3 +15,4 @@
+ import dev.tr7zw.skinlayers.render.CustomizableModelPart;
+-import dev.tr7zw.skinlayers.renderlayers.CustomLayerFeatureRenderer;
++import net.minecraft.client.renderer.entity.layers.RenderLayer;
++import net.minecraft.client.renderer.entity.player.AvatarRenderer;
+ import dev.tr7zw.skinlayers.util.NMSWrapper.WrappedNativeImage;
+@@ -73,3 +74,3 @@
+             if (event.get(EntityType.PLAYER) instanceof PPlayerRenderer playerrenderer) {
+-                playerrenderer.addPatchedLayerAlways(CustomLayerFeatureRenderer.class, new EpicFight3DSkinLayerRenderer());
++                playerrenderer.addCustomLayer(new EpicFight3DSkinLayerRenderer());
+             }
+@@ -110,3 +111,3 @@
+ 	
+-	public static class EpicFight3DSkinLayerRenderer extends ModelRenderLayer<AbstractClientPlayer, AbstractClientPlayerPatch<AbstractClientPlayer>, PlayerModel, CustomLayerFeatureRenderer, HumanoidMesh> {
++	public static class EpicFight3DSkinLayerRenderer extends ModelRenderLayer<AbstractClientPlayer, AbstractClientPlayerPatch<AbstractClientPlayer>, PlayerModel, RenderLayer<?, ?>, HumanoidMesh> {
+ 		private final Map<PlayerModelPart, Function<Player, Boolean>> partVisibilities = Maps.newHashMap();
+@@ -128,3 +129,3 @@
+ 		@Override
+-		protected void renderLayer(AbstractClientPlayerPatch<AbstractClientPlayer> entitypatch, AbstractClientPlayer player, CustomLayerFeatureRenderer vanillaLayer, PoseStack poseStack, MultiBufferSource buffer, int packedLight, OpenMatrix4f[] poses, float bob, float yRot, float xRot, float partialTicks) {
++		protected void renderLayer(AbstractClientPlayerPatch<AbstractClientPlayer> entitypatch, AbstractClientPlayer player, RenderLayer<?, ?> vanillaLayer, PoseStack poseStack, MultiBufferSource buffer, int packedLight, OpenMatrix4f[] poses, float bob, float yRot, float xRot, float partialTicks) {
+ 			if (SkinLayersModBase.config.compatibilityMode || player.isInvisible()) {
+@@ -137,3 +138,7 @@
+ 			
+-			SkinLayer3DMeshes skin3dlayerMeshes = player.getAttachedOrCreate(SKINLAYER_MESH);
++			if (!(Minecraft.getInstance().getEntityRenderDispatcher().getRenderer(player) instanceof AvatarRenderer<?> avatarRenderer)) {
++                return;
++            }
++            PlayerModel model = avatarRenderer.getModel();
++            SkinLayer3DMeshes skin3dlayerMeshes = player.getAttachedOrCreate(SKINLAYER_MESH);
+ 			int overlay = OverlayTexture.pack(0.0F, player.hurtTime > 0 || player.deathTime > 0);
+@@ -157,20 +162,20 @@
+ 						case JACKET -> {
+-							skin3dlayerMeshes.put(playerModelPart, createEpicFight3DSkinLayer(player, playerModelPart, playerSettings.getTorsoMesh(), vanillaLayer.getParentModel().body, 8, 12, 4, 16, 32, true, 0));
++							skin3dlayerMeshes.put(playerModelPart, createEpicFight3DSkinLayer(player, playerModelPart, playerSettings.getTorsoMesh(), model.body, 8, 12, 4, 16, 32, true, 0));
+ 						}
+ 						case LEFT_SLEEVE -> {
+-							int armWidth = ((PlayerEntityModelAccessor)vanillaLayer.getParentModel()).hasThinArms() ? 3 : 4;
+-							skin3dlayerMeshes.put(playerModelPart, createEpicFight3DSkinLayer(player, playerModelPart, playerSettings.getLeftArmMesh(), vanillaLayer.getParentModel().leftArm, armWidth, 12, 4, 48, 48, true, -2f));
++							int armWidth = ((PlayerEntityModelAccessor)model).hasThinArms() ? 3 : 4;
++							skin3dlayerMeshes.put(playerModelPart, createEpicFight3DSkinLayer(player, playerModelPart, playerSettings.getLeftArmMesh(), model.leftArm, armWidth, 12, 4, 48, 48, true, -2f));
+ 						}
+ 						case RIGHT_SLEEVE -> {
+-							int armWidth = ((PlayerEntityModelAccessor)vanillaLayer.getParentModel()).hasThinArms() ? 3 : 4;
+-							skin3dlayerMeshes.put(playerModelPart, createEpicFight3DSkinLayer(player, playerModelPart, playerSettings.getRightArmMesh(), vanillaLayer.getParentModel().rightArm, armWidth, 12, 4, 40, 32, true, -2F));
++							int armWidth = ((PlayerEntityModelAccessor)model).hasThinArms() ? 3 : 4;
++							skin3dlayerMeshes.put(playerModelPart, createEpicFight3DSkinLayer(player, playerModelPart, playerSettings.getRightArmMesh(), model.rightArm, armWidth, 12, 4, 40, 32, true, -2F));
+ 						}
+ 						case LEFT_PANTS_LEG -> {
+-							skin3dlayerMeshes.put(playerModelPart, createEpicFight3DSkinLayer(player, playerModelPart, playerSettings.getLeftLegMesh(), vanillaLayer.getParentModel().leftLeg, 4, 12, 4, 0, 48, true, 0f));
++							skin3dlayerMeshes.put(playerModelPart, createEpicFight3DSkinLayer(player, playerModelPart, playerSettings.getLeftLegMesh(), model.leftLeg, 4, 12, 4, 0, 48, true, 0f));
+ 						}
+ 						case RIGHT_PANTS_LEG -> {
+-							skin3dlayerMeshes.put(playerModelPart, createEpicFight3DSkinLayer(player, playerModelPart, playerSettings.getRightLegMesh(), vanillaLayer.getParentModel().rightLeg, 4, 12, 4, 0, 32, true, 0f));
++							skin3dlayerMeshes.put(playerModelPart, createEpicFight3DSkinLayer(player, playerModelPart, playerSettings.getRightLegMesh(), model.rightLeg, 4, 12, 4, 0, 32, true, 0f));
+ 						}
+ 						case HAT -> {
+-							skin3dlayerMeshes.put(playerModelPart, createEpicFight3DSkinLayer(player, playerModelPart, playerSettings.getHeadMesh(), vanillaLayer.getParentModel().head, 8, 8, 8, 32, 0, false, 0.6F));
++							skin3dlayerMeshes.put(playerModelPart, createEpicFight3DSkinLayer(player, playerModelPart, playerSettings.getHeadMesh(), model.head, 8, 8, 8, 32, 0, false, 0.6F));
+ 						}
