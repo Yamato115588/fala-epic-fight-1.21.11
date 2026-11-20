@@ -68,11 +68,19 @@ jobs:
             ${{ steps.fabric-jar.outputs.path }}.sha256
           if-no-files-found: error
       - name: Smoke-test boss rendering in Minecraft
-        if: ${{ github.event_name == 'workflow_dispatch' && inputs.boss_smoke }}
-        continue-on-error: true
+        id: boss-smoke
+        if: ${{ github.event_name == 'push' || inputs.boss_smoke }}
         timeout-minutes: 6
         working-directory: ${{ runner.temp }}/epicfight-fabric-work
         env:
           LIBGL_ALWAYS_SOFTWARE: '1'
           ALSOFT_DRIVERS: 'null'
-        run: xvfb-run -a ./gradlew --no-daemon --console=plain --max-workers=2 -I "$GITHUB_WORKSPACE/tools/world-test/world.gradle" -PtestBossRegressions runClient
+          LP_NUM_THREADS: '2'
+        run: bash "$GITHUB_WORKSPACE/tools/world-test/run_ci_smoke.sh" "$RUNNER_TEMP/epicfight-boss-smoke.log"
+      - name: Upload boss smoke summary
+        if: ${{ !cancelled() && steps.boss-smoke.outcome != 'skipped' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: epicfight-boss-smoke-log
+          path: ${{ runner.temp }}/epicfight-boss-smoke.log
+          if-no-files-found: error

@@ -1,0 +1,63 @@
+Minecraft 1.21.11 / Fabric 0.19.3 / Java 21
+Source baseline 1289d92ef673416a23e19219b2e1508606452a2e. Retest with the current source and fresh Lite profiles.
+Clean production JAR SHA-256 6215c6484680a8051fe0b0ee58d5d2ef4d3047cf822c3b901639105c53e2b00b
+Fala Lite archive SHA-256 2676674d1ce000613129d948cd77344e71393994c0704b4e7f597ea91af04415
+clean build and compileJava SUCCESS; testPortData 321 CC0 resources PASS; compute RenderPass and particle layouts PASS (llvmpipe).
+24 pinned JARs per client and the 20-entry dedicated profile, rechecked against the downloaded pack.
+Both clients joined the authorized loopback-only server. Singleplayer joined and ran the dust particle.
+Boss phases were deliberately selected on the server. Full naturally progressing fights and authenticated multiplayer NOT TESTED.
+
+Client A
+dust survived 10 client ticks
+dragon Flying (#11)
+sound minecraft:entity.ender_dragon.flap
+sound minecraft:entity.ender_dragon.ambient
+dragon Landing (#13)
+dragon landing IK rendered
+dragon Ground Battle (#12)
+sound minecraft:entity.ender_dragon.growl
+dragon Airstrike (#14)
+sound epicfight:entity.enderdragon.dragon_breath_finale
+sound epicfight:entity.enderdragon.dragon_crystal_link
+dragon Crystal Link (#15)
+dragon Neutralized (#16)
+sound minecraft:entity.wither.ambient
+sound epicfight:entity.wither.wither_spell_armor
+wither armor
+sound epicfight:sfx.buzz
+wither three laser targets
+wither ghost
+sound minecraft:entity.wither.death
+wither death
+
+Client B
+dust survived 10 client ticks
+dragon Flying (#11)
+sound minecraft:entity.ender_dragon.flap
+sound minecraft:entity.ender_dragon.ambient
+dragon Landing (#13)
+dragon landing IK rendered
+dragon Ground Battle (#12)
+sound minecraft:entity.ender_dragon.growl
+dragon Airstrike (#14)
+sound epicfight:entity.enderdragon.dragon_breath_finale
+sound epicfight:entity.enderdragon.dragon_crystal_link
+dragon Crystal Link (#15)
+dragon Neutralized (#16)
+sound minecraft:entity.wither.ambient
+sound epicfight:entity.wither.wither_spell_armor
+wither armor
+sound epicfight:sfx.buzz
+wither three laser targets
+wither ghost
+sound minecraft:entity.wither.death
+wither death
+
+Epic Fight mode, iron sword input on the same clean JAR and fresh Fala Lite profile
+combat cow health=10.0
+combat epicfight:biped/combat/sword_auto1
+combat cow health=4.0
+combat epicfight:biped/combat/sword_auto2
+combat cow health=0.0
+combat epicfight:biped/combat/sword_auto3
+combat epicfight:biped/skill/roll_forward

@@ -9,6 +9,7 @@ import net.fabricmc.fabric.api.client.gametest.v1.context.TestServerContext;
 import net.minecraft.data.AtlasIds;
 import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.Vec3;
 import yesman.epicfight.api.client.model.Meshes;
 import yesman.epicfight.gameasset.Armatures;
 import yesman.epicfight.gameasset.Animations;
@@ -21,6 +22,10 @@ public final class PortWorldTest implements FabricClientGameTest {
     @Override
     public void runTest(ClientGameTestContext context) {
         context.runOnClient(client -> {
+            if (Boolean.getBoolean("fala.test.bossRegressions")) {
+                client.options.renderDistance().set(3);
+                client.options.simulationDistance().set(5);
+            }
             client.getAtlasManager().getAtlasOrThrow(AtlasIds.ARMOR_TRIMS);
             if (Armatures.ENDERMAN.get().headTop == null || Meshes.ENDERMAN.get().headTop == null) {
                 throw new AssertionError("Enderman upper head did not load");
@@ -35,7 +40,11 @@ public final class PortWorldTest implements FabricClientGameTest {
             }
             System.out.println("Loaded and sampled three sword combo clips and both dodge clips");
         });
+        long worldStart = System.nanoTime();
+        System.out.println("FALA_WORLD_SMOKE creating flat integrated world");
         try (var world = context.worldBuilder().create()) {
+            System.out.printf(Locale.ROOT, "FALA_WORLD_SMOKE world loaded in %.1f s%n",
+                    (System.nanoTime() - worldStart) / 1_000_000_000.0);
             waitForTerrain(context);
             context.waitTicks(30);
             context.runOnClient(client -> {
@@ -89,32 +98,36 @@ public final class PortWorldTest implements FabricClientGameTest {
                     dragon.getPhaseManager().setPhase(PatchedPhases.LANDING);
                     var target = dragon.getPhaseManager().getPhase(PatchedPhases.LANDING).getLandingPosition();
                     dragon.setPos(target.x, target.y + 1, target.z);
-                    return target;
+                    return new DragonLanding(dragon.getId(), target);
                 }
             }
             throw new AssertionError("Expected a dragon for the landing regression");
         });
         server.runCommand(String.format(Locale.ROOT,
                 "execute in minecraft:the_end run tp @a %.4f %.4f %.4f 180 0",
-                landing.x, landing.y + 4, landing.z + 12));
-        context.waitTicks(16);
-        server.runCommand("execute in minecraft:the_end run epicfight animator play "
-                + "@e[type=minecraft:ender_dragon,tag=fala_ik_probe,limit=1] epicfight:dragon/fly_to_ground");
-        context.waitFor(client -> {
-            for (var entity : client.level.entitiesForRendering()) {
-                if (entity instanceof EnderDragon dragon) {
-                    var patch = EpicFightCapabilities.getEntityPatch(dragon, EnderDragonPatch.class);
-                    if (patch != null && patch.getIKSimulator().isRunning(Armatures.DRAGON.get().legFrontL3)) {
-                        patch.getClientAnimator().getPose(0.5F);
-                        return true;
-                    }
-                }
+                landing.target().x, landing.target().y + 4, landing.target().z + 12));
+        context.waitFor(client -> client.level != null && client.screen == null
+                && client.level.getEntity(landing.entityId()) instanceof EnderDragon dragon
+                && dragon.getPhaseManager().getCurrentPhase().getPhase() == PatchedPhases.LANDING
+                && EpicFightCapabilities.getEntityPatch(dragon, EnderDragonPatch.class) != null, 400);
+        System.out.println("FALA_BOSS_SMOKE landing entity and phase synchronized");
+        context.runOnClient(client -> {
+            var dragon = client.level.getEntity(landing.entityId());
+            var patch = EpicFightCapabilities.getEntityPatch(dragon, EnderDragonPatch.class);
+            var animator = patch.getClientAnimator();
+            animator.playAnimationInstantly(Animations.DRAGON_FLY_TO_GROUND);
+            // The simulator registers jobs during playback and activates them on its next tick.
+            patch.getIKSimulator().tick(null);
+            if (!patch.getIKSimulator().isRunning(Armatures.DRAGON.get().legFrontL3)) {
+                throw new AssertionError("Landing clip did not activate front-left IK");
             }
-            return false;
-        }, 250);
+            animator.getPose(0.5F);
+        });
         context.waitTicks(10);
         System.out.println("FALA_BOSS_SMOKE dragon_landing_ik PASS");
     }
+
+    private record DragonLanding(int entityId, Vec3 target) {}
 
     private static void waitForTerrain(ClientGameTestContext context) {
         context.waitFor(client -> client.screen == null && client.level != null && client.player != null

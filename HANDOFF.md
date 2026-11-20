@@ -1,6 +1,18 @@
 # Epic Fight Fabric 1.21.11
 
-งานชุดนี้ต่อจาก `eceda04e38d2` บน `fabric-1.21.11` ตรวจ SHA ของโค้ดฉบับปัจจุบันด้วย `git rev-parse HEAD` และดาวน์โหลด JAR กับไฟล์ `.sha256` จาก GitHub Actions ของ commit เดียวกัน
+งานชุดนี้ต่อจาก `1289d92ef673` บน `fabric-1.21.11` ใช้ `git rev-parse HEAD` ตรวจ commit และตรวจไฟล์ `.sha256` ของ JAR ใน Actions ที่มี head SHA เดียวกัน
+
+## ทดสอบใหม่หลัง `1289d92ef673`
+
+- เครื่องทดสอบเจอ Xvfb แจ้งว่า display หมายเลขเดิมกำลังใช้งาน ส่งผลให้ GLFW เปิดไม่ได้ ใช้การเลือก display อัตโนมัติและตรวจว่า Xvfb พร้อมก่อนเปิดเกม
+- [Actions รอบเดิม](https://github.com/Yamato115588/fala-epic-fight-1.21.11/actions/runs/44731427191) และการรันซ้ำในเครื่องหยุดที่ spawn 16% แล้ว Fabric Client GameTest แจ้ง `Timeout loading world` การปิด NetworkSynchronizer เฉพาะ smoke test ทำให้โลก Flat โหลดได้ใน 8.5–9.6 วินาทีในการตรวจสาเหตุ ใช้ timeout เดิมของการโหลดโลก ตัวรัน CI เก็บเฉพาะสถานะ spawn ที่เปลี่ยน ผลตรวจ และท้าย error
+- คงการส่ง JAR และ SHA-256 ก่อนรัน smoke test และอัปโหลด log ย่อแยกกันเมื่อ smoke test ทำงาน
+- ทดสอบ JAR จาก `clean build` ใหม่ SHA-256 `6215c6484680a8051fe0b0ee58d5d2ef4d3047cf822c3b901639105c53e2b00b` ใช้แพ็ก Lite SHA-256 `2676674d1ce000613129d948cd77344e71393994c0704b4e7f597ea91af04415` ดาวน์โหลด JAR ใหม่และตรวจทุกไฟล์ตาม manifest ทั้งสอง Client มี 24 JAR จากแพ็ก Dedicated ใช้รายการ Server 20 JAR ที่ตรวจ SHA-256 ใหม่
+- ทดสอบ Singleplayer และ Dedicated ที่ `127.0.0.1` ด้วย Client สองตัว ทั้งสองได้รับ Flying, Landing, Ground Battle, Airstrike, Crystal Link และ Neutralized จากการกำหนดเฟสบน Server ตรวจ pose ระหว่าง Landing IK และวาด `dust_contractive` ในเกมได้
+- Wither เข้าชุดเกราะจากสุขภาพ 45% ทั้งสอง Client ได้เป้าเลเซอร์สามหัว, Ghost, การตาย และ sound events จากบอส การต่อสู้บอสแบบเดินครบเฟสเอง **NOT TESTED**
+- การกดโจมตีจริงในโหมด Epic Fight ส่งคอมโบดาบเหล็กทั้ง 3 จังหวะให้ Dedicated เป้าหมายเสีย HP จาก 10 เป็น 0 และ Server รับแอนิเมชันกลิ้งหน้า [Runtime Log รอบใหม่](test-evidence/lite-retest.log)
+- `testPortData` ตรวจ 321 CC0 resources และ `testComputeRenderPass` ผ่านด้วย llvmpipe
+- Multiplayer แบบยืนยันบัญชีจริง **NOT TESTED** ไม่มีบัญชีทดสอบและเซิร์ฟเวอร์ที่ยืนยันสิทธิ์ได้
 
 ## การทดสอบบอสจาก `8aa3e017d408`
 
@@ -16,7 +28,7 @@
 | Fala Lite หลังแก้สองจุด และการเดินครบทุกเฟสตามธรรมชาติ | **NOT TESTED** หลังพบแครช เพราะเครื่องรันเกมเดิมกู้คืนไม่สำเร็จ |
 | Multiplayer แบบยืนยันบัญชีจริง | **NOT TESTED** ไม่มีบัญชีทดสอบและปลายทางที่ยืนยันสิทธิ์เข้าถึง |
 
-การบิลด์ การตรวจแอสเซต และ Minecraft RenderPass ผ่านในการทดสอบรอบซ่อม ส่วน smoke test หยุดระหว่างสร้างโลกที่ `Timeout loading world` ก่อนถึงการเรียก dust sprite และ IK จึงบันทึกผลรันหลังแก้ทั้งสองกรณีเป็น **NOT TESTED** เปิด smoke test แยกได้ด้วยตัวเลือก `boss_smoke` ในการสั่ง Actions workflow ด้วยตนเอง [Actions รอบทดสอบ](https://github.com/Yamato115588/fala-epic-fight-1.21.11/actions/runs/44731427191)
+รอบเดิมที่ `cf262f0334bd` บิลด์ ตรวจแอสเซต และ Minecraft RenderPass ผ่าน ส่วน smoke test หยุดที่ `Timeout loading world` ก่อนถึง dust sprite และ IK ดูผลทดสอบใหม่ในหัวข้อด้านบน [Actions รอบเดิม](https://github.com/Yamato115588/fala-epic-fight-1.21.11/actions/runs/44731427191)
 
 ## แอนิเมชัน เสียง และการเรนเดอร์
 
@@ -52,6 +64,8 @@ jar=$(python3 "$repo/tools/check_fabric_jar.py" build/libs)
 sha256sum "$jar"
 ./gradlew -I "$repo/tools/data-test/data.gradle" testPortData
 xvfb-run -a ./gradlew -I "$repo/tools/renderpass-test/renderpass.gradle" testComputeRenderPass
+LIBGL_ALWAYS_SOFTWARE=1 ALSOFT_DRIVERS=null LP_NUM_THREADS=2 \
+  bash "$repo/tools/world-test/run_ci_smoke.sh" "$PWD/boss-smoke.log"
 ./gradlew -I "$repo/tools/world-test/world.gradle" -PtestDedicated runClient
 ```
 
@@ -68,4 +82,4 @@ xvfb-run -a ./gradlew -I "$repo/tools/renderpass-test/renderpass.gradle" testCom
 ## สิ่งที่ยังต้องยืนยัน
 
 - เล่นการต่อสู้กับบอสครบทุกช่วงและทดสอบอาวุธกับสกิลของผู้เล่นที่อยู่นอกชุดทดสอบปัจจุบัน
-- ทดสอบหลาย Client พร้อมกันและการเข้าเซิร์ฟเวอร์ด้วยบัญชีที่ยืนยันตัวตน รวมถึง GPU จริงหลายรุ่น
+- ทดสอบเซิร์ฟเวอร์ที่ยืนยันบัญชีจริงและเรนเดอร์ด้วย GPU จริงหลายรุ่น

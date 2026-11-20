@@ -24,6 +24,10 @@ rootProject { project ->
             systemProperty 'fabric.client.gametest.modid', 'fala_world_test'
             systemProperty 'fala.test.dedicated', project.hasProperty('testDedicated')
             systemProperty 'fala.test.bossRegressions', project.hasProperty('testBossRegressions')
+            if (project.hasProperty('testBossRegressions')) {
+                // The test network barrier can stall the integrated server before spawn is ready.
+                systemProperty 'fabric.client.gametest.disableNetworkSynchronizer', 'true'
+            }
         }
     }
 }
