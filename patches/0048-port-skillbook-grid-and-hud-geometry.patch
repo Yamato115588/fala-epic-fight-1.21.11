@@ -1,0 +1,872 @@
+diff --git a/src/main/java/yesman/epicfight/client/gui/GuiGeometry.java b/src/main/java/yesman/epicfight/client/gui/GuiGeometry.java
+new file mode 100644
+index 0000000..4c0a259
+--- /dev/null
++++ b/src/main/java/yesman/epicfight/client/gui/GuiGeometry.java
+@@ -0,0 +1,71 @@
++package yesman.epicfight.client.gui;
++
++import com.mojang.blaze3d.pipeline.RenderPipeline;
++import com.mojang.blaze3d.vertex.VertexConsumer;
++import com.mojang.blaze3d.vertex.VertexFormat;
++import java.util.List;
++import net.minecraft.client.Minecraft;
++import net.minecraft.client.gui.GuiGraphics;
++import net.minecraft.client.gui.navigation.ScreenRectangle;
++import net.minecraft.client.gui.render.TextureSetup;
++import net.minecraft.client.gui.render.state.GuiElementRenderState;
++import net.minecraft.client.renderer.RenderPipelines;
++import net.minecraft.resources.Identifier;
++import net.minecraft.world.phys.Vec2;
++import org.joml.Matrix3x2f;
++
++public final class GuiGeometry {
++    private static final RenderPipeline TEXTURED_TRIANGLES = RenderPipeline.builder(RenderPipelines.GUI_TEXTURED_SNIPPET)
++        .withLocation(Identifier.fromNamespaceAndPath("epicfight", "pipeline/gui_textured_triangles"))
++        .withVertexFormat(RenderPipelines.GUI_TEXTURED.getVertexFormat(), VertexFormat.Mode.TRIANGLES).withCull(false).build();
++
++    private GuiGeometry() {}
++
++    public static void horizontalGradient(GuiGraphics graphics, int x1, int y1, int x2, int y2, int left, int right) {
++        graphics.pose().pushMatrix().translate(x1, y1).rotate((float)(-Math.PI / 2));
++        graphics.fillGradient(y1 - y2, 0, 0, x2 - x1, left, right);
++        graphics.pose().popMatrix();
++    }
++
++    public static void diamond(GuiGraphics graphics, int left, int top, int right, int bottom, int color) {
++        float scale = (float)(1 / Math.sqrt(8));
++        graphics.pose().pushMatrix().translate((left + right) * 0.5F, (top + bottom) * 0.5F)
++            .scale((right - left) * scale, (bottom - top) * scale).rotate((float)(Math.PI / 4));
++        graphics.fill(-1, -1, 1, 1, color);
++        graphics.pose().popMatrix();
++    }
++
++    public static void texturedFan(GuiGraphics graphics, Identifier texture, float x, float y, float size, int color, List<Vec2> texels) {
++        var image = Minecraft.getInstance().getTextureManager().getTexture(texture);
++        var transform = new Matrix3x2f(graphics.pose());
++        var scissor = graphics.scissorStack.peek();
++        int left = (int)Math.floor(x);
++        int top = (int)Math.floor(y);
++        int right = (int)Math.ceil(x + size);
++        int bottom = (int)Math.ceil(y + size);
++        var bounds = new ScreenRectangle(left, top, right - left, bottom - top).transformMaxBounds(transform);
++        if (scissor != null) bounds = bounds.intersection(scissor);
++        if (bounds != null) {
++            graphics.guiRenderState.submitGuiElement(new Fan(TextureSetup.singleTexture(image.getTextureView(), image.getSampler()),
++                scissor, bounds, transform, x, y, size, color, List.copyOf(texels)));
++        }
++    }
++
++    private record Fan(TextureSetup textureSetup, ScreenRectangle scissorArea, ScreenRectangle bounds,
++                       Matrix3x2f pose, float x, float y, float size, int color, List<Vec2> vertices) implements GuiElementRenderState {
++        @Override public RenderPipeline pipeline() { return TEXTURED_TRIANGLES; }
++
++        @Override public void buildVertices(VertexConsumer consumer) {
++            Vec2 center = vertices.getFirst();
++            for (int i = 1; i + 1 < vertices.size(); i++) {
++                vertex(consumer, center);
++                vertex(consumer, vertices.get(i));
++                vertex(consumer, vertices.get(i + 1));
++            }
++        }
++
++        private void vertex(VertexConsumer consumer, Vec2 uv) {
++            consumer.addVertexWith2DPose(pose, x + size * uv.x, y + size * uv.y).setUv(uv.x, uv.y).setColor(color);
++        }
++    }
++}
+diff --git a/src/main/java/yesman/epicfight/client/gui/datapack/widgets/Grid.java b/src/main/java/yesman/epicfight/client/gui/datapack/widgets/Grid.java
+index 5ba89b1..b58f2df 100644
+--- a/src/main/java/yesman/epicfight/client/gui/datapack/widgets/Grid.java
++++ b/src/main/java/yesman/epicfight/client/gui/datapack/widgets/Grid.java
+@@ -150,7 +150,7 @@ public class Grid extends ObjectSelectionList<Grid.Row> implements DataBindingCo
+ 		this.children().remove(row);
+ 		
+ 		double scrollAmount = this.scrollAmount();
+-		this.setScrollAmount(Math.min(scrollAmount, this.getMaxScroll()));
++		this.setScrollAmount(Math.min(scrollAmount, this.maxScrollAmount()));
+ 		
+ 		this.resizeColumnWidth();
+ 		
+@@ -296,7 +296,7 @@ public class Grid extends ObjectSelectionList<Grid.Row> implements DataBindingCo
+ 	}
+ 	
+ 	protected void resizeColumnWidth() {
+-		int remainWidth = this.width - (this.getMaxScroll() > 0 ? 7 : 1);
++		int remainWidth = this.width - (this.maxScrollAmount() > 0 ? 7 : 1);
+ 		int idx = 0;
+ 		int size = this.columns.size();
+ 		
+@@ -344,7 +344,7 @@ public class Grid extends ObjectSelectionList<Grid.Row> implements DataBindingCo
+ 	
+ 	@Override
+ 	public int getRowTop(int p_93512_) {
+-		return this.getY() - (int) this.scrollAmount() + p_93512_ * this.defaultEntryHeight + this.headerHeight;
++		return this.getY() - (int) this.scrollAmount() + p_93512_ * this.defaultEntryHeight;
+ 	}
+ 
+ 	@Override
+@@ -366,8 +366,8 @@ public class Grid extends ObjectSelectionList<Grid.Row> implements DataBindingCo
+ 	}
+ 	
+ 	@Override
+-	public int getMaxScroll() {
+-		return Math.max(0, this.getMaxPosition() - (this.height - 1));
++	public int maxScrollAmount() {
++		return Math.max(0, this.contentHeight() - (this.height - 1));
+ 	}
+ 	
+ 	@Override
+@@ -383,29 +383,21 @@ public class Grid extends ObjectSelectionList<Grid.Row> implements DataBindingCo
+ 		this.rowEditButtons.forEach((button) -> button.render(guiGraphics, mouseX, mouseY, partialTick));
+ 		
+ 		int color = this.isFocused() ? -1 : this.isActive() ? -6250336 : -12566463;
+-		GL11.glEnable(GL11.GL_STENCIL_TEST);
+-		
+-		RenderSystem.stencilOp(GL11.GL_KEEP, GL11.GL_KEEP, GL11.GL_REPLACE);
+-		RenderSystem.stencilFunc(GL11.GL_ALWAYS, 1, 0xFF);
+-		RenderSystem.stencilMask(0xFF);
+-		// Clear doesn't work if stencil mask is set to 0
+-		RenderSystem.clear(GL11.GL_STENCIL_BUFFER_BIT, true);
+-		
+-		guiGraphics.fill(this.getX(), this.getY(), this.getRight(), this.getBottom(), color);
+-		RenderSystem.stencilFunc(GL11.GL_EQUAL, 1, 0xFF);
+-		RenderSystem.stencilMask(0x00);
+-		
+-		this.renderListItems(guiGraphics, mouseX, mouseY, partialTick);
+-		
+-		GL11.glDisable(GL11.GL_STENCIL_TEST);
+-		
++        guiGraphics.fill(this.getX(), this.getY(), this.getRight(), this.getBottom(), color);
++        guiGraphics.enableScissor(this.getX(), this.getY(), this.getRight(), this.getBottom());
++        try {
++            this.renderListItems(guiGraphics, mouseX, mouseY, partialTick);
++        } finally {
++            guiGraphics.disableScissor();
++        }
++
+ 		if (this.editingWidget != null) {
+ 			int rowTop = this.getRowTop(this.rowposition);
+ 			int rowBottom = this.getRowTop(this.rowposition) + this.defaultEntryHeight;
+ 			
+ 			if (rowBottom >= this.getY() && rowTop <= this.getBottom()) {
+ 				guiGraphics.pose().pushMatrix();
+-				guiGraphics.pose().translate(0, 0, 1);
++				guiGraphics.nextStratum();
+ 				this.editingWidget._setY(this.getRowTop(this.rowposition) + 2);
+ 				this.editingWidget.asWidget().render(guiGraphics, mouseX, mouseY, partialTick);
+ 				guiGraphics.pose().popMatrix();
+@@ -426,7 +418,7 @@ public class Grid extends ObjectSelectionList<Grid.Row> implements DataBindingCo
+ 			rowBottom = this.getRowTop(rowIndex) + this.defaultEntryHeight;
+ 			
+ 			if (rowBottom >= this.getY() && rowTop <= this.getBottom()) {
+-				this.renderItem(guiGraphics, mouseX, mouseY, partialTicks, rowIndex, rowLeft, rowTop, rowWidth, itemHeight);
++				this.renderGridItem(guiGraphics, rowIndex, rowTop, itemHeight);
+ 			}
+ 		}
+ 		
+@@ -435,14 +427,14 @@ public class Grid extends ObjectSelectionList<Grid.Row> implements DataBindingCo
+ 		}
+ 		
+ 		guiGraphics.pose().pushMatrix();
+-		guiGraphics.pose().translate(0, 0, 1);
++		guiGraphics.nextStratum();
+ 		
+ 		int i = this.scrollBarX();
+ 		int j = i + 6;
+-		int i2 = this.getMaxScroll();
++		int i2 = this.maxScrollAmount();
+ 		
+ 		if (i2 > 0) {
+-			int j2 = (int) ((float) (this.height * this.height) / (float) this.getMaxPosition());
++			int j2 = (int) ((float) (this.height * this.height) / (float) this.contentHeight());
+ 			j2 = Mth.clamp(j2, 32, this.height - 8);
+ 			int k1 = (int) this.scrollAmount() * (this.height - j2) / i2 + this.getY();
+ 			
+@@ -458,26 +450,14 @@ public class Grid extends ObjectSelectionList<Grid.Row> implements DataBindingCo
+ 		guiGraphics.pose().popMatrix();
+ 	}
+ 	
+-	@Override
+-	protected void renderItem(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTicks, int rowPosition, int rowLeft, int rowTop, int rowRight, int itemHeight) {
+-		Row row = this.getEntry(rowPosition);
+-		
+-		if (this.isSelectedItem(rowPosition)) {
+-			guiGraphics.pose().pushMatrix();
+-			guiGraphics.pose().translate(0, 0, 1);
+-			this.renderSelection(guiGraphics, rowTop, rowRight, itemHeight, 0, 0); // color params are not used
+-			row.renderRow(guiGraphics, rowTop, itemHeight);
+-			guiGraphics.pose().popMatrix();
+-		} else {
+-			row.renderRow(guiGraphics, rowTop, itemHeight);
+-		}
+-	}
+-	
+-	@Override
+-	protected void renderSelection(GuiGraphics guiGraphics, int rowTop, int rowRight, int itemHeight, int color, int color2) {
+-		guiGraphics.fill(this.getX(), rowTop, this.getRight(), rowTop + itemHeight + 1, -1);
+-	}
+-	
++	private void renderGridItem(GuiGraphics guiGraphics, int rowPosition, int rowTop, int itemHeight) {
++        Row row = this.children().get(rowPosition);
++        if (row == this.getSelected()) {
++            guiGraphics.fill(this.getX(), rowTop, this.getRight(), rowTop + itemHeight + 1, -1);
++        }
++        row.renderRow(guiGraphics, rowTop, itemHeight);
++    }
++
+ 	@Override
+ 	public boolean isMouseOver(double x, double y) {
+ 		double y0 = this.rowEditButtons.size() > 0 ? this.getY() - 12 : this.getY();
+@@ -521,7 +501,7 @@ public class Grid extends ObjectSelectionList<Grid.Row> implements DataBindingCo
+ 			}
+ 		}
+ 		
+-		if (this.isFocused() && this.getMaxScroll() > 0) {
++		if (this.isFocused() && this.maxScrollAmount() > 0) {
+ 			this.setScrollAmount(this.scrollAmount() - scrollY * (double) this.defaultEntryHeight / 2.0D);
+ 			return true;
+ 		}
+diff --git a/src/main/java/yesman/epicfight/client/gui/screen/SkillBookScreen.java b/src/main/java/yesman/epicfight/client/gui/screen/SkillBookScreen.java
+index 6cecf53..b2120fd 100644
+--- a/src/main/java/yesman/epicfight/client/gui/screen/SkillBookScreen.java
++++ b/src/main/java/yesman/epicfight/client/gui/screen/SkillBookScreen.java
+@@ -286,7 +286,7 @@ public class SkillBookScreen extends Screen {
+         skillContainer.setSkill(this.skill);
+         this.minecraft.setScreen(null);
+         this.playerpatch.getPlayerSkills().addLearnedSkill(this.skill);
+-        int i = this.hand == InteractionHand.MAIN_HAND ? this.opener.getInventory().selected : 40;
++        int i = this.hand == InteractionHand.MAIN_HAND ? this.opener.getInventory().getSelectedSlot() : 40;
+         EpicFightNetworkManager.sendToServer(new CPChangeSkill(skillContainer.getSlot(), this.skill.holder(), i));
+     }
+ 
+@@ -350,39 +350,12 @@ public class SkillBookScreen extends Screen {
+             this.renderBackground(guiGraphics, mouseX, mouseY, partialTick);
+         }
+ 
+-        if (originalScale == effectiveScale) {
+-            guiGraphics.pose().pushMatrix();
+-            this.renderBookContents(guiGraphics, mouseX, mouseY, partialTick);
+-            guiGraphics.pose().popMatrix();
+-            return;
+-        }
+-
+-        // Flush batches queued under the original projection before swapping it.
+-        guiGraphics.flush();
+-
+-        Matrix4f originalProjection = new Matrix4f(RenderSystem.getProjectionMatrix());
+-        VertexSorting originalSorting = RenderSystem.getVertexSorting();
+-
+-        // Window#getGuiScale feeds widget scissor conversions, so it must mirror
+-        // the book scale while the scaled projection is active.
+-        window.setGuiScale(effectiveScale);
+-        RenderSystem.setProjectionMatrix(SkillBookScreenProjection.forScale(originalProjection, originalScale, effectiveScale), originalSorting);
+-
+-        int scaledMouseX = (int)(mouseX * (originalScale / effectiveScale));
+-        int scaledMouseY = (int)(mouseY * (originalScale / effectiveScale));
+-
+-        guiGraphics.pose().pushMatrix();
++        float ratio = (float)(effectiveScale / originalScale);
++        guiGraphics.pose().pushMatrix().scale(ratio, ratio);
+         try {
+-            this.renderBookContents(guiGraphics, scaledMouseX, scaledMouseY, partialTick);
++            this.renderBookContents(guiGraphics, (int)(mouseX / ratio), (int)(mouseY / ratio), partialTick);
+         } finally {
+-            try {
+-                guiGraphics.pose().popMatrix();
+-                // Flush while the book projection is still active.
+-                guiGraphics.flush();
+-            } finally {
+-                window.setGuiScale(originalScale);
+-                RenderSystem.setProjectionMatrix(originalProjection, originalSorting);
+-            }
++            guiGraphics.pose().popMatrix();
+         }
+     }
+ 
+@@ -390,7 +363,6 @@ public class SkillBookScreen extends Screen {
+         int posX = (this.width - 284) / 2;
+         int posY = (this.height - 165) / 2;
+ 
+-        RenderSystem.setShader(GameRenderer::getPositionTexColorShader);
+ 
+         guiGraphics.blit(RenderPipelines.GUI_TEXTURED, SKILLBOOK_BACKGROUND, this.width / 2 - 192, this.height / 2 - 140, 0, 0, 384, 279, 256, 186, 256, 256);
+ 
+@@ -413,17 +385,16 @@ public class SkillBookScreen extends Screen {
+         guiGraphics.blit(RenderPipelines.GUI_TEXTURED, SKILLBOOK_BACKGROUND, this.width / 2 - 160, this.height / 2 - 73, iconStartX, iconStartY, 12, 12, 9, 9, 256, 256);
+ 
+         guiGraphics.pose().pushMatrix();
+-        guiGraphics.pose().translate(this.width / 2 - 16, this.height / 2 - 73, 0.0D);
++        guiGraphics.pose().translate(this.width / 2 - 16, this.height / 2 - 73);
+         guiGraphics.pose().scale(-1.0F, 1.0F);
+-        RenderSystem.disableCull();
++
+         // skill category icon right
+         guiGraphics.blit(RenderPipelines.GUI_TEXTURED, SKILLBOOK_BACKGROUND, 0, 0, iconStartX, iconStartY, 12, 12, 9, 9, 256, 256);
+-        RenderSystem.enableCull();
++
+         guiGraphics.pose().popMatrix();
+ 
+-        RenderSystem.enableBlend();
+         guiGraphics.blit(RenderPipelines.GUI_TEXTURED, this.skill.getSkillTexture(), this.width / 2 - 122, this.height / 2 - 99, 0, 0, 68, 68, 128, 128, 128, 128);
+-        RenderSystem.disableBlend();
++
+ 
+         String translationName = this.skill.getTranslationKey();
+         String skillName = Component.translatable(translationName).getString();
+@@ -444,7 +415,6 @@ public class SkillBookScreen extends Screen {
+         public SkillTooltipList(Minecraft minecraft, int width, int height, int y, int itemHeight) {
+             super(minecraft, width, height, y, itemHeight);
+ 
+-            this.setRenderHeader(false, 0);
+         }
+ 
+         @Override
+@@ -574,7 +544,6 @@ public class SkillBookScreen extends Screen {
+         public AttributeIconList(Minecraft minecraft, int width, int height, int y, int itemHeight) {
+             super(minecraft, width, height, y, itemHeight);
+ 
+-            this.setRenderHeader(false, 0);
+         }
+ 
+         @Override
+@@ -639,8 +608,9 @@ public class SkillBookScreen extends Screen {
+             }
+ 
+             @Override
+-            public void render(@NotNull GuiGraphics guiGraphics, int index, int top, int left, int width, int height, int mouseX, int mouseY, boolean isMouseOver, float partialTicks) {
+-                int widgetLeft = left;
++            public void renderContent(@NotNull GuiGraphics guiGraphics, int mouseX, int mouseY, boolean isMouseOver, float partialTicks) {
++                int top = this.getContentY();
++                int widgetLeft = this.getContentX();
+ 
+                 for (AbstractWidget widget : this.icons) {
+                     widget.setPosition(widgetLeft, top);
+@@ -720,7 +690,8 @@ public class SkillBookScreen extends Screen {
+             guiGraphics.pose().popMatrix();
+ 
+             int i = this.active ? 0xFFFFFF : 0xA0A0A0;
+-            this.renderString(guiGraphics, minecraft.font, i | Mth.ceil(this.alpha * 255.0F) << 24);
++            guiGraphics.drawCenteredString(minecraft.font, this.getMessage(), this.getX() + this.getWidth() / 2,
++                this.getY() + (this.getHeight() - 8) / 2, (i & 0xffffff) | Mth.ceil(this.alpha * 255.0F) << 24);
+         }
+     }
+ }
+\ No newline at end of file
+diff --git a/src/main/java/yesman/epicfight/client/gui/screen/SkillEditScreen.java b/src/main/java/yesman/epicfight/client/gui/screen/SkillEditScreen.java
+index 89c5bf9..33fa2dc 100644
+--- a/src/main/java/yesman/epicfight/client/gui/screen/SkillEditScreen.java
++++ b/src/main/java/yesman/epicfight/client/gui/screen/SkillEditScreen.java
+@@ -462,9 +462,9 @@ public class SkillEditScreen extends Screen {
+             guiGraphics.blit(RenderPipelines.GUI_TEXTURED, SKILL_EDIT_UI, this.getX(), this.getY(), 237, y, this.width, this.height, 256, 256);
+ 
+             if (!this.skillContainer.isEmpty()) {
+-                RenderSystem.enableBlend();
++
+                 guiGraphics.blit(RenderPipelines.GUI_TEXTURED, this.skillContainer.getSkill().getSkillTexture(), this.getX() + 1, this.getY() + 1, 0, 0, this.getWidth() - 2, this.getHeight() - 2, 128, 128, 128, 128);
+-                RenderSystem.disableBlend();
++
+             } else {
+                 guiGraphics.blit(RenderPipelines.GUI_TEXTURED, EMPTY_SKILL_SLOT_ICON, this.getX() + 1, this.getY() + 1, 0, 0, this.getWidth() - 2, this.getHeight() - 2, 128, 128, 128, 128);
+             }
+@@ -546,9 +546,9 @@ public class SkillEditScreen extends Screen {
+             SkillContainer firstEquipped = SkillEditScreen.this.findFirstEquippedCorePassive();
+ 
+             if (firstEquipped != null && firstEquipped.getSkill() != null) {
+-                RenderSystem.enableBlend();
++
+                 guiGraphics.blit(RenderPipelines.GUI_TEXTURED, firstEquipped.getSkill().getSkillTexture(), this.getX() + 1, this.getY() + 1, 0, 0, this.getWidth() - 2, this.getHeight() - 2, 128, 128, 128, 128);
+-                RenderSystem.disableBlend();
++
+             } else {
+                 guiGraphics.blit(RenderPipelines.GUI_TEXTURED, EMPTY_SKILL_SLOT_ICON, this.getX() + 1, this.getY() + 1, 0, 0, this.getWidth() - 2, this.getHeight() - 2, 128, 128, 128, 128);
+             }
+@@ -598,7 +598,6 @@ public class SkillEditScreen extends Screen {
+             int texY = (this.isHoveredOrFocused() || !this.active) ? 224 : 200;
+             guiGraphics.blit(RenderPipelines.GUI_TEXTURED, SKILL_EDIT_UI, this.getX(), this.getY(), 0, texY, this.width, this.height, 256, 256);
+ 
+-            RenderSystem.enableBlend();
+             guiGraphics.blit(RenderPipelines.GUI_TEXTURED, this.skill.getSkillTexture(), this.getX() + 5, this.getY() + 4, 0, 0, 16, 16, 128, 128, 128, 128);
+             guiGraphics.drawString(font, this.getMessage(), this.getX() + SPACING, this.getY() + 2, -1, false);
+ 
+diff --git a/src/main/java/yesman/epicfight/client/gui/screen/config/ItemsPreferenceScreen.java b/src/main/java/yesman/epicfight/client/gui/screen/config/ItemsPreferenceScreen.java
+index 3dfa845..1cf93e9 100644
+--- a/src/main/java/yesman/epicfight/client/gui/screen/config/ItemsPreferenceScreen.java
++++ b/src/main/java/yesman/epicfight/client/gui/screen/config/ItemsPreferenceScreen.java
+@@ -33,7 +33,6 @@ public class ItemsPreferenceScreen extends Screen {
+ 	private static final Set<Class<? extends Item>> TOOL_CATEGORIZED_ITEM_CLASSES = new HashSet<> ();
+ 	
+ 	static {
+-		WEAPON_CATEGORIZED_ITEM_CLASSES.add(SwordItem.class);
+ 		WEAPON_CATEGORIZED_ITEM_CLASSES.add(WeaponItem.class);
+ 		WEAPON_CATEGORIZED_ITEM_CLASSES.add(BowItem.class);
+ 		WEAPON_CATEGORIZED_ITEM_CLASSES.add(CrossbowItem.class);
+@@ -41,7 +40,6 @@ public class ItemsPreferenceScreen extends Screen {
+ 		
+ 		TOOL_CATEGORIZED_ITEM_CLASSES.add(AxeItem.class);
+ 		TOOL_CATEGORIZED_ITEM_CLASSES.add(HoeItem.class);
+-		TOOL_CATEGORIZED_ITEM_CLASSES.add(PickaxeItem.class);
+ 		TOOL_CATEGORIZED_ITEM_CLASSES.add(ShovelItem.class);
+ 	}
+ 	
+@@ -56,6 +54,9 @@ public class ItemsPreferenceScreen extends Screen {
+ 	}
+ 	
+ 	private static boolean judgeItemPreference(Item item) {
++        ItemStack stack = item.getDefaultInstance();
++        if (stack.is(net.minecraft.tags.ItemTags.SWORDS)) return true;
++        if (yesman.epicfight.world.item.WeaponMaterials.isMiningTool(stack)) return false;
+ 		boolean isweapon = false;
+ 		boolean foundMatchingClass = false;
+ 		Class<?> itemClass = item.getClass();
+@@ -319,7 +320,7 @@ public class ItemsPreferenceScreen extends Screen {
+ 			this.tooltip = tooltip;
+ 			this.opponent = opponent;
+ 			this.left = left;
+-			this.setRenderHeader(true, (int)(9.0F * 1.5F));
++
+ 			
+ 			if (this.getSelected() != null) {
+ 				this.centerScrollOn(this.getSelected());
+@@ -333,11 +334,12 @@ public class ItemsPreferenceScreen extends Screen {
+ 			this.setWidth(width);
+ 		}
+ 		
+-		@Override
+-		protected void renderHeader(GuiGraphics guiGraphics, int x, int y) {
+-			guiGraphics.drawString(this.minecraft.font, this.title, x + this.width / 2 - this.minecraft.font.width(this.title) / 2, Math.min(this.getY() + 3, y), 16777215, false);
+-		}
+-		
++        @Override
++        public int getRowTop(int index) { return super.getRowTop(index) + 13; }
++
++        @Override
++        protected int contentHeight() { return super.contentHeight() + 13; }
++
+ 		@Override
+ 		public int getRowWidth() {
+ 			return this.width;
+@@ -356,10 +358,11 @@ public class ItemsPreferenceScreen extends Screen {
+ 			int x = this.getRowLeft();
+ 			int y = this.getY() + 4 - (int)this.scrollAmount();
+ 			x = x + this.width / 2 - width / 2;
+-			y = Math.min(this.getY() + 3, y);
++			y = this.getY() + 3;
++            guiGraphics.drawString(this.minecraft.font, this.title, x, y, -1, false);
+ 			
+ 			if (x < mouseX && y < mouseY && mouseX < (x + width) && mouseY < (y + 15)) {
+-				ItemsPreferenceScreen.this.setTooltipForNextRenderPass(this.tooltip);
++				guiGraphics.setTooltipForNextFrame(this.tooltip, mouseX, mouseY);
+ 			}
+ 		}
+ 		
+diff --git a/src/main/java/yesman/epicfight/client/gui/widgets/AnchoredButton.java b/src/main/java/yesman/epicfight/client/gui/widgets/AnchoredButton.java
+index 8655a19..37fc0ac 100644
+--- a/src/main/java/yesman/epicfight/client/gui/widgets/AnchoredButton.java
++++ b/src/main/java/yesman/epicfight/client/gui/widgets/AnchoredButton.java
+@@ -80,7 +80,8 @@ public class AnchoredButton extends Button implements AnchoredWidget, ThemeAppli
+     protected void renderContents(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+         this.theme.renderBackground(this, guiGraphics, mouseX, mouseY, partialTick);
+         int i = this.getFGColor();
+-        this.renderString(guiGraphics, Minecraft.getInstance().font, i | Mth.ceil(this.alpha * 255.0F) << 24);
++        guiGraphics.drawCenteredString(Minecraft.getInstance().font, this.getMessage(), this.getX() + this.getWidth() / 2,
++            this.getY() + (this.getHeight() - 8) / 2, (i & 0xffffff) | Mth.ceil(this.alpha * 255.0F) << 24);
+     }
+ 
+         public int getFGColor() {
+diff --git a/src/main/java/yesman/epicfight/client/gui/widgets/ColorDeterminator.java b/src/main/java/yesman/epicfight/client/gui/widgets/ColorDeterminator.java
+index 952d0a5..33c6646 100644
+--- a/src/main/java/yesman/epicfight/client/gui/widgets/ColorDeterminator.java
++++ b/src/main/java/yesman/epicfight/client/gui/widgets/ColorDeterminator.java
+@@ -151,48 +151,15 @@ public class ColorDeterminator extends AbstractSliderButton implements AnchoredW
+         return positionToPackedRGBA(position, RGB_COMBINATIONS);
+     }
+ 
+-    private static void fillGradient(GuiGraphics guiGraphics, int x1, int y1, int x2, int y2, int startColor, int endColor) {
+-        float f = (float) ARGB.alpha(startColor) / 255.0F;
+-        float f1 = (float) ARGB.red(startColor) / 255.0F;
+-        float f2 = (float) ARGB.green(startColor) / 255.0F;
+-        float f3 = (float) ARGB.blue(startColor) / 255.0F;
+-        float f4 = (float) ARGB.alpha(endColor) / 255.0F;
+-        float f5 = (float) ARGB.red(endColor) / 255.0F;
+-        float f6 = (float) ARGB.green(endColor) / 255.0F;
+-        float f7 = (float) ARGB.blue(endColor) / 255.0F;
+-
+-        Matrix4f matrix4f = guiGraphics.pose().last().pose();
+-        VertexConsumer consumer = guiGraphics.bufferSource().getBuffer(RenderType.gui());
+-
+-        consumer.addVertex(matrix4f, (float)x1, (float)y2, 0.0F).setColor(f1, f2, f3, f);
+-        consumer.addVertex(matrix4f, (float)x2, (float)y2, 0.0F).setColor(f5, f6, f7, f4);
+-        consumer.addVertex(matrix4f, (float)x2, (float)y1, 0.0F).setColor(f5, f6, f7, f4);
+-        consumer.addVertex(matrix4f, (float)x1, (float)y1, 0.0F).setColor(f1, f2, f3, f);
+-
+-        guiGraphics.flush();
++    private static void fillGradient(GuiGraphics graphics, int left, int top, int right, int bottom, int start, int end) {
++        yesman.epicfight.client.gui.GuiGeometry.horizontalGradient(graphics, left, top, right, bottom, start, end);
+     }
+ 
+-    private static void fillRhombus(GuiGraphics guiGraphics, int minX, int minY, int maxX, int maxY, int color) {
+-        Matrix4f matrix4f = guiGraphics.pose().last().pose();
+-
+-        float a = (float)ARGB.alpha(color) / 255.0F;
+-        float r = (float)ARGB.red(color) / 255.0F;
+-        float g = (float)ARGB.green(color) / 255.0F;
+-        float b = (float)ARGB.blue(color) / 255.0F;
+-        int centerX = minX + (maxX - minX) / 2;
+-        int centerY = minY + (maxY - minY) / 2;
+-
+-        VertexConsumer vertexconsumer = guiGraphics.bufferSource().getBuffer(EpicFightRenderTypes.guiTriangle());
+-        vertexconsumer.addVertex(matrix4f, (float) centerX, (float) minY, (float) 0).setColor(r, g, b, a);
+-        vertexconsumer.addVertex(matrix4f, (float) minX, (float) centerY, (float) 0).setColor(r, g, b, a);
+-        vertexconsumer.addVertex(matrix4f, (float) centerX, (float) maxY, (float) 0).setColor(r, g, b, a);
+-        vertexconsumer.addVertex(matrix4f, (float) centerX, (float) maxY, (float) 0).setColor(r, g, b, a);
+-        vertexconsumer.addVertex(matrix4f, (float) maxX, (float) centerY, (float) 0).setColor(r, g, b, a);
+-        vertexconsumer.addVertex(matrix4f, (float) centerX, (float) minY, (float) 0).setColor(r, g, b, a);
+-
+-        guiGraphics.flush();
++    private static void fillRhombus(GuiGraphics graphics, int left, int top, int right, int bottom, int color) {
++        yesman.epicfight.client.gui.GuiGeometry.diamond(graphics, left, top, right, bottom, color);
+     }
+ 
++
+     public enum Theme implements WidgetTheme {
+         CLASSIC(
+             (ColorDeterminator widget, GuiGraphics guiGraphics) -> {
+diff --git a/src/main/java/yesman/epicfight/client/gui/widgets/ColorSlider.java b/src/main/java/yesman/epicfight/client/gui/widgets/ColorSlider.java
+index 321de20..0aa597b 100644
+--- a/src/main/java/yesman/epicfight/client/gui/widgets/ColorSlider.java
++++ b/src/main/java/yesman/epicfight/client/gui/widgets/ColorSlider.java
+@@ -110,45 +110,14 @@ public class ColorSlider extends AbstractSliderButton implements ResizableCompon
+ 		return sliderPositionToColor(position, RGB_COMBINATIONS);
+ 	}
+ 	
+-	private static void fillGradient(GuiGraphics guiGraphics, int x1, int y1, int x2, int y2, int startColor, int endColor) {
+-		float f = (float) ARGB.alpha(startColor) / 255.0F;
+-		float f1 = (float) ARGB.red(startColor) / 255.0F;
+-		float f2 = (float) ARGB.green(startColor) / 255.0F;
+-		float f3 = (float) ARGB.blue(startColor) / 255.0F;
+-		float f4 = (float) ARGB.alpha(endColor) / 255.0F;
+-		float f5 = (float) ARGB.red(endColor) / 255.0F;
+-		float f6 = (float) ARGB.green(endColor) / 255.0F;
+-		float f7 = (float) ARGB.blue(endColor) / 255.0F;
+-		
+-		Matrix4f matrix4f = guiGraphics.pose().last().pose();
+-		VertexConsumer consumer = guiGraphics.bufferSource().getBuffer(RenderType.gui());
+-		
+-		consumer.addVertex(matrix4f, (float)x1, (float)y2, 0.0F).setColor(f1, f2, f3, f);
+-		consumer.addVertex(matrix4f, (float)x2, (float)y2, 0.0F).setColor(f5, f6, f7, f4);
+-		consumer.addVertex(matrix4f, (float)x2, (float)y1, 0.0F).setColor(f5, f6, f7, f4);
+-		consumer.addVertex(matrix4f, (float)x1, (float)y1, 0.0F).setColor(f1, f2, f3, f);
+-	}
+-	
+-	private static void fillRhombus(GuiGraphics guiGraphics, int minX, int minY, int maxX, int maxY, int pColor) {
+-		Matrix4f matrix4f = guiGraphics.pose().last().pose();
+-		
+-		float a = (float)ARGB.alpha(pColor) / 255.0F;
+-		float r = (float)ARGB.red(pColor) / 255.0F;
+-		float g = (float)ARGB.green(pColor) / 255.0F;
+-		float b = (float)ARGB.blue(pColor) / 255.0F;
+-		int centerX = minX + (maxX - minX) / 2;
+-		int centerY = minY + (maxY - minY) / 2;
+-		
+-		VertexConsumer vertexconsumer = guiGraphics.bufferSource().getBuffer(EpicFightRenderTypes.guiTriangle());
+-		vertexconsumer.addVertex(matrix4f, (float) centerX, (float) minY, (float) 0).setColor(r, g, b, a);
+-		vertexconsumer.addVertex(matrix4f, (float) minX, (float) centerY, (float) 0).setColor(r, g, b, a);
+-		vertexconsumer.addVertex(matrix4f, (float) centerX, (float) maxY, (float) 0).setColor(r, g, b, a);
+-		vertexconsumer.addVertex(matrix4f, (float) centerX, (float) maxY, (float) 0).setColor(r, g, b, a);
+-		vertexconsumer.addVertex(matrix4f, (float) maxX, (float) centerY, (float) 0).setColor(r, g, b, a);
+-		vertexconsumer.addVertex(matrix4f, (float) centerX, (float) minY, (float) 0).setColor(r, g, b, a);
+-		
+-		guiGraphics.flush();
+-	}
++    private static void fillGradient(GuiGraphics graphics, int left, int top, int right, int bottom, int start, int end) {
++        yesman.epicfight.client.gui.GuiGeometry.horizontalGradient(graphics, left, top, right, bottom, start, end);
++    }
++
++    private static void fillRhombus(GuiGraphics graphics, int left, int top, int right, int bottom, int color) {
++        yesman.epicfight.client.gui.GuiGeometry.diamond(graphics, left, top, right, bottom, color);
++    }
++
+ 
+ 	@FunctionalInterface
+ 	interface Selector {
+diff --git a/src/main/java/yesman/epicfight/client/gui/widgets/SettingTitle.java b/src/main/java/yesman/epicfight/client/gui/widgets/SettingTitle.java
+index 6820ebd..dd1b566 100644
+--- a/src/main/java/yesman/epicfight/client/gui/widgets/SettingTitle.java
++++ b/src/main/java/yesman/epicfight/client/gui/widgets/SettingTitle.java
+@@ -81,8 +81,6 @@ public class SettingTitle extends AbstractWidget implements AnchoredWidget, Pres
+             }
+         }
+ 
+-        guiGraphics.pose().translate(this.getX(), this.getY(), partialTick);
+-        guiGraphics.pose().translate(-this.getX(), -this.getY(), partialTick);
+ 
+         int leftGradientStart = this.getX() + 10;
+         int leftGradientEnd = this.getX() + 20;
+@@ -151,23 +149,8 @@ public class SettingTitle extends AbstractWidget implements AnchoredWidget, Pres
+     }
+ 
+     /// Since [GuiGraphics#fillGradient] only draws the gradient direction from top to bottom we created this method to draw gradient from left to right
+-    private static void fillGradientLeftToRight(GuiGraphics guiGraphics, int x1, int y1, int x2, int y2, int pColorFrom, int pColorTo) {
+-        VertexConsumer consumer = guiGraphics.bufferSource().getBuffer(RenderType.gui());
+-
+-        float f = ARGB.alpha(pColorFrom) / 255.0F;
+-        float f1 = ARGB.red(pColorFrom) / 255.0F;
+-        float f2 = ARGB.green(pColorFrom) / 255.0F;
+-        float f3 = ARGB.blue(pColorFrom) / 255.0F;
+-        float f4 = ARGB.alpha(pColorTo) / 255.0F;
+-        float f5 = ARGB.red(pColorTo) / 255.0F;
+-        float f6 = ARGB.green(pColorTo) / 255.0F;
+-        float f7 = ARGB.blue(pColorTo) / 255.0F;
+-        Matrix4f matrix4f = guiGraphics.pose().last().pose();
+-
+-        consumer.addVertex(matrix4f, x1, y1, 0).setColor(f1, f2, f3, f);
+-        consumer.addVertex(matrix4f, x1, y2, 0).setColor(f1, f2, f3, f);
+-        consumer.addVertex(matrix4f, x2, y2, 0).setColor(f5, f6, f7, f4);
+-        consumer.addVertex(matrix4f, x2, y1, 0).setColor(f5, f6, f7, f4);
++    private static void fillGradientLeftToRight(GuiGraphics graphics, int x1, int y1, int x2, int y2, int from, int to) {
++        yesman.epicfight.client.gui.GuiGeometry.horizontalGradient(graphics, x1, y1, x2, y2, from, to);
+     }
+ 
+     /// ***************************************************************
+diff --git a/src/main/java/yesman/epicfight/epicskins/client/screen/AvatarEditScreen.java b/src/main/java/yesman/epicfight/epicskins/client/screen/AvatarEditScreen.java
+index e5610d5..f6b419f 100644
+--- a/src/main/java/yesman/epicfight/epicskins/client/screen/AvatarEditScreen.java
++++ b/src/main/java/yesman/epicfight/epicskins/client/screen/AvatarEditScreen.java
+@@ -141,7 +141,7 @@ public class AvatarEditScreen extends Screen {
+ 		this.mainModelPreviewer.setCameraTransform(-3.0D, 28.0F, 160.0F, 0.0F, 0.0F);
+ 		this.mainModelPreviewer.setFigureTexture(AuthenticationHelperImpl.getInstance().playerInfo().getSkin().body().texturePath());
+ 		
+-		if (PlayerSkin.Model.SLIM.equals(AuthenticationHelperImpl.getInstance().playerInfo().getSkin().model())) {
++		if (net.minecraft.world.entity.player.PlayerModelType.SLIM.equals(AuthenticationHelperImpl.getInstance().playerInfo().getSkin().model())) {
+ 			this.mainModelPreviewer.setMesh(Meshes.ALEX);
+ 		} else {
+ 			this.mainModelPreviewer.setMesh(Meshes.BIPED);
+@@ -791,7 +791,6 @@ public class AvatarEditScreen extends Screen {
+ 					this.modelPreviewer.setBackgroundClearColor(new Vec4f(0.3552F, 0.3552F, 0.3552F, 0.3F));
+ 				}
+ 
+-				RenderSystem.enableBlend();
+ 				this.modelPreviewer.render(guiGraphics, pMouseX, pMouseY, pPartialTick);
+ 
+ 				if (!this.cosmetic.unlocked()) {
+@@ -799,7 +798,6 @@ public class AvatarEditScreen extends Screen {
+ 					guiGraphics.blit(RenderPipelines.GUI_TEXTURED, LOCK_ICON, this.modelPreviewer.getX() + this.modelPreviewer.getWidth() / 2 - 8, this.modelPreviewer.getY() + this.modelPreviewer.getHeight() / 2 - 8, 0, 0, 16, 16, 16, 16, 16, 16);
+ 				}
+ 
+-				RenderSystem.disableBlend();
+ 
+ 				guiGraphics.drawCenteredString(CapeList.this.minecraft.font, this.cosmetic.title(), this.getX() + this.width / 2, this.getY() + this.height - 12, -1);
+ 			}
+diff --git a/src/main/java/yesman/epicfight/epicskins/client/screen/AwaitIconMessageScreen.java b/src/main/java/yesman/epicfight/epicskins/client/screen/AwaitIconMessageScreen.java
+index ae96c71..48f4485 100644
+--- a/src/main/java/yesman/epicfight/epicskins/client/screen/AwaitIconMessageScreen.java
++++ b/src/main/java/yesman/epicfight/epicskins/client/screen/AwaitIconMessageScreen.java
+@@ -17,16 +17,16 @@ public class AwaitIconMessageScreen extends MessageScreen<Object> {
+ 		super.render(guiGraphics, mouseX, mouseY, partialTick);
+ 		
+ 		guiGraphics.pose().pushMatrix();
+-		guiGraphics.pose().translate(0, 0, 100);
++		guiGraphics.nextStratum();
+ 		
+-		guiGraphics.pose().translate(this.width / 2, this.height / 2 + 8, 100);
++		guiGraphics.pose().translate(this.width / 2, this.height / 2 + 8);
+ 		
+ 		for (int i = 0; i < 12; i++) {
+ 			int mod = (i * 21 + this.tickCount) % 256;
+ 			int color = ((mod << 16) | (mod << 8) | (mod << 0)) | 254 << 24;
+ 			
+ 			guiGraphics.pose().pushMatrix();
+-			guiGraphics.pose().mulPose(Axis.ZP.rotationDegrees(-30.0F * i));
++			guiGraphics.pose().rotate((float)Math.toRadians(-30.0F * i));
+ 			guiGraphics.pose().translate(-1, 0);
+ 			guiGraphics.fill(0, 11, 2, 18, color);
+ 			guiGraphics.pose().popMatrix();
+diff --git a/src/main/java/yesman/epicfight/mixin/client/MixinGui.java b/src/main/java/yesman/epicfight/mixin/client/MixinGui.java
+index 93d1be5..55e1c7e 100644
+--- a/src/main/java/yesman/epicfight/mixin/client/MixinGui.java
++++ b/src/main/java/yesman/epicfight/mixin/client/MixinGui.java
+@@ -1,10 +1,9 @@
+ package yesman.epicfight.mixin.client;
+ 
+ import net.minecraft.client.renderer.RenderPipelines;
++import com.mojang.blaze3d.pipeline.RenderPipeline;
+ import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+ import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
+-import com.mojang.blaze3d.platform.GlStateManager;
+-import com.mojang.blaze3d.systems.RenderSystem;
+ import net.minecraft.client.DeltaTracker;
+ import net.minecraft.client.Minecraft;
+ import net.minecraft.client.gui.Gui;
+@@ -45,7 +44,7 @@ public abstract class MixinGui {
+ 	private void renderCrosshairINJECT(GuiGraphics guiGraphics, DeltaTracker deltaTracker, CallbackInfo callback) {
+ 		// Draw crosshair in TPS mode, since vanilla crosshair aren't rendered in third person.
+ 		if (EpicFightCameraAPI.getInstance().isTPSMode()) {
+-			this.epicfight$renderCrosshair(guiGraphics, true, () -> guiGraphics.blitSprite(RenderPipelines.GUI_TEXTURED, Gui.CROSSHAIR_SPRITE, (guiGraphics.guiWidth() - 15) / 2, (guiGraphics.guiHeight() - 15) / 2, 15, 15));
++			this.epicfight$renderCrosshair(guiGraphics, () -> guiGraphics.blitSprite(RenderPipelines.CROSSHAIR, Gui.CROSSHAIR_SPRITE, (guiGraphics.guiWidth() - 15) / 2, (guiGraphics.guiHeight() - 15) / 2, 15, 15));
+ 		}
+ 	}
+ 
+@@ -55,21 +54,17 @@ public abstract class MixinGui {
+ 	@WrapOperation(
+ 			at = @At(
+ 					value = "INVOKE",
+-					target = "Lnet/minecraft/client/gui/GuiGraphics;blitSprite(Lnet/minecraft/resources/ResourceLocation;IIII)V",
++					target = "Lnet/minecraft/client/gui/GuiGraphics;blitSprite(Lcom/mojang/blaze3d/pipeline/RenderPipeline;Lnet/minecraft/resources/ResourceLocation;IIII)V",
+ 					ordinal = 0
+ 			),
+ 			method = "renderCrosshair(Lnet/minecraft/client/gui/GuiGraphics;Lnet/minecraft/client/DeltaTracker;)V"
+ 	)
+-	private void renderCrosshairREDIRECT(GuiGraphics guiGraphics, ResourceLocation sprite, int x, int y, int width, int height, Operation<Void> original) {
+-		this.epicfight$renderCrosshair(guiGraphics, false, () -> original.call(guiGraphics, sprite, x, y, width, height));
++	private void renderCrosshairREDIRECT(GuiGraphics guiGraphics, RenderPipeline pipeline, ResourceLocation sprite, int x, int y, int width, int height, Operation<Void> original) {
++		this.epicfight$renderCrosshair(guiGraphics, () -> original.call(guiGraphics, pipeline, sprite, x, y, width, height));
+ 	}
+ 
+ 	@Unique
+-	private void epicfight$renderCrosshair(GuiGraphics guiGraphics, boolean setupBlend, Runnable vanillaCrosshairRenderer) {
+-		if (setupBlend) {
+-			RenderSystem.enableBlend();
+-			RenderSystem.blendFuncSeparate(GlStateManager.SourceFactor.ONE_MINUS_DST_COLOR, GlStateManager.DestFactor.ONE_MINUS_SRC_COLOR, GlStateManager.SourceFactor.ONE, GlStateManager.DestFactor.ZERO);
+-		}
++	private void epicfight$renderCrosshair(GuiGraphics guiGraphics, Runnable vanillaCrosshairRenderer) {
+ 
+ 		MutableBoolean drawVanillaCrosshair = new MutableBoolean(true);
+ 
+@@ -89,6 +84,5 @@ public abstract class MixinGui {
+ 			guiGraphics.blit(RenderPipelines.GUI_TEXTURED, EntityUI.BATTLE_ICON, (guiGraphics.guiWidth() - 15) / 2, (guiGraphics.guiHeight() - 15) / 2, 0, 240, 15, 15, 256, 256);
+ 		}
+ 
+-		if (setupBlend) RenderSystem.defaultBlendFunc();
+ 	}
+ }
+diff --git a/src/main/java/yesman/epicfight/skill/weaponinnate/WeaponInnateSkill.java b/src/main/java/yesman/epicfight/skill/weaponinnate/WeaponInnateSkill.java
+index f5e797e..9425e9d 100644
+--- a/src/main/java/yesman/epicfight/skill/weaponinnate/WeaponInnateSkill.java
++++ b/src/main/java/yesman/epicfight/skill/weaponinnate/WeaponInnateSkill.java
+@@ -2,12 +2,11 @@ package yesman.epicfight.skill.weaponinnate;
+ 
+ import com.google.common.collect.ImmutableList;
+ import com.google.common.collect.Lists;
+-import com.mojang.blaze3d.platform.GlStateManager.DestFactor;
+-import com.mojang.blaze3d.platform.GlStateManager.SourceFactor;
+ import com.mojang.blaze3d.systems.RenderSystem;
+ import com.mojang.blaze3d.vertex.*;
+ import net.minecraft.ChatFormatting;
+ import net.minecraft.client.gui.GuiGraphics;
++import net.minecraft.world.phys.Vec2;
+ import net.minecraft.client.renderer.GameRenderer;
+ import net.minecraft.network.chat.Component;
+ import net.minecraft.network.chat.MutableComponent;
+@@ -243,13 +242,13 @@ public abstract class WeaponInnateSkill extends Skill {
+ 		return this;
+ 	}
+ 	
+-	private static final Vec2f[] CLOCK_POS = {
+-		new Vec2f(0.5F, 0.5F),
+-		new Vec2f(0.5F, 0.0F),
+-		new Vec2f(0.0F, 0.0F),
+-		new Vec2f(0.0F, 1.0F),
+-		new Vec2f(1.0F, 1.0F),
+-		new Vec2f(1.0F, 0.0F)
++	private static final Vec2[] CLOCK_POS = {
++		new Vec2(0.5F, 0.5F),
++		new Vec2(0.5F, 0.0F),
++		new Vec2(0.0F, 0.0F),
++		new Vec2(0.0F, 1.0F),
++		new Vec2(1.0F, 1.0F),
++		new Vec2(1.0F, 0.0F)
+ 	};
+ 	
+ 	@Override @ClientOnly
+@@ -309,55 +308,21 @@ public abstract class WeaponInnateSkill extends Skill {
+ 			lastVertexY = y;
+ 		}
+ 		
+-		RenderSystem.enableBlend();
+-		RenderSystem.blendFunc(SourceFactor.SRC_ALPHA, DestFactor.ONE_MINUS_SRC_ALPHA);
+-		RenderSystem.setShader(GameRenderer::getPositionTexShader);
+-		RenderSystem.setShaderTexture(0, container.getSkill().getSkillTexture());
+-		
+-		if (canUse) {
+-			if (container.getStack() > 0) {
+-				RenderSystem.setShaderColor(0.0F, 0.64F, 0.72F, 0.8F);
+-			} else {
+-				RenderSystem.setShaderColor(0.0F, 0.5F, 0.5F, 0.6F);
+-			}
+-		} else {
+-			RenderSystem.setShaderColor(0.5F, 0.5F, 0.5F, 0.6F);
+-		}
+-		
+-		PoseStack poseStack = guiGraphics.pose();
+-		Tesselator tessellator = Tesselator.getInstance();
+-        BufferBuilder bufferbuilder = tessellator.begin(VertexFormat.Mode.TRIANGLE_FAN, DefaultVertexFormat.POSITION_TEX);
+-        
+-        for (int j = 0; j < vertexNum; j++) {
+-        	bufferbuilder.addVertex(poseStack.last(), (int)(x + iconSize * CLOCK_POS[j].x), (int)(y + iconSize * CLOCK_POS[j].y), 0.0F).setUv(CLOCK_POS[j].x, CLOCK_POS[j].y);
+-		}
+-        
+-        bufferbuilder.addVertex(poseStack.last(), lastVertexX, lastVertexY, 0.0F).setUv(lastTexX, lastTexY);
+-        BufferUploader.drawWithShader(bufferbuilder.buildOrThrow());
+-        
+-        if (canUse) {
+-			RenderSystem.setShaderColor(0.08F, 0.79F, 0.95F, 1.0F);
+-		} else {
+-			RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+-		}
+-        
+-        GL11.glCullFace(GL11.GL_FRONT);
+-        bufferbuilder = tessellator.begin(VertexFormat.Mode.TRIANGLE_FAN, DefaultVertexFormat.POSITION_TEX);
+-        
+-        for (int j = 0; j < 2; j++) {
+-        	bufferbuilder.addVertex(poseStack.last(), (int)(x + iconSize * CLOCK_POS[j].x), (int)(y + iconSize * CLOCK_POS[j].y), 0.0F).setUv(CLOCK_POS[j].x, CLOCK_POS[j].y);
+-		}
+-		
+-		for (int j = CLOCK_POS.length - 1; j >= vertexNum; j--) {
+-        	bufferbuilder.addVertex(poseStack.last(), (int)(x + iconSize * CLOCK_POS[j].x), (int)(y + iconSize * CLOCK_POS[j].y), 0.0F).setUv(CLOCK_POS[j].x, CLOCK_POS[j].y);
+-		}
+-        
+-        bufferbuilder.addVertex(poseStack.last(), lastVertexX, lastVertexY, 0.0F).setUv(lastTexX, lastTexY);
+-        BufferUploader.drawWithShader(bufferbuilder.buildOrThrow());
+-        
+-        GL11.glCullFace(GL11.GL_BACK);
+-     	RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+-        
++        int background = canUse ? (container.getStack() > 0 ? 0xcc00a3b7 : 0x99007f7f) : 0x997f7f7f;
++        int active = canUse ? 0xff14c9f2 : 0xffffffff;
++        Vec2 boundary = new Vec2(lastTexX, lastTexY);
++        var depleted = new java.util.ArrayList<Vec2>();
++        for (int i = 0; i < vertexNum; i++) depleted.add(CLOCK_POS[i]);
++        depleted.add(boundary);
++        var ready = new java.util.ArrayList<Vec2>();
++        ready.add(CLOCK_POS[0]);
++        ready.add(CLOCK_POS[1]);
++        for (int i = CLOCK_POS.length - 1; i >= vertexNum; i--) ready.add(CLOCK_POS[i]);
++        ready.add(boundary);
++        var texture = container.getSkill().getSkillTexture();
++        yesman.epicfight.client.gui.GuiGeometry.texturedFan(guiGraphics, texture, x, y, iconSize, background, depleted);
++        yesman.epicfight.client.gui.GuiGeometry.texturedFan(guiGraphics, texture, x, y, iconSize, active, ready);
++
+         if (container.isActivated() && (container.getSkill().getActivateType() == ActivateType.DURATION || container.getSkill().getActivateType() == ActivateType.DURATION_INFINITE)) {
+ 			String s = String.format("%.0f", container.getRemainDuration() / 20.0F);
+ 			int stringWidth = (gui.getFont().width(s) - 6) / 3;
+@@ -374,6 +339,5 @@ public abstract class WeaponInnateSkill extends Skill {
+ 			guiGraphics.drawString(gui.getFont(), s, (int)(x + 25 - stringWidth), (int)(y + 22), 16777215, true);
+ 		}
+ 		
+-		RenderSystem.disableBlend();
+ 	}
+ }
+diff --git a/src/main/resources/epicfight.accesswidener b/src/main/resources/epicfight.accesswidener
+index 6504ffc..3ac73e9 100644
+--- a/src/main/resources/epicfight.accesswidener
++++ b/src/main/resources/epicfight.accesswidener
+@@ -109,3 +109,8 @@ accessible method net/minecraft/client/renderer/item/BlockModelWrapper detectRen
+ accessible field net/minecraft/client/renderer/entity/EntityRenderDispatcher equipmentAssets Lnet/minecraft/client/resources/model/EquipmentAssetManager;
+ 
+ accessible method net/minecraft/client/renderer/entity/layers/EquipmentLayerRenderer getColorForLayer (Lnet/minecraft/client/resources/model/EquipmentClientInfo$Layer;I)I
++
++accessible class net/minecraft/client/gui/GuiGraphics$ScissorStack
++accessible field net/minecraft/client/gui/GuiGraphics scissorStack Lnet/minecraft/client/gui/GuiGraphics$ScissorStack;
++accessible field net/minecraft/client/gui/GuiGraphics guiRenderState Lnet/minecraft/client/gui/render/state/GuiRenderState;
++accessible method net/minecraft/client/gui/GuiGraphics$ScissorStack peek ()Lnet/minecraft/client/gui/navigation/ScreenRectangle;
