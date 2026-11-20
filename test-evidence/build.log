@@ -1,8 +1,8 @@
 Minecraft 1.21.11 | Java 21 | Fabric
 
 ./gradlew compileJava
-> Task :compileJava
-BUILD SUCCESSFUL in 26s
+> Task :compileJava UP-TO-DATE
+BUILD SUCCESSFUL in 14s
 
 ./gradlew clean build
 > Task :clean
@@ -24,14 +24,14 @@ BUILD SUCCESSFUL in 26s
 > Task :remapSourcesJar
 > Task :assemble
 > Task :build
-BUILD SUCCESSFUL in 22s
+BUILD SUCCESSFUL in 26s
 13 actionable tasks: 10 executed, 2 from cache, 1 up-to-date
 
 ./gradlew -I tools/data-test/data.gradle testPortData
-> Task :compilePortDataTest FROM-CACHE
+> Task :compilePortDataTest
 > Task :processResources UP-TO-DATE
 > Task :testPortData
-BUILD SUCCESSFUL in 25s
-3 actionable tasks: 1 executed, 1 from cache, 1 up-to-date
+BUILD SUCCESSFUL in 29s
+3 actionable tasks: 2 executed, 1 up-to-date
 
-a2d8368e24d6e1acee9817ad29f8bd0a3da68ac6fdb62a4cc3c293152ea886a5  epicfight-fabric-1.21.11.jar
+6ff82c084b9fd3a981f96d88d0e6fc6110afaf2243f19e50fc297a84226e58ba  epicfight-fabric-1.21.11.jar

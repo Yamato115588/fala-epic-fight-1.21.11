@@ -171,7 +171,8 @@ def attack(heading, lift, duration):
 def dodge(sign):
     times=[0,.12,.27,.43,.62,.75]
     return {'format':'ATTRIBUTES','animation':[
-        track('Coord',times,[frame((1,0,0),0,(0,0,round(sign*d,4))) for d in (0,.12,.6,1.15,1.48,1.55)]),
+        # MODEL_COORD subtracts the current coordinate from the previous one.
+        track('Coord',times,[frame((1,0,0),0,(0,0,round(-sign*d,4))) for d in (0,.12,.6,1.15,1.48,1.55)]),
         track('Root',times,[frame((1,0,0),sign*a,(0,h,0)) for a,h in zip((0,45,130,215,310,360),(0,-.13,-.22,-.24,-.10,0))]),
         track('Thigh_R',times,[frame((1,0,0),a) for a in (0,-30,-62,-58,-18,0)]),
         track('Thigh_L',times,[frame((1,0,0),a) for a in (0,-22,-55,-63,-26,0)]),
@@ -199,7 +200,7 @@ def step(dx, dz):
     times = [0, .065, .17, .28, .38, .47]
     distance = [0, .08, .51, .98, 1.13, 1.15]
     lean = [0, 10, 16, 9, 4, 0]
-    tracks = [track('Coord', times, [frame((0, 1, 0), 0, (round(dx*d, 5), 0, round(dz*d, 5))) for d in distance]),
+    tracks = [track('Coord', times, [frame((0, 1, 0), 0, (round(-dx*d, 5), 0, round(-dz*d, 5))) for d in distance]),
               track('Root', times, [frame((dz, 0, -dx), a, (0, -a * .004, 0)) for a in lean])]
     for side, sign in [('R', -1), ('L', 1)]:
         spread = (1.2 if dx * sign > 0 else -.65) if dx else sign
@@ -389,6 +390,41 @@ def glint_texture():
     return png_rgba(32, 32, pixel)
 
 
+def meter_pixel(x, y, width, height, color):
+    if x in (0, width - 1) and y in (0, height - 1):
+        return 0, 0, 0, 0
+    if y in (0, height - 1) or x in (0, width - 1):
+        return 26, 32, 42, 255
+    shade = 1.0 if y == 1 else .86
+    return tuple(round(channel * shade) for channel in color) + (255,)
+
+
+def healthbars(fills):
+    def pixel(x, y):
+        if y >= 59:
+            return meter_pixel(x, y - 59, 64, 5, (227, 173, 65))
+        row, v = divmod(y, 10)
+        return meter_pixel(x, v % 5, 64, 5, fills[row] if v >= 5 else (48, 58, 71))
+    return png_rgba(64, 64, pixel)
+
+
+def battle_icons():
+    bars = ((1, 0, 62, 5, (46, 54, 66)), (1, 5, 62, 5, (111, 173, 238)),
+            (2, 38, 237, 9, (34, 49, 57)), (2, 47, 237, 9, (81, 219, 168)),
+            (1, 57, 238, 13, (242, 167, 83)), (1, 71, 238, 13, (49, 58, 72)))
+
+    def pixel(x, y):
+        for u, v, width, height, color in bars:
+            if u <= x < u + width and v <= y < v + height:
+                return meter_pixel(x - u, y - v, width, height, color)
+        for cx, cy, color in ((112, 17, (245, 242, 217)), (149, 18, (255, 188, 98))):
+            distance = abs(x - cx) + abs(y - cy)
+            if 7 <= distance <= 11:
+                return (*color, 255) if 8 <= distance <= 10 else (27, 33, 43, 255)
+        return 0, 0, 0, 0
+    return png_rgba(256, 256, pixel)
+
+
 def build(resources):
     inventory={}
     def write(name,data):
@@ -443,6 +479,10 @@ def build(resources):
     for name, dx, dz in [('left', 1, 0), ('right', -1, 0), ('forward', 0, 1), ('backward', 0, -1)]:
         asset('animations/biped/skill/step_' + name, step(dx, dz))
     asset('animations/biped/skill/guard_sword', sword_guard())
+    write('assets/epicfight/textures/gui/healthbars1.png', healthbars((
+        (224, 84, 85), (231, 140, 86), (154, 202, 113), (101, 177, 230), (202, 135, 229), (122, 214, 184))))
+    write('assets/epicfight/textures/gui/healthbars2.png', healthbars(((220, 102, 91),) * 6))
+    write('assets/epicfight/textures/gui/battle_icons.png', battle_icons())
     write('assets/epicfight/textures/particle/swing_trail.png', trail_texture())
     for icon, (color, emblem) in BOOKS.items():
         for name, document in [('items/' + icon, {'model': {'type': 'minecraft:model', 'model': 'epicfight:item/' + icon}}),

@@ -6,6 +6,7 @@
 
 - ใช้ `AtlasIds.ARMOR_TRIMS` ตาม logical atlas ID ของ Minecraft 1.21.11 พร้อม fallback ที่แปลงโมเดลเกราะ vanilla ตอนโหลดเมื่อไม่มีแอสเซตเกราะเริ่มต้นใน resource pack
 - สร้าง Enderman rig, mesh และคีย์เฟรม 17 ชุดจากซอร์ส CC0 ใน `replacement-assets/` รวมท่าเดิน โกรธ โจมตี และ teleport
+- แก้แกนการเคลื่อนที่ของ roll และ step ให้สอดคล้องกับตัวอ่าน Coord และเพิ่มภาพ UI สำหรับแถบพลังกับเครื่องหมายเป้าหมายภายใต้ CC0
 - ใช้ Holder ของ attribute ที่ลงทะเบียนจริงเพื่อให้ Minecraft serialize ค่าผู้เล่นและซิงก์ผ่านเครือข่ายได้ แก้ตัวแสดง skin layer ให้ใช้โมเดลปัจจุบันของ renderer
 - ระบบสร้าง JAR ตรวจรายการและ SHA-256 ของแอสเซตทดแทนตาม `LICENSE-ASSETS` ของ upstream ซอร์สพอร์ต GPL-3.0 ใช้ resource pack ที่ได้รับอนุญาตเป็นแหล่ง override ได้
 
@@ -32,9 +33,9 @@ xvfb-run -a ./gradlew -I "$repo/tools/renderpass-test/renderpass.gradle" testCom
 
 ## ผลทดสอบ
 
-- `compileJava`, `clean build` และ `testPortData` ผ่านในเครื่องทดสอบ ตรวจ JAR แบบ remapped และแอสเซต CC0 จำนวน 188 รายการ
-- Minecraft จริงเปิด Dedicated Server แบบ loopback และ Client เข้าโลกได้ด้วยแพ็กล่าสุด ภาพจากเกมแสดงเกราะ diamond พร้อม trim และ Enderman หลังแก้ fallback
-- กดปุ่มในเกมจริง สังเกต `sword_auto1`, `sword_auto2`, `sword_auto3` และ `roll_forward` ทั้งฝั่ง Client และ Server ในรอบนี้วัวที่ระยะ 2 บล็อกไม่เสีย HP และระยะกลิ้งที่ Server วัดได้เพียง 0.15 บล็อก
+- `compileJava`, `clean build` และ `testPortData` ผ่าน ตรวจ JAR แบบ remapped และแอสเซต CC0 จำนวน 191 รายการ SHA-256 ของ JAR ที่ใช้ทดสอบ `6ff82c084b9fd3a981f96d88d0e6fc6110afaf2243f19e50fc297a84226e58ba`
+- เปิด Client และเข้าโลก Singleplayer ด้วยแพ็กล่าสุด ใน Dedicated Server แบบ loopback ผู้เล่นเข้าโลกได้และเรนเดอร์ Enderman กับผู้เล่นที่สวม diamond chestplate พร้อม redstone spire trim
+- ทดสอบด้วยการกดปุ่มจริงใน Client ที่ต่อ Dedicated Server พบคอมโบดาบเหล็ก 3 จังหวะทั้งฝั่ง Client และ Server ที่ระยะ 1.15 บล็อก HP ของเป้าหมายลดจาก 90 เหลือ 36 หลังเอาเป้าหมายออกแล้วตำแหน่ง Z เปลี่ยนจาก 8.50 เป็น 10.82 เมื่อกลิ้งไปหน้า และเป็น 8.09 เมื่อกลิ้งถอยหลัง
 - เก็บ [Build Log](test-evidence/build.log) และ [Runtime Log](test-evidence/runtime.log) พร้อม SHA-256 ของมอดแพ็ก [Client](test-evidence/client-pack-sha256.txt) และ [Server](test-evidence/server-pack-sha256.txt)
 
 ## สิ่งที่ยังต้องยืนยัน

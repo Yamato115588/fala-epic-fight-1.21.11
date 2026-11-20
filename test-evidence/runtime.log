@@ -1,46 +1,40 @@
-world4 = 328166 checkpoint. pack59 and pack60 are prior test runs. pack61 = the JAR in build.log.
+pack60 and probe61 are earlier diagnostic runs. pack62 uses the remapped JAR hashed in build.log.
 New Drive pack SHA-256 dc209f7c4abed56d2419a41268956bfd912ba863a465b82d96e39f249bf536d8
-
-world4
-[11:44:41] [Render thread/INFO] (Minecraft) [STDOUT]: Loaded and sampled three sword combo clips and both dodge clips
-[11:45:33] [Test thread/INFO] (Minecraft) [STDOUT]: Fala integrated world rendered with a connected player
-[11:45:47] [Test thread/INFO] (Minecraft) [STDOUT]: Fala dedicated world rendered with a connected client
-BUILD SUCCESSFUL in 1m 56s
-
-pack59-single
-[16:40:44] [main/INFO]: Loading Minecraft 1.21.11 with Fabric Loader 0.19.3
-[16:41:27] [Server thread/INFO]: FalaTest joined the game
-
-pack59-dedicated
-[16:40:16] [main/INFO]: Loading Minecraft 1.21.11 with Fabric Loader 0.19.3
-[16:40:39] [Server thread/INFO]: Done (0.681s)! For help, type "help"
-[16:42:24] [Server thread/INFO]: FalaTest joined the game
-[16:42:36] [Server thread/INFO]: Saving players
 
 pack60-multi
 yesman.epicfight.api.exception.AssetLoadingException: Can't read epicfight:animmodels/armor/chestplate.json because of java.io.FileNotFoundException: epicfight:animmodels/armor/chestplate.json
 yesman.epicfight.api.exception.AssetLoadingException: Can't read epicfight:animmodels/armor/chestplate.json because of java.io.FileNotFoundException: epicfight:animmodels/armor/chestplate.json
 
-pack61-dedicated
-[16:49:31] [main/INFO]: Loading Minecraft 1.21.11 with Fabric Loader 0.19.3
-[16:49:48] [Server thread/INFO]: Done (0.508s)! For help, type "help"
-[16:50:34] [Server thread/INFO]: FalaTest joined the game
-[16:50:45] [Server thread/INFO]: Replaced a slot on FalaTest with [Iron Sword]
-[16:50:46] [Server thread/INFO]: Replaced a slot on FalaTest with [Diamond Chestplate]
-[16:50:46] [Server thread/INFO]: Summoned new Enderman
-[16:50:47] [Server thread/INFO]: Cow has the following entity data: 90.0f
-[16:50:58] [Server thread/INFO]: Cow has the following entity data: 90.0f
-[16:50:58] [Server thread/INFO]: FalaTest has the following entity data: [-54.5d, 66.0d, 8.5d]
-[16:51:00] [Server thread/INFO]: FalaTest has the following entity data: [-54.5d, 66.0d, 8.349033838050302d]
-[16:51:00] [Server thread/INFO]: Saving players
+probe61-combat
+Health and position ['90.0f', '36.0f', '[-54.5d, 66.0d, 8.5d]', '[-54.5d, 66.0000000665758d, 7.804229110922365d]']
 
-pack61-combat
+pack62-dedicated
+[16:57:48] [main/INFO]: Loading Minecraft 1.21.11 with Fabric Loader 0.19.3
+[16:58:14] [Server thread/INFO]: Done (1.478s)! For help, type "help"
+[16:58:53] [Server thread/INFO]: FalaTest joined the game
+[16:59:05] [Server thread/INFO]: Replaced a slot on FalaTest with [Iron Sword]
+[16:59:05] [Server thread/INFO]: Replaced a slot on FalaTest with [Diamond Chestplate]
+[16:59:05] [Server thread/INFO]: Summoned new Enderman
+[16:59:06] [Server thread/INFO]: Cow has the following entity data: 90.0f
+[16:59:19] [Server thread/INFO]: Cow has the following entity data: 36.0f
+[16:59:20] [Server thread/INFO]: FalaTest has the following entity data: [-54.5d, 66.0d, 8.5d]
+[16:59:22] [Server thread/INFO]: FalaTest has the following entity data: [-54.5d, 66.0d, 10.821706290940094d]
+[16:59:24] [Server thread/INFO]: FalaTest has the following entity data: [-54.5d, 66.0000000665758d, 8.09298479395153d]
+[16:59:25] [Server thread/INFO]: Saving players
+
+pack62-combat
 Combat mode ['toEpicFightMode', 'toVanillaMode', 'toEpicFightMode']
-Server motions ['epicfight:biped/combat/sword_auto1', 'epicfight:biped/combat/sword_auto2', 'epicfight:biped/combat/sword_auto3', 'epicfight:biped/skill/roll_forward']
-Client motions ['epicfight:biped/combat/sword_auto1', 'epicfight:biped/combat/sword_auto2', 'epicfight:biped/combat/sword_auto3', 'epicfight:biped/skill/roll_forward']
-Health and position ['90.0f', '90.0f', '[-54.5d, 66.0d, 8.5d]', '[-54.5d, 66.0d, 8.349033838050302d]']
+Server motions ['epicfight:biped/combat/sword_auto1', 'epicfight:biped/combat/sword_auto2', 'epicfight:biped/combat/sword_auto3', 'epicfight:biped/skill/roll_forward', 'epicfight:biped/skill/roll_backward']
+Client motions ['epicfight:biped/combat/sword_auto1', 'epicfight:biped/combat/sword_auto2', 'epicfight:biped/combat/sword_auto3', 'epicfight:biped/skill/roll_forward', 'epicfight:biped/skill/roll_backward']
+Health and position ['90.0f', '36.0f', '[-54.5d, 66.0d, 8.5d]', '[-54.5d, 66.0d, 10.821706290940094d]', '[-54.5d, 66.0000000665758d, 8.09298479395153d]']
+Sword combo, damage and directional roll PASS
 Singleplayer rendered with connected player
 
-pack61-single
-[16:51:23] [main/INFO]: Loading Minecraft 1.21.11 with Fabric Loader 0.19.3
-[16:52:10] [Server thread/INFO]: FalaTest joined the game
+pack62-single
+[16:59:49] [main/INFO]: Loading Minecraft 1.21.11 with Fabric Loader 0.19.3
+[17:00:31] [Server thread/INFO]: FalaTest joined the game
+
+Remaining missing asset warnings
+[16:58:55] [Render thread/WARN]: [EpicFight] onConstruct failed for class_1642: Failed to load animation clip from: StaticAnimation epicfight:animmodels/animations/zombie/idle.json
+[16:58:55] [Render thread/WARN]: [EpicFight] onConstruct failed for class_1548: Failed to load animation clip from: StaticAnimation epicfight:animmodels/animations/creeper/idle.json
+[16:58:46] [Render thread/WARN]: Missing sound for event: epicfight:entity.hit.blade

@@ -30,7 +30,7 @@ final class ReplacementAssetTest {
         var manifest = object(ReplacementAssetTest.class.getResourceAsStream("/META-INF/fala-replacement-assets/manifest.json").readAllBytes());
         check(manifest.get("license").getAsString().equals("CC0-1.0"), "asset license");
         var hashes = manifest.getAsJsonObject("sha256");
-        check(hashes.size() == 188, "expected independent asset inventory");
+        check(hashes.size() == 191, "expected independent asset inventory");
         var packInfo = new PackLocationInfo("fala-assets", Component.literal("Fala"), PackSource.DEFAULT, Optional.empty());
         try (var pack = new PathPackResources(packInfo, directory)) {
             for (var item : hashes.entrySet()) {
@@ -135,9 +135,11 @@ final class ReplacementAssetTest {
                     if (!frames.get(i).equals(frames.get(0))) hasMovement=true;
                 }
                 if (name.equals("Coord")) {
+                    var origin=frames.get(0).getAsJsonObject().getAsJsonArray("loc");
                     var loc=frames.get(frames.size()-1).getAsJsonObject().getAsJsonArray("loc");
                     boolean lateral = clip.endsWith("left") || clip.endsWith("right");
-                    double along = loc.get(lateral ? 0 : 2).getAsDouble();
+                    int axis = lateral ? 0 : 2;
+                    double along = origin.get(axis).getAsDouble() - loc.get(axis).getAsDouble();
                     check(loc.get(lateral ? 2 : 0).getAsDouble() == 0 &&
                           ((clip.endsWith("forward") || clip.endsWith("left")) ? along > 1 : along < -1), "directional dodge " + clip);
                 }
