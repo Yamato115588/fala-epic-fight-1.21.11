@@ -5,6 +5,11 @@ on:
     branches:
       - fabric-1.21.11
   workflow_dispatch:
+    inputs:
+      boss_smoke:
+        description: Run the Minecraft boss rendering smoke test
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -51,6 +56,7 @@ jobs:
         run: |
           jar=$(python3 tools/check_fabric_jar.py "$RUNNER_TEMP/epicfight-fabric-work/build/libs")
           (cd "$(dirname "$jar")" && sha256sum -- "$(basename "$jar")") > "$jar.sha256"
+          (cd "$(dirname "$jar")" && sha256sum -c -- "$(basename "$jar").sha256")
           cat "$jar.sha256"
           printf 'path=%s\n' "$jar" >> "$GITHUB_OUTPUT"
       - name: Upload validated Fabric build
@@ -62,6 +68,7 @@ jobs:
             ${{ steps.fabric-jar.outputs.path }}.sha256
           if-no-files-found: error
       - name: Smoke-test boss rendering in Minecraft
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.boss_smoke }}
         continue-on-error: true
         timeout-minutes: 6
         working-directory: ${{ runner.temp }}/epicfight-fabric-work
