@@ -54,7 +54,7 @@ GitHub Actions ชื่อ **Fabric 1.21.11 code build** รันบนสา�
 - GameTest บน Fabric 1.21.11 ลงทะเบียนชนิดอาวุธ Greatsword, Dagger, Longsword, Spear และ Tachi จากซอร์สจริง ตรวจค่าวัสดุ ความทน การซ่อม ค่าเสริมพลัง และค่าปรับของ Greatsword ผ่าน การใช้คอมโบในเกมต้องทดสอบกับมอดตัวเต็ม
 - GameTest ของเกราะผ่านการตรวจช่องสวมใส่ ค่าป้องกัน แท็กซ่อมด้วย string และ equipment asset ของ Stray การตรวจ RenderPipeline ทั้งสามตัวผ่านใน JVM ด้วยคลาส Minecraft 1.21.11 การวาดในเกมและการประมวลผล compute shader ยังรอทดสอบ
 - GLSL ของพรีวิวทั้งสามรูปแบบผ่าน Minecraft 1.21.11 `GlslPreprocessor` และคอมไพล์พร้อมลิงก์ใน Mesa llvmpipe การวาดจากหน้าพรีวิวจริงยังรอบิลด์มอดเต็ม
-- `processResources` และ `validateAccessWidener` ผ่าน Compute Shader ของโครงการผ่านการอ่านพิกเซลจาก Minecraft `RenderPass` ด้วย Mesa llvmpipe การเปิดเกมและการทดสอบหลังรวมมอดเต็มยังรอ `compileJava` [รายงานการทดสอบ](PORTING-STATUS.md)
+- `compileJava`, `clean build` และ `validateAccessWidener` ผ่าน Compute Shader ของโครงการผ่านการอ่านพิกเซลจาก Minecraft `RenderPass` ด้วย Mesa llvmpipe การโหลดทรัพยากรของไคลเอนต์และการทดสอบในเวิลด์ยังมีงานค้าง [รายงานการทดสอบ](PORTING-STATUS.md)
 - Arclight ที่พบในเซิร์ฟเวอร์ Fala ฝัง Fabric Loader 0.19.2 ต้องทดสอบด้วย Arclight สำหรับ 1.21.11 ที่มี Loader ตรงตามข้อกำหนด และทดสอบร่วมกับ CustomFigura, Emotecraft และ Geyser ในเซิร์ฟเวอร์ทดสอบก่อนรวมแพ็กจริง [เวอร์ชันที่ Arclight ตรึงไว้](https://github.com/IzzelAliz/Arclight/blob/8a57510/gradle/libs.versions.toml#L34-L35)
 
 ## บิลด์มอดเสริม CustomFigura

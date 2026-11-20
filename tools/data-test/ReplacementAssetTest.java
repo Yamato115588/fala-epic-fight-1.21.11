@@ -30,7 +30,7 @@ final class ReplacementAssetTest {
         var manifest = object(ReplacementAssetTest.class.getResourceAsStream("/META-INF/fala-replacement-assets/manifest.json").readAllBytes());
         check(manifest.get("license").getAsString().equals("CC0-1.0"), "asset license");
         var hashes = manifest.getAsJsonObject("sha256");
-        check(hashes.size() == 41, "expected independent asset inventory");
+        check(hashes.size() == 154, "expected independent asset inventory");
         var packInfo = new PackLocationInfo("fala-assets", Component.literal("Fala"), PackSource.DEFAULT, Optional.empty());
         try (var pack = new PathPackResources(packInfo, directory)) {
             for (var item : hashes.entrySet()) {
@@ -126,7 +126,7 @@ final class ReplacementAssetTest {
             check(indices.size() > 0 && indices.size() % 9 == 0, "triangulated particle " + effect);
             for (var index : indices) check(index.getAsInt() >= 0 && index.getAsInt() < size, "particle index " + effect);
         }
-        System.out.println("PASS: 41 CC0 resources, pack override and bundled lookup, player rigs, 13 motions and ribbon texture");
+        System.out.println("PASS: " + hashes.size() + " CC0 resources, pack override and bundled lookup, player rigs, 13 motions and ribbon texture");
     }
     private static JsonArray array(JsonObject object,String name) {
         return object.getAsJsonObject(name).getAsJsonArray("array");

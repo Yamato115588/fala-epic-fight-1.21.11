@@ -1,0 +1,21 @@
+diff --git a/src/main/java/yesman/epicfight/registry/entries/EpicFightBlocks.java b/src/main/java/yesman/epicfight/registry/entries/EpicFightBlocks.java
+index 76b41e4..fbc97cf 100644
+--- a/src/main/java/yesman/epicfight/registry/entries/EpicFightBlocks.java
++++ b/src/main/java/yesman/epicfight/registry/entries/EpicFightBlocks.java
+@@ -2,6 +2,7 @@ package yesman.epicfight.registry.entries;
+ import yesman.epicfight.EpicFight;
+ 
+ import net.minecraft.core.registries.Registries;
++import net.minecraft.resources.ResourceKey;
+ import net.minecraft.world.level.block.Block;
+ import net.minecraft.world.level.block.state.BlockBehaviour;
+ import yesman.epicfight.registry.deferred_shim.DeferredHolderShim;
+@@ -14,5 +15,6 @@ public final class EpicFightBlocks {
+ 	
+ 	public static final DeferredRegisterShim<Block> REGISTRY = new DeferredRegisterShim<>(Registries.BLOCK, EpicFight.MODID);
+ 	
+-	public static final DeferredHolderShim<Block, FractureBlock> FRACTURE = REGISTRY.register("fracture_block", () -> new FractureBlock(BlockBehaviour.Properties.of()));
++	public static final DeferredHolderShim<Block, FractureBlock> FRACTURE = REGISTRY.register("fracture_block", id ->
++		new FractureBlock(BlockBehaviour.Properties.of().setId(ResourceKey.create(Registries.BLOCK, id))));
+ }
+\ No newline at end of file

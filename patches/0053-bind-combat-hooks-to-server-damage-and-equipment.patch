@@ -1,0 +1,492 @@
+diff --git a/src/main/java/yesman/epicfight/EpicFightFabric.java b/src/main/java/yesman/epicfight/EpicFightFabric.java
+index 4e1f71c..edb8f3c 100644
+--- a/src/main/java/yesman/epicfight/EpicFightFabric.java
++++ b/src/main/java/yesman/epicfight/EpicFightFabric.java
+@@ -3,6 +3,7 @@ package yesman.epicfight;
+ import net.fabricmc.api.ModInitializer;
+ import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
+ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents;
++import net.fabricmc.fabric.api.entity.event.v1.ServerEntityWorldChangeEvents;
+ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
+ import net.fabricmc.fabric.api.event.registry.RegistryEntryAddedCallback;
+ import net.fabricmc.fabric.api.itemgroup.v1.ItemGroupEvents;
+@@ -17,6 +18,7 @@ import yesman.epicfight.api.data.reloader.SkillReloadListener;
+ import yesman.epicfight.api.event.EpicFightEventHooks;
+ import yesman.epicfight.api.event.impl.VanillaEntityEventHooks;
+ import yesman.epicfight.api.event.impl.VanillaWorldEventHooks;
++import yesman.epicfight.api.event.impl.VanillaPlayerEventHooks;
+ import yesman.epicfight.api.ex_cap.listeners.ConditionalReloadListener;
+ import yesman.epicfight.api.ex_cap.listeners.ItemPresetReloadListener;
+ import yesman.epicfight.api.ex_cap.listeners.MovesetReloadListener;
+@@ -193,6 +195,7 @@ public class EpicFightFabric implements ModInitializer {
+         yesman.epicfight.network.EpicFightReloadListeners.register();
+ 
+         // Wire datapack sync — per-player on join, all players on /reload
++        ServerEntityWorldChangeEvents.AFTER_PLAYER_CHANGE_WORLD.register((player, origin, destination) -> VanillaPlayerEventHooks.onChagneDimension(player));
+         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
+             try {
+                 VanillaWorldEventHooks.onDatapackSync(handler.getPlayer());
+diff --git a/src/main/java/yesman/epicfight/api/event/impl/VanillaEntityEventHooks.java b/src/main/java/yesman/epicfight/api/event/impl/VanillaEntityEventHooks.java
+index 4797c51..7a94a8a 100644
+--- a/src/main/java/yesman/epicfight/api/event/impl/VanillaEntityEventHooks.java
++++ b/src/main/java/yesman/epicfight/api/event/impl/VanillaEntityEventHooks.java
+@@ -202,6 +202,21 @@ public final class VanillaEntityEventHooks {
+         return !result.resultType.dealtDamage();
+     }
+ 
++    public static void applyDamage(LivingEntity entity, DamageSource source, float damage, Consumer<Float> vanilla) {
++        float[] adjusted = {damage};
++        onCalculateDamagePre(entity, source, damage, amount -> adjusted[0] = amount);
++        if (adjusted[0] <= 0.0F && damage > 0.0F) {
++            return;
++        }
++
++        float healthBefore = entity.getHealth();
++        vanilla.accept(adjusted[0]);
++        float applied = healthBefore - entity.getHealth();
++        if (applied > 0.0F) {
++            onCalculateDamagePost(entity, source, applied);
++        }
++    }
++
+     /// Called before calculating damage with Epic Fight damage system [ValueModifier]
+     ///
+     /// @param hitEntity        the entity being hurt
+@@ -256,8 +271,8 @@ public final class VanillaEntityEventHooks {
+                 finalDamage = damageCalculator.getResult(finalDamage);
+             }
+ 
+-            modifiedDamageApplier.accept(finalDamage);
+         }
++        modifiedDamageApplier.accept(finalDamage);
+ 
+         // Apply stun & knockback
+         if (finalDamage > 0.0F && epicfightDamageSource != null && !epicfightDamageSource.is(EpicFightDamageTypeTags.NO_STUN)) {
+diff --git a/src/main/java/yesman/epicfight/mixin/common/MixinBowItem.java b/src/main/java/yesman/epicfight/mixin/common/MixinBowItem.java
+index 3b8334c..8416c72 100644
+--- a/src/main/java/yesman/epicfight/mixin/common/MixinBowItem.java
++++ b/src/main/java/yesman/epicfight/mixin/common/MixinBowItem.java
+@@ -8,22 +8,22 @@ import net.minecraft.world.level.Level;
+ import org.spongepowered.asm.mixin.Mixin;
+ import org.spongepowered.asm.mixin.injection.At;
+ import org.spongepowered.asm.mixin.injection.Inject;
+-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
++import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+ import yesman.epicfight.api.event.impl.VanillaPlayerEventHooks;
+ 
+ /// Mixin for [BowItem] to wire [ArrowLooseEvent].
+ ///
+ /// In NeoForge, ArrowLooseEvent fires when a player releases a bow.
+-/// In Fabric, we intercept [BowItem.releaseUsing] at HEAD.
++/// In Fabric, a successful [BowItem.releaseUsing] marks the shot.
+ @Mixin(value = BowItem.class)
+ public abstract class MixinBowItem {
+ 
+     @Inject(
+-        at = @At(value = "HEAD"),
+-        method = "releaseUsing(Lnet/minecraft/world/item/ItemStack;Lnet/minecraft/world/level/Level;Lnet/minecraft/world/entity/LivingEntity;I)V"
++        at = @At("RETURN"),
++        method = "releaseUsing(Lnet/minecraft/world/item/ItemStack;Lnet/minecraft/world/level/Level;Lnet/minecraft/world/entity/LivingEntity;I)Z"
+     )
+-    private void epicfight$arrowLoose(ItemStack stack, Level level, LivingEntity entity, int timeCharged, CallbackInfo info) {
+-        if (entity instanceof Player player) {
++    private void epicfight$arrowLoose(ItemStack stack, Level level, LivingEntity entity, int timeCharged, CallbackInfoReturnable<Boolean> info) {
++        if (info.getReturnValue() && entity instanceof Player player) {
+             VanillaPlayerEventHooks.onLooseArrow(player);
+         }
+     }
+diff --git a/src/main/java/yesman/epicfight/mixin/common/MixinItemStack.java b/src/main/java/yesman/epicfight/mixin/common/MixinItemStack.java
+index 3b5bfeb..1b0bb5b 100644
+--- a/src/main/java/yesman/epicfight/mixin/common/MixinItemStack.java
++++ b/src/main/java/yesman/epicfight/mixin/common/MixinItemStack.java
+@@ -1,36 +1,44 @@
+-package yesman.epicfight.mixin.common;
+-
+-import net.minecraft.core.Holder;
+-import net.minecraft.world.entity.EquipmentSlotGroup;
+-import net.minecraft.world.entity.ai.attributes.Attribute;
+-import net.minecraft.world.entity.ai.attributes.AttributeModifier;
+-import net.minecraft.world.item.ItemStack;
+-import org.spongepowered.asm.mixin.Mixin;
+-import org.spongepowered.asm.mixin.injection.At;
+-import org.spongepowered.asm.mixin.injection.Inject;
+-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+-import yesman.epicfight.api.event.impl.VanillaItemEventHooks;
+-
+-import java.util.function.BiConsumer;
+-
+-/// Mixin for [ItemStack] that intercepts [forEachModifier] to add Epic Fight's item attribute modifiers.
+-///
+-/// This replaces NeoForge's [ItemAttributeModifierEvent].
+-@Mixin(value = ItemStack.class)
+-public abstract class MixinItemStack {
+-    @Inject(
+-        at = @At(value = "HEAD"),
+-        method = "forEachModifier(Lnet/minecraft/world/entity/EquipmentSlotGroup;Ljava/util/function/BiConsumer;)V"
+-    )
+-    private void epicfight$forEachModifier(EquipmentSlotGroup slotGroup, BiConsumer<Holder<Attribute>, AttributeModifier> consumer, CallbackInfo info) {
+-        ItemStack self = (ItemStack)(Object)this;
+-        // Only add Epic Fight modifiers for the MAINHAND slot group
+-        if (slotGroup == EquipmentSlotGroup.MAINHAND) {
+-            VanillaItemEventHooks.onModifyItemAttribute(self, (attribute, modifier, slot) -> {
+-                if (slot == EquipmentSlotGroup.MAINHAND) {
+-                    consumer.accept(attribute, modifier);
+-                }
+-            });
+-        }
+-    }
+-}
++package yesman.epicfight.mixin.common;
++
++import java.util.function.BiConsumer;
++
++import net.minecraft.core.Holder;
++import net.minecraft.world.entity.EquipmentSlot;
++import net.minecraft.world.entity.EquipmentSlotGroup;
++import net.minecraft.world.entity.ai.attributes.Attribute;
++import net.minecraft.world.entity.ai.attributes.AttributeModifier;
++import net.minecraft.world.item.ItemStack;
++import net.minecraft.world.item.component.ItemAttributeModifiers;
++import org.apache.commons.lang3.function.TriConsumer;
++import org.spongepowered.asm.mixin.Mixin;
++import org.spongepowered.asm.mixin.Unique;
++import org.spongepowered.asm.mixin.injection.At;
++import org.spongepowered.asm.mixin.injection.Inject;
++import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
++import yesman.epicfight.api.event.impl.VanillaItemEventHooks;
++
++@Mixin(ItemStack.class)
++abstract class MixinItemStack {
++    @Inject(method = "forEachModifier(Lnet/minecraft/world/entity/EquipmentSlotGroup;Lorg/apache/commons/lang3/function/TriConsumer;)V", at = @At("HEAD"))
++    private void epicfight$tooltipModifiers(EquipmentSlotGroup group, TriConsumer<Holder<Attribute>, AttributeModifier, ItemAttributeModifiers.Display> consumer, CallbackInfo ci) {
++        if (group == EquipmentSlotGroup.MAINHAND) {
++            epicfight$mainHandModifiers((attribute, modifier) -> consumer.accept(attribute, modifier, ItemAttributeModifiers.Display.attributeModifiers()));
++        }
++    }
++
++    @Inject(method = "forEachModifier(Lnet/minecraft/world/entity/EquipmentSlot;Ljava/util/function/BiConsumer;)V", at = @At("HEAD"))
++    private void epicfight$equipmentModifiers(EquipmentSlot slot, BiConsumer<Holder<Attribute>, AttributeModifier> consumer, CallbackInfo ci) {
++        if (slot == EquipmentSlot.MAINHAND) {
++            epicfight$mainHandModifiers(consumer);
++        }
++    }
++
++    @Unique
++    private void epicfight$mainHandModifiers(BiConsumer<Holder<Attribute>, AttributeModifier> consumer) {
++        VanillaItemEventHooks.onModifyItemAttribute((ItemStack)(Object)this, (attribute, modifier, slot) -> {
++            if (slot == EquipmentSlotGroup.MAINHAND) {
++                consumer.accept(attribute, modifier);
++            }
++        });
++    }
++}
+diff --git a/src/main/java/yesman/epicfight/mixin/common/MixinLivingEntity.java b/src/main/java/yesman/epicfight/mixin/common/MixinLivingEntity.java
+index fdb34e5..4c54f79 100644
+--- a/src/main/java/yesman/epicfight/mixin/common/MixinLivingEntity.java
++++ b/src/main/java/yesman/epicfight/mixin/common/MixinLivingEntity.java
+@@ -1,6 +1,9 @@
+ package yesman.epicfight.mixin.common;
+ 
++import java.util.Collection;
++
+ import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
++import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
+ import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
+ import net.minecraft.tags.DamageTypeTags;
+ import net.minecraft.world.damagesource.CombatRules;
+@@ -71,10 +74,10 @@ public abstract class MixinLivingEntity {
+ 		});
+ 	}
+ 	
+-	@Inject(at = @At(value = "TAIL"), method = "blockUsingShield(Lnet/minecraft/world/entity/LivingEntity;)V", cancellable = true)
+-	private void epicfight$blockUsingShield(LivingEntity p_21200_, CallbackInfo info) {
++	@Inject(at = @At(value = "TAIL"), method = "blockUsingItem(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/entity/LivingEntity;)V")
++	private void epicfight$blockUsingItem(ServerLevel level, LivingEntity attacker, CallbackInfo info) {
+ 		LivingEntity self = (LivingEntity)((Object)this);
+-		LivingEntityPatch<?> opponentEntitypatch = EpicFightCapabilities.getEntityPatch(p_21200_, LivingEntityPatch.class);
++		LivingEntityPatch<?> opponentEntitypatch = EpicFightCapabilities.getEntityPatch(attacker, LivingEntityPatch.class);
+ 		LivingEntityPatch<?> selfEntitypatch = EpicFightCapabilities.getEntityPatch(self, LivingEntityPatch.class);
+ 
+ 		if (opponentEntitypatch != null) {
+@@ -89,8 +92,8 @@ public abstract class MixinLivingEntity {
+ 		VanillaEntityEventHooks.onBlockAttacksWithShield(self);
+ 	}
+ 	
+-	@Inject(at = @At(value = "RETURN"), method = "hurt", cancellable = true)
+-	private void epicfight$hurt(DamageSource damagesource, float amount, CallbackInfoReturnable<Boolean> info) {
++	@Inject(at = @At(value = "RETURN"), method = "hurtServer")
++	private void epicfight$recordLastHit(ServerLevel level, DamageSource damagesource, float amount, CallbackInfoReturnable<Boolean> info) {
+ 		LivingEntity self = (LivingEntity)((Object)this);
+ 		LivingEntityPatch<?> entitypatch = EpicFightCapabilities.getEntityPatch(damagesource.getEntity(), LivingEntityPatch.class);
+ 		
+@@ -150,13 +153,13 @@ public abstract class MixinLivingEntity {
+         ),
+         method = "jumpFromGround()V"
+     )
+-    private float epicfight$jumpFromGround(LivingEntity livingEntity, Operation<Void> originalOperation) {
++    private float epicfight$jumpFromGround(LivingEntity livingEntity, Operation<Float> originalOperation) {
+         if (livingEntity instanceof Player player && player.isLocalPlayer()) {
+             EpicFightCameraAPI cameraApi = EpicFightCameraAPI.getInstance();
+-            return cameraApi.isTPSMode() ? cameraApi.getCameraYRot() : livingEntity.getYRot();
++            return cameraApi.isTPSMode() ? cameraApi.getCameraYRot() : originalOperation.call(livingEntity);
+         }
+ 
+-        return livingEntity.getYRot();
++        return originalOperation.call(livingEntity);
+     }
+ 
+     @WrapOperation(
+@@ -167,13 +170,13 @@ public abstract class MixinLivingEntity {
+         ),
+         method = "tick()V"
+     )
+-    private float epicfight$tick(LivingEntity livingEntity, Operation<Void> originalOperation) {
++    private float epicfight$tick(LivingEntity livingEntity, Operation<Float> originalOperation) {
+         // returns the basis y rotation as camera in TPS mode
+         if (livingEntity instanceof Player player && player.isLocalPlayer()) {
+             return EpicFightCameraAPI.getInstance().getYRotForHead(player);
+         }
+ 
+-        return livingEntity.getYRot();
++        return originalOperation.call(livingEntity);
+     }
+ 
+     @WrapOperation(
+@@ -181,7 +184,7 @@ public abstract class MixinLivingEntity {
+             value = "INVOKE",
+             target = "Lnet/minecraft/world/entity/LivingEntity;getYRot()F"
+         ),
+-        method = "tickHeadTurn(FF)F"
++        method = "tickHeadTurn(F)V"
+     )
+     protected float epicfight$tickHeadTurn(LivingEntity livingEntity, Operation<Float> original) {
+         // returns the basis y rotation as camera in TPS mode
+@@ -189,7 +192,7 @@ public abstract class MixinLivingEntity {
+             return EpicFightCameraAPI.getInstance().getYRotForHead(player);
+         }
+ 
+-        return livingEntity.getYRot();
++        return original.call(livingEntity);
+     }
+ 
+     // ===== Missing NeoForge entity event hooks =====
+@@ -201,23 +204,9 @@ public abstract class MixinLivingEntity {
+         VanillaEntityEventHooks.onLivingDeath(self, damageSource);
+     }
+ 
+-    /// LivingDamageEvent.Pre — fires before damage is applied, allows modifying damage amount
+-    @Inject(at = @At(value = "HEAD"), method = "actuallyHurt(Lnet/minecraft/world/damagesource/DamageSource;F)V", cancellable = true)
+-    private void epicfight$actuallyHurtPre(DamageSource damageSource, float amount, CallbackInfo info) {
+-        LivingEntity self = (LivingEntity)(Object)this;
+-        float[] modifiedAmount = {amount};
+-        VanillaEntityEventHooks.onCalculateDamagePre(self, damageSource, amount, newAmount -> modifiedAmount[0] = newAmount);
+-        // If the hook modified the damage to 0, cancel
+-        if (modifiedAmount[0] <= 0 && amount > 0) {
+-            info.cancel();
+-        }
+-    }
+-
+-    /// LivingDamageEvent.Post — fires after damage is applied
+-    @Inject(at = @At(value = "TAIL"), method = "actuallyHurt(Lnet/minecraft/world/damagesource/DamageSource;F)V")
+-    private void epicfight$actuallyHurtPost(DamageSource damageSource, float amount, CallbackInfo info) {
+-        LivingEntity self = (LivingEntity)(Object)this;
+-        VanillaEntityEventHooks.onCalculateDamagePost(self, damageSource, amount);
++    @WrapMethod(method = "actuallyHurt")
++    private void epicfight$modifyDamage(ServerLevel level, DamageSource source, float damage, Operation<Void> original) {
++        VanillaEntityEventHooks.applyDamage((LivingEntity)(Object)this, source, damage, amount -> original.call(level, source, amount));
+     }
+ 
+     /// LivingEquipmentChangeEvent — fires when equipment changes
+@@ -230,8 +219,8 @@ public abstract class MixinLivingEntity {
+     }
+ 
+     /// MobEffectEvent.Added — fires when a mob effect is added
+-    @Inject(at = @At(value = "TAIL"), method = "addEffect(Lnet/minecraft/world/effect/MobEffectInstance;)Z")
+-    private void epicfight$addEffect(MobEffectInstance mobEffectInstance, CallbackInfoReturnable<Boolean> info) {
++    @Inject(at = @At(value = "TAIL"), method = "addEffect(Lnet/minecraft/world/effect/MobEffectInstance;Lnet/minecraft/world/entity/Entity;)Z")
++    private void epicfight$addEffect(MobEffectInstance mobEffectInstance, Entity source, CallbackInfoReturnable<Boolean> info) {
+         LivingEntity self = (LivingEntity)(Object)this;
+         if (info.getReturnValue()) {
+             VanillaEntityEventHooks.onMobEffectAdded(mobEffectInstance, self);
+@@ -260,8 +249,8 @@ public abstract class MixinLivingEntity {
+     }
+ 
+     /// LivingIncomingDamageEvent — fires before damage is processed, allows canceling
+-    @Inject(at = @At(value = "HEAD"), method = "hurt(Lnet/minecraft/world/damagesource/DamageSource;F)Z", cancellable = true)
+-    private void epicfight$hurtIncoming(DamageSource damageSource, float amount, CallbackInfoReturnable<Boolean> info) {
++    @Inject(at = @At(value = "HEAD"), method = "hurtServer", cancellable = true)
++    private void epicfight$hurtIncoming(ServerLevel level, DamageSource damageSource, float amount, CallbackInfoReturnable<Boolean> info) {
+         LivingEntity self = (LivingEntity)(Object)this;
+         if (VanillaEntityEventHooks.onDamageIncomes(self, damageSource, amount)) {
+             info.setReturnValue(false);
+@@ -273,11 +262,13 @@ public abstract class MixinLivingEntity {
+     /// We wrap the onEffectRemoved call within tickEffects to distinguish expiration from explicit removal.
+     @WrapOperation(
+         method = "tickEffects()V",
+-        at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/LivingEntity;onEffectRemoved(Lnet/minecraft/world/effect/MobEffectInstance;)V")
++        at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/LivingEntity;onEffectsRemoved(Ljava/util/Collection;)V")
+     )
+-    private void epicfight$onEffectExpired(LivingEntity instance, MobEffectInstance effect, Operation<Void> original) {
+-        original.call(instance, effect);
+-        VanillaEntityEventHooks.onMobEffectExpired(effect, instance);
++    private void epicfight$onEffectExpired(LivingEntity instance, Collection<MobEffectInstance> effects, Operation<Void> original) {
++        original.call(instance, effects);
++        for (MobEffectInstance effect : effects) {
++            VanillaEntityEventHooks.onMobEffectExpired(effect, instance);
++        }
+     }
+ 
+     /// LivingDropsEvent — fires when a living entity drops items on death, allows canceling
+diff --git a/src/main/java/yesman/epicfight/mixin/common/MixinPlayer.java b/src/main/java/yesman/epicfight/mixin/common/MixinPlayer.java
+index 6ed0ccc..5dfe17b 100644
+--- a/src/main/java/yesman/epicfight/mixin/common/MixinPlayer.java
++++ b/src/main/java/yesman/epicfight/mixin/common/MixinPlayer.java
+@@ -1,6 +1,8 @@
+ package yesman.epicfight.mixin.common;
+ 
+ import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
++import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
++import net.minecraft.server.level.ServerLevel;
+ import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
+ import net.minecraft.world.damagesource.CombatTracker;
+ import net.minecraft.world.damagesource.DamageSource;
+@@ -8,6 +10,7 @@ import net.minecraft.world.entity.player.Player;
+ import org.spongepowered.asm.mixin.Mixin;
+ import org.spongepowered.asm.mixin.injection.At;
+ import yesman.epicfight.api.client.camera.EpicFightCameraAPI;
++import yesman.epicfight.api.event.impl.VanillaEntityEventHooks;
+ import yesman.epicfight.world.capabilities.EpicFightCapabilities;
+ import yesman.epicfight.world.capabilities.entitypatch.LivingEntityPatch;
+ 
+@@ -18,28 +21,33 @@ public abstract class MixinPlayer {
+ 			value = "INVOKE",
+ 			target = "Lnet/minecraft/world/damagesource/CombatTracker;recordDamage(Lnet/minecraft/world/damagesource/DamageSource;F)V"
+ 		),
+-		method = "actuallyHurt(Lnet/minecraft/world/damagesource/DamageSource;F)V"
++		method = "actuallyHurt(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/damagesource/DamageSource;F)V"
+ 	)
+ 	private void epicfight$recordDamage(CombatTracker self, DamageSource damagesource, float damage, Operation<Void> operation) {
+ 		EpicFightCapabilities.getUnparameterizedEntityPatch(damagesource.getEntity(), LivingEntityPatch.class).ifPresent(entitypatch -> {
+ 			entitypatch.setLastAttackEntity(self.mob);
+ 		});
+ 		
+-		self.recordDamage(damagesource, damage);
++		operation.call(self, damagesource, damage);
+ 	}
+ 
++    @WrapMethod(method = "actuallyHurt")
++    private void epicfight$modifyDamage(ServerLevel level, DamageSource source, float damage, Operation<Void> original) {
++        VanillaEntityEventHooks.applyDamage((Player)(Object)this, source, damage, amount -> original.call(level, source, amount));
++    }
++
+     @WrapOperation(
+         at = @At(
+             value = "INVOKE",
+             target = "Lnet/minecraft/world/entity/player/Player;getYRot()F"
+         ),
+-        method = "serverAiStep()V"
++        method = "aiStep()V"
+     )
+-    private float epicfight$serverAiStep(Player player, Operation<Void> originalOperation) {
++    private float epicfight$playerHeadRotation(Player player, Operation<Float> original) {
+         if (player.isLocalPlayer()) {
+             return EpicFightCameraAPI.getInstance().getYRotForHead(player);
+         }
+ 
+-        return player.getYRot();
++        return original.call(player);
+     }
+ }
+\ No newline at end of file
+diff --git a/src/main/java/yesman/epicfight/mixin/common/MixinServerPlayerEvents.java b/src/main/java/yesman/epicfight/mixin/common/MixinServerPlayerEvents.java
+index aaca2fb..104fd77 100644
+--- a/src/main/java/yesman/epicfight/mixin/common/MixinServerPlayerEvents.java
++++ b/src/main/java/yesman/epicfight/mixin/common/MixinServerPlayerEvents.java
+@@ -1,34 +1,16 @@
+ package yesman.epicfight.mixin.common;
+ 
+ import net.minecraft.server.level.ServerPlayer;
+-import net.minecraft.server.players.PlayerList;
+-import net.minecraft.world.entity.Entity;
+-import net.minecraft.world.entity.player.Player;
+ import org.spongepowered.asm.mixin.Mixin;
+ import org.spongepowered.asm.mixin.injection.At;
+ import org.spongepowered.asm.mixin.injection.Inject;
+ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+ import yesman.epicfight.api.event.impl.VanillaPlayerEventHooks;
+ 
+-/// Mixin for [ServerPlayer] and [PlayerList] to wire NeoForge player events.
+-///
+-/// Replaces:
+-/// - PlayerEvent.StartTracking / StopTracking
+-/// - PlayerEvent.LoadFromFile
+-/// - PlayerEvent.Clone
+-/// - PlayerEvent.PlayerChangedDimensionEvent
+-/// - ArrowLooseEvent
++/// Propagates the old player's data when Minecraft clones the player on respawn.
+ @Mixin(value = ServerPlayer.class)
+ public abstract class MixinServerPlayerEvents {
+ 
+-    /// PlayerEvent.PlayerChangedDimensionEvent — fires when a player changes dimension
+-    @Inject(at = @At(value = "TAIL"), method = "teleportTo(Lnet/minecraft/server/level/ServerLevel;DDDLjava/util/Set;FF)Z")
+-    private void epicfight$changeDimension(CallbackInfoReturnable<Boolean> info) {
+-        ServerPlayer self = (ServerPlayer)(Object)this;
+-        VanillaPlayerEventHooks.onChagneDimension(self);
+-    }
+-
+     /// PlayerEvent.Clone — fires when a player is cloned during respawn
+     @Inject(at = @At(value = "TAIL"), method = "restoreFrom(Lnet/minecraft/server/level/ServerPlayer;Z)V")
+     private void epicfight$restoreFrom(ServerPlayer oldPlayer, boolean wasDeath, CallbackInfo info) {
+diff --git a/src/main/java/yesman/epicfight/mixin/common/MixinTridentAttack.java b/src/main/java/yesman/epicfight/mixin/common/MixinTridentAttack.java
+index 43b5fff..024c20e 100644
+--- a/src/main/java/yesman/epicfight/mixin/common/MixinTridentAttack.java
++++ b/src/main/java/yesman/epicfight/mixin/common/MixinTridentAttack.java
+@@ -7,14 +7,14 @@ import net.minecraft.world.level.Level;
+ import org.spongepowered.asm.mixin.Mixin;
+ import org.spongepowered.asm.mixin.injection.At;
+ import org.spongepowered.asm.mixin.injection.Inject;
+-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
++import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+ import yesman.epicfight.world.capabilities.EpicFightCapabilities;
+ import yesman.epicfight.world.capabilities.entitypatch.LivingEntityPatch;
+ 
+ @Mixin(TridentItem.class)
+ public abstract class MixinTridentAttack {
+-    @Inject(method = "releaseUsing", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/Level;addFreshEntity(Lnet/minecraft/world/entity/Entity;)Z", shift = At.Shift.AFTER))
+-    public void releaseUsing(ItemStack stack, Level level, LivingEntity entityLiving, int timeLeft, CallbackInfo ci) {
++    @Inject(method = "releaseUsing", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/projectile/Projectile;spawnProjectileFromRotation(Lnet/minecraft/world/entity/projectile/Projectile$ProjectileFactory;Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/item/ItemStack;Lnet/minecraft/world/entity/LivingEntity;FFF)Lnet/minecraft/world/entity/projectile/Projectile;", shift = At.Shift.AFTER))
++    public void releaseUsing(ItemStack stack, Level level, LivingEntity entityLiving, int timeLeft, CallbackInfoReturnable<Boolean> ci) {
+         EpicFightCapabilities.getUnparameterizedEntityPatch(entityLiving, LivingEntityPatch.class).ifPresent(LivingEntityPatch::playShootingAnimation);
+     }
+ }
+diff --git a/src/test/java/yesman/epicfight/registry/deferred_shim/DeferredHolderShimLookupTest.java b/src/test/java/yesman/epicfight/registry/deferred_shim/DeferredHolderShimLookupTest.java
+index 44ccaab..143f50c 100644
+--- a/src/test/java/yesman/epicfight/registry/deferred_shim/DeferredHolderShimLookupTest.java
++++ b/src/test/java/yesman/epicfight/registry/deferred_shim/DeferredHolderShimLookupTest.java
+@@ -40,7 +40,7 @@ class DeferredHolderShimLookupTest {
+         assertTrue(shim.isBound());
+         assertTrue(shim.isPresent());
+         assertEquals(ResourceKey.create(REGISTRY_KEY, id), shim.getKey());
+-        assertSame(registry.getHolder(ResourceKey.create(REGISTRY_KEY, id)).orElseThrow(), shim.asHolder(),
++        assertSame(registry.get(ResourceKey.create(REGISTRY_KEY, id)).orElseThrow(), shim.asHolder(),
+                 "asHolder is the registry's own Holder.Reference");
+         assertEquals(sizeBefore, registry.size(), "lookup must not register anything");
+     }
+@@ -69,7 +69,7 @@ class DeferredHolderShimLookupTest {
+         Registry.register(registry, id, registered);
+ 
+         ResourceKey<String> key = ResourceKey.create(REGISTRY_KEY, id);
+-        assertFalse(registry.getHolder(key).orElseThrow().isBound(),
++        assertFalse(registry.get(key).orElseThrow().isBound(),
+                 "sanity: stand-alone reference is unbound before freeze");
+         assertNull(DeferredHolderShim.lookup(registry, id),
+                 "an unbound reference is not yet resolvable - must return null");
+@@ -78,6 +78,6 @@ class DeferredHolderShimLookupTest {
+         DeferredHolderShim<String, String> shim = DeferredHolderShim.lookup(registry, id);
+         assertNotNull(shim);
+         assertSame(registered, shim.get());
+-        assertSame(registry.getHolder(key).orElseThrow(), shim.asHolder());
++        assertSame(registry.get(key).orElseThrow(), shim.asHolder());
+     }
+ }

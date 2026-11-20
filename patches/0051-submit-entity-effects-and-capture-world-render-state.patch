@@ -1,0 +1,693 @@
+diff --git a/src/main/java/yesman/epicfight/api/client/event/types/render/RenderEnderDragonEvent.java b/src/main/java/yesman/epicfight/api/client/event/types/render/RenderEnderDragonEvent.java
+index 40f03c3..e536d48 100644
+--- a/src/main/java/yesman/epicfight/api/client/event/types/render/RenderEnderDragonEvent.java
++++ b/src/main/java/yesman/epicfight/api/client/event/types/render/RenderEnderDragonEvent.java
+@@ -1,26 +1,30 @@
+ package yesman.epicfight.api.client.event.types.render;
+ 
++import java.util.function.BiConsumer;
++
+ import com.mojang.blaze3d.vertex.PoseStack;
+ import net.minecraft.client.renderer.MultiBufferSource;
++import net.minecraft.client.renderer.SubmitNodeCollector;
+ import net.minecraft.client.renderer.entity.EnderDragonRenderer;
+ import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
+ import yesman.epicfight.api.event.CancelableEvent;
+ import yesman.epicfight.api.event.Event;
++import yesman.epicfight.client.renderer.EntityRenderTasks;
+ 
+ public class RenderEnderDragonEvent extends Event implements CancelableEvent {
+ 	private final EnderDragon entity;
+     private final EnderDragonRenderer renderer;
+     private final float partialRenderTick;
+     private final PoseStack poseStack;
+-    private final MultiBufferSource buffers;
++    private final SubmitNodeCollector collector;
+     private final int light;
+ 	
+-	public RenderEnderDragonEvent(EnderDragon entity, EnderDragonRenderer renderer, float partialRenderTick, PoseStack poseStack, MultiBufferSource buffers, int light) {
++	public RenderEnderDragonEvent(EnderDragon entity, EnderDragonRenderer renderer, float partialRenderTick, PoseStack poseStack, SubmitNodeCollector collector, int light) {
+ 		this.entity = entity;
+         this.renderer = renderer;
+         this.partialRenderTick = partialRenderTick;
+         this.poseStack = poseStack;
+-        this.buffers = buffers;
++        this.collector = collector;
+         this.light = light;
+ 	}
+ 	
+@@ -40,9 +44,11 @@ public class RenderEnderDragonEvent extends Event implements CancelableEvent {
+ 		return poseStack;
+ 	}
+ 
+-	public MultiBufferSource getBuffers() {
+-		return buffers;
+-	}
++    public void draw(BiConsumer<PoseStack, MultiBufferSource.BufferSource> callback) {
++        PoseStack captured = new PoseStack();
++        captured.last().set(this.poseStack.last());
++        EntityRenderTasks.submit(this.collector, buffers -> callback.accept(captured, buffers));
++    }
+ 
+ 	public int getLight() {
+ 		return light;
+diff --git a/src/main/java/yesman/epicfight/api/event/impl/VanillaWorldEventHooks.java b/src/main/java/yesman/epicfight/api/event/impl/VanillaWorldEventHooks.java
+index 02414be..5432e3b 100644
+--- a/src/main/java/yesman/epicfight/api/event/impl/VanillaWorldEventHooks.java
++++ b/src/main/java/yesman/epicfight/api/event/impl/VanillaWorldEventHooks.java
+@@ -2,6 +2,7 @@ package yesman.epicfight.api.event.impl;
+ 
+ import net.minecraft.server.MinecraftServer;
+ import net.minecraft.server.level.ServerPlayer;
++import net.minecraft.server.players.NameAndId;
+ import yesman.epicfight.api.animation.AnimationManager;
+ import yesman.epicfight.api.data.reloader.ItemCapabilityReloadListener;
+ import yesman.epicfight.api.data.reloader.MobPatchReloadListener;
+@@ -35,7 +36,7 @@ public final class VanillaWorldEventHooks {
+ 
+         payloadBundleBuilder.send((first, others) -> EpicFightNetworkManager.sendToPlayer(first, player, others));
+ 
+-        if (!player.level().getServer().isSingleplayerOwner(player.getGameProfile())) {
++        if (!player.level().getServer().isSingleplayerOwner(new NameAndId(player.getGameProfile()))) {
+             sendLevelData(player);
+         } else {
+             EpicFightCapabilities.getUnparameterizedEntityPatch(player, ServerPlayerPatch.class).ifPresent(serverplayerpatch -> {
+diff --git a/src/main/java/yesman/epicfight/client/events/engine/RenderEngine.java b/src/main/java/yesman/epicfight/client/events/engine/RenderEngine.java
+index 576977e..c1ccb3c 100644
+--- a/src/main/java/yesman/epicfight/client/events/engine/RenderEngine.java
++++ b/src/main/java/yesman/epicfight/client/events/engine/RenderEngine.java
+@@ -643,7 +643,7 @@ public class RenderEngine implements IEventBasedEngine {
+         if (this.hasRendererFor(livingentity)) {
+             EpicFightCapabilities.getUnparameterizedEntityPatch(livingentity, EnderDragonPatch.class).ifPresent(enderdragonpatch -> {
+                 event.cancel();
+-                this.getEntityRenderer(livingentity).render(livingentity, enderdragonpatch, event.getRenderer(), event.getBuffers(), event.getPoseStack(), event.getLight(), event.getPartialRenderTick());
++                event.draw((poses, buffers) -> this.getEntityRenderer(livingentity).render(livingentity, enderdragonpatch, event.getRenderer(), buffers, poses, event.getLight(), event.getPartialRenderTick()));
+             });
+         }
+     }
+diff --git a/src/main/java/yesman/epicfight/client/gui/datapack/widgets/ResizableButton.java b/src/main/java/yesman/epicfight/client/gui/datapack/widgets/ResizableButton.java
+index 9db7d93..1b99e60 100644
+--- a/src/main/java/yesman/epicfight/client/gui/datapack/widgets/ResizableButton.java
++++ b/src/main/java/yesman/epicfight/client/gui/datapack/widgets/ResizableButton.java
+@@ -6,7 +6,7 @@ import net.minecraft.network.chat.Component;
+ 
+ /// We're refactoring UI codes, use [yesman.epicfight.client.gui.widgets.common.AnchoredWidget] instead
+ @Deprecated
+-public class ResizableButton extends Button implements ResizableComponent {
++public class ResizableButton extends Button.Plain implements ResizableComponent {
+ 	public ResizableButton(ResizableButton.Builder builder) {
+ 		super(builder.x, builder.y, builder.width, builder.height, builder.message, builder.onPress, Button.DEFAULT_NARRATION);
+ 		
+diff --git a/src/main/java/yesman/epicfight/client/renderer/EpicFightFrustumHolder.java b/src/main/java/yesman/epicfight/client/renderer/EpicFightFrustumHolder.java
+index 1b334ad..a9388cd 100644
+--- a/src/main/java/yesman/epicfight/client/renderer/EpicFightFrustumHolder.java
++++ b/src/main/java/yesman/epicfight/client/renderer/EpicFightFrustumHolder.java
+@@ -2,10 +2,7 @@ package yesman.epicfight.client.renderer;
+ 
+ import net.minecraft.client.renderer.culling.Frustum;
+ 
+-/// Holds the current render frustum captured by [MixinLevelRenderer].
+-/// On NeoForge, [LevelRenderer.getFrustum()] provides this directly.
+-/// On Fabric, the frustum is a local variable in [renderLevel], so the mixin
+-/// captures it and stores it here for use by [EpicFightCameraAPI.setNextLockOnTarget].
++/// Holds the frustum passed to the current frame's entity extraction for camera targeting.
+ public final class EpicFightFrustumHolder {
+     private static Frustum currentFrustum;
+ 
+diff --git a/src/main/java/yesman/epicfight/client/renderer/VanillaRenderSubmissions.java b/src/main/java/yesman/epicfight/client/renderer/VanillaRenderSubmissions.java
+index 7b9442e..bf726c7 100644
+--- a/src/main/java/yesman/epicfight/client/renderer/VanillaRenderSubmissions.java
++++ b/src/main/java/yesman/epicfight/client/renderer/VanillaRenderSubmissions.java
+@@ -5,6 +5,7 @@ import net.minecraft.client.Minecraft;
+ import net.minecraft.client.renderer.MultiBufferSource;
+ import net.minecraft.client.renderer.SubmitNodeStorage;
+ import net.minecraft.client.renderer.entity.layers.RenderLayer;
++import net.minecraft.client.renderer.feature.CustomFeatureRenderer;
+ import net.minecraft.client.renderer.feature.ItemFeatureRenderer;
+ import net.minecraft.client.renderer.feature.ModelFeatureRenderer;
+ import net.minecraft.client.renderer.feature.ModelPartFeatureRenderer;
+@@ -56,6 +57,7 @@ public final class VanillaRenderSubmissions {
+             new ModelFeatureRenderer().render(group, buffers, outline, crumble);
+             new ModelPartFeatureRenderer().render(group, buffers, outline, crumble);
+             new ItemFeatureRenderer().render(group, buffers, outline);
++            new CustomFeatureRenderer().render(group, buffers);
+         }
+     }
+ }
+diff --git a/src/main/java/yesman/epicfight/client/renderer/entity/DroppedNetherStarRenderer.java b/src/main/java/yesman/epicfight/client/renderer/entity/DroppedNetherStarRenderer.java
+index 3f7ef51..39773e3 100644
+--- a/src/main/java/yesman/epicfight/client/renderer/entity/DroppedNetherStarRenderer.java
++++ b/src/main/java/yesman/epicfight/client/renderer/entity/DroppedNetherStarRenderer.java
+@@ -1,31 +1,32 @@
+ package yesman.epicfight.client.renderer.entity;
+ 
+ import com.mojang.blaze3d.vertex.PoseStack;
+-import com.mojang.blaze3d.vertex.VertexConsumer;
+-
+-import net.minecraft.client.renderer.MultiBufferSource;
+-import net.minecraft.client.renderer.rendertype.RenderTypes;
++import net.minecraft.client.renderer.SubmitNodeCollector;
+ import net.minecraft.client.renderer.entity.EntityRendererProvider.Context;
+ import net.minecraft.client.renderer.entity.ItemEntityRenderer;
++import net.minecraft.client.renderer.entity.state.ItemEntityRenderState;
++import net.minecraft.client.renderer.rendertype.RenderTypes;
++import net.minecraft.client.renderer.state.CameraRenderState;
+ import net.minecraft.util.Mth;
+-import net.minecraft.world.entity.item.ItemEntity;
+ import yesman.epicfight.client.renderer.LightningRenderHelper;
+ 
+ public class DroppedNetherStarRenderer extends ItemEntityRenderer {
+-	public DroppedNetherStarRenderer(Context context) {
+-		super(context);
+-	}
+-	
+-	@Override
+-	public void render(ItemEntity entityIn, float yRot, float partialTicks, PoseStack poseStack, MultiBufferSource multiBufferSource, int packedLight) {
+-		super.render(entityIn, yRot, partialTicks, poseStack, multiBufferSource, packedLight);
+-		
+-		poseStack.pushPose();
+-		poseStack.translate(0.0D, entityIn.getBbHeight() + Mth.sin(((float) entityIn.getAge() + partialTicks) / 10.0F + entityIn.bobOffs) * 0.1F + 0.1F, 0.0D);
+-		VertexConsumer vertexBuilder = multiBufferSource.getBuffer(RenderTypes.lightning());
+-		float progression = (entityIn.tickCount + partialTicks) * 0.01F;
+-		float repeater = ((float)Math.sin(progression * 5.0F) + 1.0F) * 0.5F;
+-		LightningRenderHelper.renderCirclingLight(vertexBuilder, poseStack, 32, 0, 255, 9, 0.05F, progression, repeater);
+-		poseStack.popPose();
+-	}
+-}
+\ No newline at end of file
++    public DroppedNetherStarRenderer(Context context) {
++        super(context);
++    }
++
++    @Override
++    public void submit(ItemEntityRenderState state, PoseStack poses, SubmitNodeCollector collector, CameraRenderState camera) {
++        super.submit(state, poses, collector, camera);
++        float progression = state.ageInTicks * 0.01F;
++        float pulse = (Mth.sin(progression * 5.0F) + 1.0F) * 0.5F;
++        poses.pushPose();
++        poses.translate(0.0D, state.boundingBoxHeight + Mth.sin(state.ageInTicks / 10.0F + state.bobOffset) * 0.1F + 0.1F, 0.0D);
++        collector.submitCustomGeometry(poses, RenderTypes.lightning(), (pose, vertices) -> {
++            PoseStack lightningPoses = new PoseStack();
++            lightningPoses.last().set(pose);
++            LightningRenderHelper.renderCirclingLight(vertices, lightningPoses, 32, 0, 255, 9, 0.05F, progression, pulse);
++        });
++        poses.popPose();
++    }
++}
+diff --git a/src/main/java/yesman/epicfight/client/renderer/entity/WitherSkeletonMinionRenderer.java b/src/main/java/yesman/epicfight/client/renderer/entity/WitherSkeletonMinionRenderer.java
+index 594ea04..a8c560b 100644
+--- a/src/main/java/yesman/epicfight/client/renderer/entity/WitherSkeletonMinionRenderer.java
++++ b/src/main/java/yesman/epicfight/client/renderer/entity/WitherSkeletonMinionRenderer.java
+@@ -3,7 +3,7 @@ package yesman.epicfight.client.renderer.entity;
+ import net.minecraft.client.renderer.entity.EntityRendererProvider.Context;
+ import net.minecraft.client.renderer.entity.WitherSkeletonRenderer;
+ import net.minecraft.resources.ResourceLocation;
+-import net.minecraft.world.entity.monster.WitherSkeleton;
++import net.minecraft.client.renderer.entity.state.SkeletonRenderState;
+ import yesman.epicfight.EpicFight;
+ 
+ public class WitherSkeletonMinionRenderer extends WitherSkeletonRenderer {
+@@ -14,7 +14,7 @@ public class WitherSkeletonMinionRenderer extends WitherSkeletonRenderer {
+ 	}
+ 	
+ 	@Override
+-	public ResourceLocation getTextureLocation(WitherSkeleton entity) {
++	public ResourceLocation getTextureLocation(SkeletonRenderState state) {
+ 		return WITHER_SKELETON_LOCATION;
+ 	}
+ }
+\ No newline at end of file
+diff --git a/src/main/java/yesman/epicfight/client/renderer/patched/entity/PEnderDragonRenderer.java b/src/main/java/yesman/epicfight/client/renderer/patched/entity/PEnderDragonRenderer.java
+index e5b850d..06d909e 100644
+--- a/src/main/java/yesman/epicfight/client/renderer/patched/entity/PEnderDragonRenderer.java
++++ b/src/main/java/yesman/epicfight/client/renderer/patched/entity/PEnderDragonRenderer.java
+@@ -3,7 +3,7 @@ package yesman.epicfight.client.renderer.patched.entity;
+ import com.mojang.blaze3d.vertex.PoseStack;
+ import com.mojang.blaze3d.vertex.VertexConsumer;
+ 
+-import net.minecraft.client.Minecraft;
++import net.minecraft.client.renderer.SubmitNodeStorage;
+ import yesman.epicfight.client.renderer.EntityRenderFeatures;
+ import net.minecraft.client.renderer.MultiBufferSource;
+ import net.minecraft.client.renderer.rendertype.RenderTypes;
+@@ -22,6 +22,7 @@ import yesman.epicfight.api.utils.math.OpenMatrix4f;
+ import yesman.epicfight.api.utils.math.Vec3f;
+ import yesman.epicfight.client.mesh.DragonMesh;
+ import yesman.epicfight.client.renderer.LightningRenderHelper;
++import yesman.epicfight.client.renderer.VanillaRenderSubmissions;
+ import yesman.epicfight.world.capabilities.entitypatch.boss.enderdragon.DragonCrystalLinkPhase;
+ import yesman.epicfight.world.capabilities.entitypatch.boss.enderdragon.EnderDragonPatch;
+ import yesman.epicfight.world.capabilities.entitypatch.boss.enderdragon.PatchedPhases;
+@@ -59,7 +60,10 @@ public class PEnderDragonRenderer extends PatchedEntityRenderer<EnderDragon, End
+ 	        float y = (float)(entityIn.nearestCrystal.getY() - Mth.lerp(partialTicks, entityIn.yo, entityIn.getY()));
+ 	        float z = (float)(entityIn.nearestCrystal.getZ() - Mth.lerp(partialTicks, entityIn.zo, entityIn.getZ()));
+ 	        poseStack.pushPose();
+-			EnderDragonRenderer.renderCrystalBeams(x, y + EndCrystalRenderer.getY(entityIn.nearestCrystal, partialTicks), z, partialTicks, entityIn.tickCount, poseStack, buffer, packedLight);
++			var beams = new SubmitNodeStorage();
++			float crystalAge = entityIn.nearestCrystal.time + partialTicks;
++			EnderDragonRenderer.submitCrystalBeams(x, y + EndCrystalRenderer.getY(crystalAge), z, entityIn.tickCount + partialTicks, poseStack, beams, packedLight);
++			VanillaRenderSubmissions.draw(beams, buffer);
+ 			poseStack.popPose();
+ 		}
+ 		
+diff --git a/src/main/java/yesman/epicfight/client/renderer/patched/entity/PVindicatorRenderer.java b/src/main/java/yesman/epicfight/client/renderer/patched/entity/PVindicatorRenderer.java
+index a65dfd0..2274cf2 100644
+--- a/src/main/java/yesman/epicfight/client/renderer/patched/entity/PVindicatorRenderer.java
++++ b/src/main/java/yesman/epicfight/client/renderer/patched/entity/PVindicatorRenderer.java
+@@ -2,7 +2,6 @@ package yesman.epicfight.client.renderer.patched.entity;
+ 
+ import com.mojang.blaze3d.vertex.PoseStack;
+ 
+-import net.minecraft.client.model.IllagerModel;
+ import net.minecraft.client.renderer.MultiBufferSource;
+ import net.minecraft.client.renderer.entity.EntityRendererProvider;
+ import net.minecraft.client.renderer.entity.layers.ItemInHandLayer;
+@@ -19,7 +18,7 @@ public class PVindicatorRenderer extends PIllagerRenderer<AbstractIllager, MobPa
+ 		
+ 		this.addPatchedLayerAlways(ItemInHandLayer.class, new PatchedItemInHandLayer<>() {
+ 			@Override
+-			public void renderLayer(MobPatch<AbstractIllager> entitypatch, AbstractIllager entityliving, RenderLayer<AbstractIllager, IllagerModel<AbstractIllager>> originalRenderer, PoseStack matrixStackIn, MultiBufferSource buffer, int packedLightIn, OpenMatrix4f[] poses, float bob, float yRot, float xRot, float partialTicks) {
++			public void renderLayer(MobPatch<AbstractIllager> entitypatch, AbstractIllager entityliving, RenderLayer<?, ?> originalRenderer, PoseStack matrixStackIn, MultiBufferSource buffer, int packedLightIn, OpenMatrix4f[] poses, float bob, float yRot, float xRot, float partialTicks) {
+ 				if (entityliving.isAggressive()) {
+ 					super.renderLayer(entitypatch, entityliving, originalRenderer, matrixStackIn, buffer, packedLightIn, poses, bob, yRot, xRot, partialTicks);
+ 				}
+diff --git a/src/main/java/yesman/epicfight/client/renderer/patched/layer/OuterLayerRenderer.java b/src/main/java/yesman/epicfight/client/renderer/patched/layer/OuterLayerRenderer.java
+index aaa5dec..2f4aa18 100644
+--- a/src/main/java/yesman/epicfight/client/renderer/patched/layer/OuterLayerRenderer.java
++++ b/src/main/java/yesman/epicfight/client/renderer/patched/layer/OuterLayerRenderer.java
+@@ -5,7 +5,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
+ import net.minecraft.client.model.DrownedModel;
+ import net.minecraft.client.renderer.MultiBufferSource;
+ import net.minecraft.client.renderer.rendertype.RenderTypes;
+-import net.minecraft.client.renderer.entity.LivingEntityRenderer;
++import net.minecraft.client.renderer.texture.OverlayTexture;
+ import net.minecraft.client.renderer.entity.layers.DrownedOuterLayer;
+ import net.minecraft.resources.ResourceLocation;
+ import net.minecraft.world.entity.monster.Drowned;
+@@ -24,7 +24,7 @@ public class OuterLayerRenderer extends ModelRenderLayer<Drowned, DrownedPatch,
+ 	@Override
+ 	protected void renderLayer(DrownedPatch entitypatch, Drowned entityliving, DrownedOuterLayer vanillaLayer, PoseStack poseStack, MultiBufferSource buffer, int packedLight,
+ 			OpenMatrix4f[] poses, float bob, float yRot, float xRot, float partialTicks) {
+-		this.mesh.get().draw(poseStack, buffer, RenderTypes.entityCutoutNoCull(DROWNED_OUTER_LAYER), packedLight, 1.0F, 1.0F, 1.0F, 1.0F, LivingEntityRenderer.getOverlayCoords(entityliving, 0.0F), entitypatch.getArmature(), poses);
++		this.mesh.get().draw(poseStack, buffer, RenderTypes.entityCutoutNoCull(DROWNED_OUTER_LAYER), packedLight, 1.0F, 1.0F, 1.0F, 1.0F, OverlayTexture.pack(0.0F, entityliving.hurtTime > 0 || entityliving.deathTime > 0), entitypatch.getArmature(), poses);
+ 	}
+ 	
+ 	@Override
+diff --git a/src/main/java/yesman/epicfight/client/renderer/patched/layer/PatchedCapeLayer.java b/src/main/java/yesman/epicfight/client/renderer/patched/layer/PatchedCapeLayer.java
+index b39c920..30b8e62 100644
+--- a/src/main/java/yesman/epicfight/client/renderer/patched/layer/PatchedCapeLayer.java
++++ b/src/main/java/yesman/epicfight/client/renderer/patched/layer/PatchedCapeLayer.java
+@@ -91,7 +91,7 @@ public class PatchedCapeLayer extends PatchedLayer<AbstractClientPlayer, Abstrac
+ 					poseStack.pushPose();
+ 					MathUtils.mulStack(poseStack, modelMatrix);
+ 					poseStack.translate(0.0D, -0.4D, -0.025D);
+-					VanillaRenderSubmissions.drawLayer(vanillaLayer, entityliving, poseStack, buffer, packedLight, yRot, xRot, partialTicks);
++					VanillaRenderSubmissions.drawLayer(vanillaLayer, entityliving, poseStack, buffer, packedLight, yRot, xRot, partialTick);
+ 					poseStack.popPose();
+ 				}
+ 			}
+diff --git a/src/main/java/yesman/epicfight/compat/simplytooltips/EpicFightTooltipProvider.java b/src/main/java/yesman/epicfight/compat/simplytooltips/EpicFightTooltipProvider.java
+index 46e0e41..8607ca0 100644
+--- a/src/main/java/yesman/epicfight/compat/simplytooltips/EpicFightTooltipProvider.java
++++ b/src/main/java/yesman/epicfight/compat/simplytooltips/EpicFightTooltipProvider.java
+@@ -7,7 +7,7 @@ import net.minecraft.network.chat.Component;
+ import net.minecraft.network.chat.ComponentContents;
+ import net.minecraft.network.chat.contents.TranslatableContents;
+ import net.minecraft.resources.ResourceLocation;
+-import net.minecraft.world.entity.EquipmentSlotGroup;
++import net.minecraft.world.entity.EquipmentSlot;
+ import net.minecraft.world.entity.ai.attributes.AttributeModifier;
+ import net.minecraft.world.entity.ai.attributes.Attributes;
+ import net.minecraft.world.item.Item;
+@@ -338,7 +338,7 @@ public class EpicFightTooltipProvider implements TooltipProvider
+         HeaderStat armorNegation = HeaderStat.missing();
+         HeaderStat impact = HeaderStat.missing();
+         HeaderStat maxStrikes = HeaderStat.missing();
+-        stack.forEachModifier(EquipmentSlotGroup.MAINHAND, (attribute, modifier) -> {
++        stack.forEachModifier(EquipmentSlot.MAINHAND, (attribute, modifier) -> {
+             if (attribute.is(Attributes.ATTACK_DAMAGE)) {
+                 double value = displayedAttributeValue(attribute.is(Attributes.ATTACK_DAMAGE), modifier);
+                 int priority = modifierPriority(modifier, Item.BASE_ATTACK_DAMAGE_ID);
+diff --git a/src/main/java/yesman/epicfight/compat/sodium/client/SodiumFakeBlockRenderer.java b/src/main/java/yesman/epicfight/compat/sodium/client/SodiumFakeBlockRenderer.java
+index 96fac54..3055026 100644
+--- a/src/main/java/yesman/epicfight/compat/sodium/client/SodiumFakeBlockRenderer.java
++++ b/src/main/java/yesman/epicfight/compat/sodium/client/SodiumFakeBlockRenderer.java
+@@ -42,7 +42,7 @@ public class SodiumFakeBlockRenderer extends VanillaFakeBlockRenderer {
+         PoseStack.Pose pose = poses.last();
+         for (BakedQuad quad : quads) {
+             float shade = level.getShade(quad.direction(), quad.shade());
+-            Vec3i normal = quad.direction().getNormal();
++            Vec3i normal = quad.direction().getUnitVec3i();
+             for (int i = 0; i < BakedQuad.VERTEX_COUNT; i++) {
+                 Vector3fc position = quad.position(i);
+                 long uv = quad.packedUV(i);
+diff --git a/src/main/java/yesman/epicfight/mixin/client/MixinEnderDragonRenderer.java b/src/main/java/yesman/epicfight/mixin/client/MixinEnderDragonRenderer.java
+index 62d1267..6cdbeff 100644
+--- a/src/main/java/yesman/epicfight/mixin/client/MixinEnderDragonRenderer.java
++++ b/src/main/java/yesman/epicfight/mixin/client/MixinEnderDragonRenderer.java
+@@ -1,8 +1,10 @@
+ package yesman.epicfight.mixin.client;
+ 
+ import com.mojang.blaze3d.vertex.PoseStack;
+-import net.minecraft.client.renderer.MultiBufferSource;
++import net.minecraft.client.renderer.SubmitNodeCollector;
+ import net.minecraft.client.renderer.entity.EnderDragonRenderer;
++import net.minecraft.client.renderer.entity.state.EnderDragonRenderState;
++import net.minecraft.client.renderer.state.CameraRenderState;
+ import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
+ import org.spongepowered.asm.mixin.Mixin;
+ import org.spongepowered.asm.mixin.injection.At;
+@@ -10,15 +12,19 @@ import org.spongepowered.asm.mixin.injection.Inject;
+ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+ import yesman.epicfight.api.client.event.EpicFightClientEventHooks;
+ import yesman.epicfight.api.client.event.types.render.RenderEnderDragonEvent;
++import yesman.epicfight.client.renderer.EntityRenderSource;
+ 
+-@Mixin(value = EnderDragonRenderer.class)
+-public abstract class MixinEnderDragonRenderer {
+-	@Inject(at = @At(value = "HEAD"), method = "render(Lnet/minecraft/world/entity/boss/enderdragon/EnderDragon;FFLcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;I)V", cancellable = true)
+-	private void epicfight$render(EnderDragon enderdragon, float yRot, float partialTicks, PoseStack poseStack, MultiBufferSource multiSourceBuffer, int packedLight, CallbackInfo info) {
+-		RenderEnderDragonEvent renderDragonEvent = new RenderEnderDragonEvent(enderdragon, (EnderDragonRenderer)((Object)this), partialTicks, poseStack, multiSourceBuffer, packedLight);
+-		
+-		if (EpicFightClientEventHooks.Render.RENDER_ENDER_DRAGON.post(renderDragonEvent).isCanceled()) {
+-			info.cancel();
+-		}
+-	}
+-}
+\ No newline at end of file
++@Mixin(EnderDragonRenderer.class)
++abstract class MixinEnderDragonRenderer {
++    @Inject(method = "submit(Lnet/minecraft/client/renderer/entity/state/EnderDragonRenderState;Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;Lnet/minecraft/client/renderer/state/CameraRenderState;)V", at = @At("HEAD"), cancellable = true)
++    private void epicfight$submit(EnderDragonRenderState state, PoseStack poses, SubmitNodeCollector collector, CameraRenderState camera, CallbackInfo ci) {
++        var source = (EntityRenderSource)state;
++        if (!(source.epicfight$entity() instanceof EnderDragon dragon)) {
++            return;
++        }
++        var event = new RenderEnderDragonEvent(dragon, (EnderDragonRenderer)(Object)this, source.epicfight$partialTick(), poses, collector, state.lightCoords);
++        if (EpicFightClientEventHooks.Render.RENDER_ENDER_DRAGON.post(event).isCanceled()) {
++            ci.cancel();
++        }
++    }
++}
+diff --git a/src/main/java/yesman/epicfight/mixin/client/MixinLevelRenderer.java b/src/main/java/yesman/epicfight/mixin/client/MixinLevelRenderer.java
+index 42eec75..6555354 100644
+--- a/src/main/java/yesman/epicfight/mixin/client/MixinLevelRenderer.java
++++ b/src/main/java/yesman/epicfight/mixin/client/MixinLevelRenderer.java
+@@ -1,88 +1,33 @@
+ package yesman.epicfight.mixin.client;
+ 
+-import com.mojang.blaze3d.vertex.PoseStack;
+ import net.minecraft.client.Camera;
+ import net.minecraft.client.DeltaTracker;
+-import net.minecraft.client.Minecraft;
+-import net.minecraft.client.renderer.*;
++import net.minecraft.client.renderer.LevelRenderer;
+ import net.minecraft.client.renderer.culling.Frustum;
+-import net.minecraft.core.BlockPos;
+-import net.minecraft.util.profiling.ProfilerFiller;
+-import net.minecraft.world.TickRateManager;
++import net.minecraft.client.renderer.entity.state.EntityRenderState;
++import net.minecraft.client.renderer.state.LevelRenderState;
++import net.minecraft.util.ARGB;
+ import net.minecraft.world.entity.Entity;
+-import net.minecraft.world.phys.Vec3;
+-import org.joml.Matrix4f;
+-import org.joml.Matrix4fStack;
+-import org.spongepowered.asm.mixin.Final;
+ import org.spongepowered.asm.mixin.Mixin;
+-import org.spongepowered.asm.mixin.Shadow;
+-import org.spongepowered.asm.mixin.Unique;
+ import org.spongepowered.asm.mixin.injection.At;
+-import org.spongepowered.asm.mixin.injection.At.Shift;
+ import org.spongepowered.asm.mixin.injection.Inject;
+ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+-import org.spongepowered.asm.mixin.injection.callback.LocalCapture;
++import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+ import yesman.epicfight.api.client.camera.EpicFightCameraAPI;
+ import yesman.epicfight.client.renderer.EpicFightFrustumHolder;
+ import yesman.epicfight.config.ClientConfig;
+ 
+-import java.util.Iterator;
++@Mixin(LevelRenderer.class)
++abstract class MixinLevelRenderer {
++    @Inject(method = "extractVisibleEntities", at = @At("HEAD"))
++    private void epicfight$captureFrustum(Camera camera, Frustum frustum, DeltaTracker delta, LevelRenderState state, CallbackInfo ci) {
++        EpicFightFrustumHolder.set(frustum);
++    }
+ 
+-@Mixin(value = LevelRenderer.class)
+-public class MixinLevelRenderer {
+-	@Shadow @Final
+-	private RenderBuffers renderBuffers;
+-
+-	@Shadow @Final
+-	private Minecraft minecraft;
+-
+-	/// Stores the current render frustum so it can be accessed outside the render loop
+-	/// (e.g., by [EpicFightCameraAPI.setNextLockOnTarget]). On NeoForge, [LevelRenderer.getFrustum()]
+-	/// provides this; on Fabric, the frustum is a local variable in [renderLevel].
+-	@Unique
+-	private Frustum epicfight$currentFrustum;
+-
+-	@Inject(
+-		at = @At(
+-			value = "INVOKE",
+-			target = "Lnet/minecraft/client/renderer/OutlineBufferSource;setColor(IIII)V",
+-			shift = Shift.AFTER
+-		),
+-		method = "renderLevel(Lnet/minecraft/client/DeltaTracker;ZLnet/minecraft/client/Camera;Lnet/minecraft/client/renderer/GameRenderer;Lnet/minecraft/client/renderer/LightTexture;Lorg/joml/Matrix4f;Lorg/joml/Matrix4f;)V",
+-		locals = LocalCapture.CAPTURE_FAILHARD
+-	)
+-	private void epicfight$renderLevel(
+-		DeltaTracker deltaTracker, boolean renderBlockOutline, Camera camera, GameRenderer gameRenderer, LightTexture lightTexture, Matrix4f frustumMatrix, Matrix4f projectionMatrix, CallbackInfo callbackInfo,
+-		// local variables
+-		TickRateManager local1,
+-		float local2,
+-		ProfilerFiller local3,
+-		Vec3 local4,
+-		double local5,
+-		double local6,
+-		double local7,
+-		boolean local8,
+-		Frustum local9,
+-		float local10,
+-		boolean local11,
+-		Matrix4fStack local12,
+-		boolean local13,
+-		PoseStack local14,
+-		MultiBufferSource.BufferSource local15,
+-		Iterator<?> local16,
+-		Entity local17,
+-		BlockPos local18,
+-		MultiBufferSource local19,
+-		OutlineBufferSource local20,
+-		int local21
+-	) {
+-		// Capture the frustum for use outside the render loop
+-		EpicFightFrustumHolder.set(local9);
+-
+-        int color = ClientConfig.packedTargetOutlineColor;
+-        int r = color >> 16 & 255;
+-        int g = color >> 8 & 255;
+-        int b = color & 255;
+-        if (EpicFightCameraAPI.getInstance().shouldHighlightTarget(local17)) this.renderBuffers.outlineBufferSource().setColor(r, g, b, 255);
+-	}
++    @Inject(method = "extractEntity", at = @At("RETURN"))
++    private void epicfight$highlightTarget(Entity entity, float partialTick, CallbackInfoReturnable<EntityRenderState> result) {
++        if (EpicFightCameraAPI.getInstance().shouldHighlightTarget(entity)) {
++            result.getReturnValue().outlineColor = ARGB.opaque(ClientConfig.packedTargetOutlineColor);
++        }
++    }
+ }
+diff --git a/src/main/java/yesman/epicfight/mixin/client/MixinThrownTridentRenderer.java b/src/main/java/yesman/epicfight/mixin/client/MixinThrownTridentRenderer.java
+index a62ab6c..dbcf015 100644
+--- a/src/main/java/yesman/epicfight/mixin/client/MixinThrownTridentRenderer.java
++++ b/src/main/java/yesman/epicfight/mixin/client/MixinThrownTridentRenderer.java
+@@ -1,80 +1,59 @@
+ package yesman.epicfight.mixin.client;
+ 
+-import org.joml.Vector3f;
+-import org.spongepowered.asm.mixin.Mixin;
+-import org.spongepowered.asm.mixin.injection.At;
+-import org.spongepowered.asm.mixin.injection.Inject;
+-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+-
++import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
++import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
++import com.llamalad7.mixinextras.sugar.Share;
++import com.llamalad7.mixinextras.sugar.ref.LocalBooleanRef;
+ import com.mojang.blaze3d.vertex.PoseStack;
+-
+-import net.minecraft.client.renderer.MultiBufferSource;
+-import net.minecraft.client.renderer.entity.EntityRenderer;
+-import net.minecraft.client.renderer.entity.EntityRendererProvider.Context;
+ import net.minecraft.client.renderer.entity.ThrownTridentRenderer;
+-import net.minecraft.util.Mth;
+-import net.minecraft.world.entity.Entity;
++import net.minecraft.client.renderer.entity.state.ThrownTridentRenderState;
+ import net.minecraft.world.entity.projectile.ThrownTrident;
+ import net.minecraft.world.phys.Vec3;
+-import yesman.epicfight.api.utils.math.MathUtils;
++import org.joml.Quaternionfc;
++import org.joml.Vector3f;
++import org.spongepowered.asm.mixin.Mixin;
++import org.spongepowered.asm.mixin.injection.At;
+ import yesman.epicfight.api.utils.math.QuaternionUtils;
++import yesman.epicfight.client.renderer.EntityRenderSource;
+ import yesman.epicfight.world.capabilities.EpicFightCapabilities;
+ import yesman.epicfight.world.capabilities.projectile.ThrownTridentPatch;
+ 
+-@Mixin(value = ThrownTridentRenderer.class)
+-public abstract class MixinThrownTridentRenderer extends EntityRenderer<ThrownTrident> {
+-	protected MixinThrownTridentRenderer(Context p_174008_) {
+-		super(p_174008_);
+-	}
+-	
+-	@Inject(
+-        at = @At(
+-            value = "INVOKE",
+-            target = "Lcom/mojang/blaze3d/vertex/PoseStack;mulPose(Lorg/joml/Quaternionf;)V",
+-            ordinal = 0
+-        ),
+-        method = "render(Lnet/minecraft/world/entity/projectile/ThrownTrident;FFLcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;I)V"
+-    )
+-	private void epicfight$render(ThrownTrident tridentEntity, float yRot, float partialTicks, PoseStack poseStack, MultiBufferSource multiSourceBuffer, int packedLight, CallbackInfo info) {
+-		ThrownTridentPatch tridentPatch = EpicFightCapabilities.getEntityPatch(tridentEntity, ThrownTridentPatch.class);
+-		
+-		if (tridentPatch != null) {
+-			if (tridentPatch.isInnateActivated() && tridentEntity.getOwner() != null) {
+-				Entity owner = tridentEntity.getOwner();
+-				Vec3 toOwner = owner.position().subtract(tridentEntity.position());
+-				Vec3 toOwnerHorizontalNorm = owner.position().subtract(tridentEntity.position()).subtract(0, toOwner.y, 0).normalize();
+-				Vec3 toOwnerNorm = toOwner.normalize();
+-				Vec3 rotAxis = toOwnerHorizontalNorm.cross(toOwnerNorm).normalize();
+-				float deg = (float) MathUtils.getAngleBetween(toOwnerNorm, toOwnerHorizontalNorm);
+-				
+-				poseStack.mulPose(QuaternionUtils.rotationDegrees(new Vector3f((float)rotAxis.x, (float)rotAxis.y, (float)rotAxis.z), deg));
+-				poseStack.mulPose(QuaternionUtils.XP.rotationDegrees(90.0F));
+-				poseStack.mulPose(QuaternionUtils.ZP.rotationDegrees(Mth.lerp(partialTicks, tridentEntity.xRotO, tridentEntity.getXRot()) + 90.0F));
+-				poseStack.translate(0.0D, -0.8D, -0.0D);
+-				
+-				tridentPatch.renderXRot = tridentEntity.getXRot();
+-				tridentPatch.renderXRotO = tridentEntity.xRotO;
+-				tridentPatch.renderYRot = tridentEntity.getYRot();
+-				tridentPatch.renderYRotO = tridentEntity.yRotO;
+-				tridentEntity.xRotO = -90.0F;
+-				tridentEntity.yRotO = 90.0F;
+-				tridentEntity.setXRot(-90.0F);
+-				tridentEntity.setYRot(90.0F);
+-			}
+-		}
+-	}
+-	
+-	@Inject(at = @At(value = "TAIL"), method = "render(Lnet/minecraft/world/entity/projectile/ThrownTrident;FFLcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;I)V")
+-	private void epicfight$renderPost(ThrownTrident tridentEntity, float yRot, float partialTicks, PoseStack poseStack, MultiBufferSource multiSourceBuffer, int packedLight, CallbackInfo info) {
+-		ThrownTridentPatch tridentPatch = EpicFightCapabilities.getEntityPatch(tridentEntity, ThrownTridentPatch.class);
+-		
+-		if (tridentPatch != null) {
+-			if (tridentPatch.isInnateActivated()) {
+-				tridentEntity.xRotO = tridentPatch.renderXRotO;
+-				tridentEntity.yRotO = tridentPatch.renderYRotO;
+-				tridentEntity.setXRot(tridentPatch.renderXRot);
+-				tridentEntity.setYRot(tridentPatch.renderYRot);
+-			}
+-		}
+-	}
+-}
+\ No newline at end of file
++@Mixin(ThrownTridentRenderer.class)
++abstract class MixinThrownTridentRenderer {
++    @WrapOperation(
++        method = "submit(Lnet/minecraft/client/renderer/entity/state/ThrownTridentRenderState;Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;Lnet/minecraft/client/renderer/state/CameraRenderState;)V",
++        at = @At(value = "INVOKE", target = "Lcom/mojang/blaze3d/vertex/PoseStack;mulPose(Lorg/joml/Quaternionfc;)V", ordinal = 0))
++    private void epicfight$applyReturnOrientation(PoseStack poses, Quaternionfc usual, Operation<Void> original,
++        ThrownTridentRenderState state, @Share("returning") LocalBooleanRef returning) {
++        if (((EntityRenderSource)state).epicfight$entity() instanceof ThrownTrident trident) {
++            ThrownTridentPatch patch = EpicFightCapabilities.getEntityPatch(trident, ThrownTridentPatch.class);
++            if (patch != null && patch.isInnateActivated() && trident.getOwner() != null) {
++                Vec3 towardOwner = trident.getOwner().position().subtract(trident.position());
++                if (towardOwner.lengthSqr() > 1.0E-8D) {
++                    double flat = towardOwner.horizontalDistance();
++                    Vec3 axis = flat > 1.0E-5D ? new Vec3(-towardOwner.z(), 0.0D, towardOwner.x()).scale(Math.signum(towardOwner.y()) / flat)
++                        : new Vec3(1.0D, 0.0D, 0.0D);
++                    if (towardOwner.y() != 0.0D) {
++                        float tilt = (float)Math.toDegrees(Math.atan2(Math.abs(towardOwner.y()), flat));
++                        poses.mulPose(QuaternionUtils.rotationDegrees(new Vector3f((float)axis.x(), (float)axis.y(), (float)axis.z()), tilt));
++                    }
++                    poses.mulPose(QuaternionUtils.XP.rotationDegrees(90.0F));
++                    returning.set(true);
++                    return;
++                }
++            }
++        }
++        original.call(poses, usual);
++    }
++
++    @WrapOperation(
++        method = "submit(Lnet/minecraft/client/renderer/entity/state/ThrownTridentRenderState;Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;Lnet/minecraft/client/renderer/state/CameraRenderState;)V",
++        at = @At(value = "INVOKE", target = "Lcom/mojang/blaze3d/vertex/PoseStack;mulPose(Lorg/joml/Quaternionfc;)V", ordinal = 1))
++    private void epicfight$moveReturnModel(PoseStack poses, Quaternionfc usual, Operation<Void> original,
++        @Share("returning") LocalBooleanRef returning) {
++        original.call(poses, usual);
++        if (returning.get()) {
++            poses.translate(0.0D, -0.8D, 0.0D);
++        }
++    }
++}
+diff --git a/src/main/java/yesman/epicfight/world/capabilities/item/WeaponTypeReloadListener.java b/src/main/java/yesman/epicfight/world/capabilities/item/WeaponTypeReloadListener.java
+index b0564cb..6f664d4 100644
+--- a/src/main/java/yesman/epicfight/world/capabilities/item/WeaponTypeReloadListener.java
++++ b/src/main/java/yesman/epicfight/world/capabilities/item/WeaponTypeReloadListener.java
+@@ -140,7 +140,7 @@ public class WeaponTypeReloadListener extends SimpleJsonResourceReloadListener<J
+         builder.canBePlacedOffhand(!tag.contains("usable_in_offhand") || tag.getBooleanOr("usable_in_offhand", false));
+ 
+         if (tag.contains("hit_particle")) {
+-            Optional<Holder.Reference<ParticleType<?>>> particleType = BuiltInRegistries.PARTICLE_TYPE.getValue(ResourceLocation.parse(tag.getStringOr("hit_particle", "")));
++            Optional<Holder.Reference<ParticleType<?>>> particleType = BuiltInRegistries.PARTICLE_TYPE.get(ResourceLocation.parse(tag.getStringOr("hit_particle", "")));
+             particleType.ifPresent( particleHolder -> {
+                 if (!(particleHolder.value() instanceof HitParticleType)) {
+                     EpicFight.LOGGER.warn("{} is not a hit particle type in {}", tag.getStringOr("hit_particle", ""), rl);
+@@ -152,13 +152,13 @@ public class WeaponTypeReloadListener extends SimpleJsonResourceReloadListener<J
+         }
+ 
+         if (tag.contains("swing_sound")) {
+-            Holder<SoundEvent> sound = BuiltInRegistries.SOUND_EVENT.getValue(ResourceLocation.parse(tag.getStringOr("swing_sound", ""))).get();
++            Holder<SoundEvent> sound = BuiltInRegistries.SOUND_EVENT.get(ResourceLocation.parse(tag.getStringOr("swing_sound", ""))).orElseThrow();
+ 
+             builder.swingSound(sound);
+         }
+ 
+         if (tag.contains("hit_sound")) {
+-            Holder<SoundEvent> sound = BuiltInRegistries.SOUND_EVENT.getValue(ResourceLocation.parse(tag.getStringOr("hit_sound", ""))).get();
++            Holder<SoundEvent> sound = BuiltInRegistries.SOUND_EVENT.get(ResourceLocation.parse(tag.getStringOr("hit_sound", ""))).orElseThrow();
+ 
+             builder.hitSound(sound);
+         }
+diff --git a/src/main/java/yesman/epicfight/world/capabilities/projectile/ThrownTridentPatch.java b/src/main/java/yesman/epicfight/world/capabilities/projectile/ThrownTridentPatch.java
+index cf9317d..ae4cdfc 100644
+--- a/src/main/java/yesman/epicfight/world/capabilities/projectile/ThrownTridentPatch.java
++++ b/src/main/java/yesman/epicfight/world/capabilities/projectile/ThrownTridentPatch.java
+@@ -34,10 +34,6 @@ public class ThrownTridentPatch extends ProjectilePatch<ThrownTrident> {
+ 	private float independentXRotO;
+ 	private float independentXRot;
+ 	
+-	public float renderXRot;
+-	public float renderXRotO;
+-	public float renderYRot;
+-	public float renderYRotO;
+ 	
+ 	public ThrownTridentPatch(ThrownTrident original) {
+ 		super(original);
+diff --git a/src/main/resources/epicfight.mixins.json b/src/main/resources/epicfight.mixins.json
+index e701e5f..4a09ad2 100644
+--- a/src/main/resources/epicfight.mixins.json
++++ b/src/main/resources/epicfight.mixins.json
+@@ -43,7 +43,7 @@
+         "client.VillagerProfessionLayerAccessor",
+         "client.ClientLevelAccessor",
+         "client.ContainerObjectSelectionListEntryAccessor",
+-        "client.KeyMappingAccessor",
++        "client.KeyMappingAccessor"
+     ],
+     "mixins": [
+         "common.MixinDefaultAttributes",

@@ -6,13 +6,15 @@
 
 | การตรวจ | ผล |
 | --- | --- |
-| `compileJava` และ `clean build` | ยังติดการคอมไพล์ตัวมอดเต็ม 67 รายการจากการรันใน workspace ด้วย JDK 21 |
+| `compileJava` และ `clean build` | ผ่านสำหรับมอดเต็มด้วย JDK 21 รวมการทดสอบ Java เดิม 14 รายการ |
 | `validateAccessWidener` | ผ่านกับ Minecraft 1.21.11 |
 | `testPortData` | ผ่านการอ่านแอสเซต CC0, การให้ resource pack มีลำดับความสำคัญสูงกว่าไฟล์ใน JAR, โมเดลหนังสือสกิล, รูปแบบ NBT เดิมและ `ForgeData` |
 | `testComputeRenderPass` | ผ่านการอ่านพิกเซลจาก Minecraft `RenderPass` 6 เฟรมบน Mesa llvmpipe ตรวจ skinning สองข้อต่อ, stride ของ Vanilla และ Iris, การซ่อนสามเหลี่ยมและการคืนช่วง SSBO |
 | รอยอาวุธและอนุภาค | ผ่านการส่งตำแหน่ง สี UV และแสงเข้า `SubmitNodeStorage` และการสร้างสามเหลี่ยมฟ้าแลบด้วย `BufferBuilder` จริง |
-| `runClient` และ `runServer` | ติด `compileJava` ก่อนเริ่ม Minecraft ตัวเต็ม |
-| JAR และการเล่น | ยังไม่มี JAR ใน `build/libs` ที่ติดตั้งได้ จึงยังไม่มีผลทดสอบ Singleplayer, Multiplayer, dedicated server และ Fala Lite ร่วมกับมอดเต็ม |
+| `runClient` | Fabric เปิดไคลเอนต์และเริ่ม reload ทรัพยากรบน OpenGL 4.5 แต่พบ atlas เกราะที่อ้างด้วย ID เก่า และขาด `animmodels/entity/enderman.json` |
+| `runServer` | โหลด Fabric และผ่านจุดเริ่มต้นของมอดก่อนเซิร์ฟเวอร์หยุดที่การตรวจ Minecraft EULA ของอินสแตนซ์ทดสอบ |
+| JAR | Gradle สร้าง `Epic Fight-21.17.3-fala.2+mc1.21.11.jar` ใน `build/libs` ผ่านการตรวจไฟล์ remapped, entrypoint, access widener และ SHA-256 ของแอสเซตที่บรรจุ |
+| การเล่น | รอทดสอบ Singleplayer, Multiplayer, dedicated server และ Fala Lite ร่วมกับมอดเต็ม |
 
 GitHub Actions เรียก build, data test และกราฟิกทดสอบทุกครั้งที่ push สาขานี้ เมื่อ build ล้มเหลวให้เปิด `epicfight-compiler-diagnostics` ที่หน้า run เมื่อ build สำเร็จ workflow จะตรวจ remapped JAR และรายการแอสเซตก่อนอัปโหลด `epicfight-fabric-1.21.11` [GitHub Actions](https://github.com/Yamato115588/fala-epic-fight-1.21.11/actions/workflows/fabric-build.yml)
 
@@ -20,7 +22,7 @@ GitHub Actions เรียก build, data test และกราฟิกท�
 
 - พอร์ต GUI input และหน้าจอ HUD, registry และข้อมูลสูตรอาวุธ, API ฝั่งเซิร์ฟเวอร์สำหรับการต่อสู้และหลบ, การเก็บ NBT, การโหลดโมเดลไอเทม, particle render state และลำดับ depth pass สำหรับ afterimage
 - ซอร์สที่ตรึงไว้ใช้ GPL-3.0 ทรัพยากรต้นฉบับภายใต้ `LICENSE-ASSETS` ถูกตัดออกตอนเตรียมซอร์สและตัวตรวจ JAR จะปฏิเสธไฟล์แอสเซตนอกบัญชี [LICENSE](https://github.com/Antikythera-Studios/epicfight/blob/866a2a1e4268d0d7897c6a5be4ef1e58e47d7443/LICENSE) · [LICENSE-ASSETS](https://github.com/Antikythera-Studios/epicfight/blob/866a2a1e4268d0d7897c6a5be4ef1e58e47d7443/LICENSE-ASSETS)
-- ตัวสร้างใน `replacement-assets/` สร้างทรัพยากร CC0-1.0 จำนวน 41 รายการ ครอบคลุม rig ผู้เล่นแบบปกติและแขนเล็ก, คลิป 13 ท่า, โมเดลหนังสือสกิลหกแบบ, รอยอาวุธ, โมเดลอนุภาค, พื้นผิวเอฟเฟกต์และ compute shader รายการนี้ยังครอบคลุมเพียงส่วนหนึ่งของโมเดลและแอนิเมชันที่ตัวมอดลงทะเบียน
+- ตัวสร้างใน `replacement-assets/` สร้างทรัพยากร CC0-1.0 จำนวน 154 รายการ ครอบคลุม rig ผู้เล่นแบบปกติและแขนเล็ก คลิป 13 ท่า โมเดลหนังสือสกิลหกแบบ โมเดลและพื้นผิวอาวุธกับเกราะ Stray รอยอาวุธ โมเดลอนุภาค พื้นผิวเอฟเฟกต์ และ compute shader ชุดนี้ยังครอบคลุมเพียงส่วนหนึ่งของโมเดลและแอนิเมชันที่ตัวมอดลงทะเบียน
 - `AssetResourceSource` ใช้ `ResourceProvider` ของ Fabric ก่อน แล้วจึงหาในไฟล์ที่บันเดิลไว้ เส้นทางแอนิเมชันฝั่งเซิร์ฟเวอร์ใช้ตัวอ่านเดียวกันและรายงานเมื่อหา asset ที่ต้องใช้ไม่พบ
 
 ## ทำซ้ำจากสาขาปัจจุบัน
@@ -48,7 +50,7 @@ python3 "$PORT_REPO/tools/check_fabric_jar.py" build/libs
 
 ## งานค้างที่ขวางการเปิดเกม
 
-- ย้าย renderer ที่ยังใช้ entity/model ตรง ๆ ไปใช้ `EntityRenderState`, `SubmitNodeCollector` และ layer แบบใหม่ จุดหลักคือ `PresetRenderer`, `PatchedLivingEntityRenderer`, `WearableItemLayer`, `FirstPersonRenderer` และ Mixin เรนเดอร์ฝั่งไคลเอนต์
-- ย้ายการวาด GUI ที่ยังพึ่ง Z offset, global shader state และ callback เก่าของรายการและ Grid ให้ผ่านระบบ GUI ของ 1.21.11
-- ตรวจ optional adapters ของ Iris, Sodium, Wildfire และมอดอื่นตาม API รุ่นเป้าหมาย เมื่อ build ผ่านให้เปิดไคลเอนต์และ dedicated server แล้วตรวจ Mixin, การลงทะเบียน, การโหลดแอสเซต, คอมโบ, การหลบ, การซิงก์ระหว่างผู้เล่น และการเรนเดอร์ในโลกจริง
+- `WearableItemLayer` ต้องขอ armor trim atlas ด้วย logical atlas ID ของ 1.21.11 แล้วทดสอบ reload ทรัพยากรซ้ำ
+- เติมแอสเซตทดแทนที่การเริ่มเกมต้องใช้ เริ่มจาก rig ที่ตัวโหลดร้องขอคือ `epicfight:animmodels/entity/enderman.json` จากนั้นตรวจการลงทะเบียนและโหลดแอนิเมชันในไคลเอนต์และ dedicated server
+- ตรวจ optional adapters ของ Iris, Sodium, Wildfire และมอดอื่นกับเกมรุ่นเป้าหมาย แล้วทดสอบคอมโบ การหลบ และการซิงก์ระหว่างผู้เล่นเมื่อเปิดเวิลด์ได้
 - ตรวจแพ็ก Fala Lite 24 มอดในอินสแตนซ์ทดสอบเมื่อมี JAR Epic Fight ที่เปิดเกมได้ และบันทึก SHA-256 ของแพ็กที่ใช้ทดสอบ

@@ -234,6 +234,94 @@ def book_texture(color, emblem):
     return png_rgba(24, 24, pixel)
 
 
+WEAPON_METALS = {
+    'wooden': (159, 103, 57), 'stone': (130, 138, 151), 'iron': (177, 193, 207),
+    'golden': (217, 168, 66), 'diamond': (52, 188, 176), 'netherite': (103, 83, 127),
+}
+
+# Contours use axes along and across the blade. Each silhouette is drawn independently.
+WEAPON_CONTOURS = {
+    'greatsword': (((11, -3.6), (27, -3.6), (34, 0), (27, 3.6), (11, 3.6), (10, 1.5), (10, -1.5)), 9, 5.0),
+    'longsword': (((11, -2.3), (27, -1.8), (33, 0), (27, 1.8), (11, 2.3)), 9, 4.7),
+    'dagger': (((8, -2.8), (16, -2.1), (22, 0), (16, 2.1), (8, 2.8)), 7, 3.4),
+    'tachi': (((10, -1.8), (20, -1.8), (29, -.8), (34, 1.5), (30, 3.2), (21, 1.4), (10, 1.0)), 8, 3.0),
+    'spear': (((20, -1.0), (26, -3.1), (34, 0), (26, 3.1), (20, 1.0)), 20, 2.4),
+    'bokken': (((10, -1.5), (27, -1.7), (33, -.1), (32, 1.2), (26, 1.7), (10, 1.3)), 9, 2.7),
+    'sheath': (((7, -1.6), (22, -1.9), (33, -.3), (34, 1.0), (29, 2.7), (22, 1.1), (7, 1.6)), 7, 2.8),
+}
+
+
+def covered(poly, x, y):
+    inside = False
+    ax, ay = poly[-1]
+    for bx, by in poly:
+        if (ay > y) != (by > y) and x < ax + (bx - ax) * (y - ay) / (by - ay):
+            inside = not inside
+        ax, ay = bx, by
+    return inside
+
+
+def shade(color, adjustment):
+    return *(max(0, min(255, value + adjustment)) for value in color), 255
+
+
+def weapon_texture(family, material):
+    blade, guard, guard_width = WEAPON_CONTOURS[family]
+    metal = WEAPON_METALS[material] if isinstance(material, str) else material
+
+    def material_at(s, t):
+        if covered(blade, s, t):
+            return shade(metal, (34 if t > .55 else -21 if t < -.6 else 8) + int(s) % 3)
+        if abs(s - guard) < 1.15 and abs(t) < guard_width:
+            return (208, 155, 79, 255) if s > guard else (158, 106, 59, 255)
+        if 0 <= s <= guard and abs(t) < (1.15 if family == 'spear' else 1.42):
+            if s < 2.4 or (family == 'spear' and abs(s - 13) < 1.0):
+                return 191, 139, 69, 255
+            return (114, 77, 57, 255) if int(s) % 3 else (77, 59, 54, 255)
+        return None
+
+    def pixel(x, y):
+        s, t = (x - y + 22) * .70710678, (x + y - 32) * .70710678
+        color = material_at(s, t)
+        if color:
+            return color
+        if any(material_at(s + ds, t + dt) for ds, dt in ((.78, 0), (-.78, 0), (0, .78), (0, -.78))):
+            return 37, 33, 43, 255
+        return 0, 0, 0, 0
+    return png_rgba(32, 32, pixel)
+
+
+def glove_texture():
+    palm = ((7, 19), (8, 10), (11, 8), (12, 12), (12, 6), (15, 5), (17, 7),
+            (19, 5), (22, 6), (24, 8), (25, 15), (23, 24), (20, 27), (10, 27))
+
+    def pixel(x, y):
+        if covered(palm, x + .5, y + .5):
+            if y > 22:
+                return (179, 130, 72, 255) if y in (23, 26) else (66, 48, 47, 255)
+            if 13 <= x <= 22 and 9 <= y <= 14 and (x + y) % 5 < 2:
+                return 197, 159, 103, 255
+            return shade((117, 68, 54), 13 if x > 18 else -3)
+        return 0, 0, 0, 0
+    return png_rgba(32, 32, pixel)
+
+
+def stray_fabric(x, y):
+    base = (62, 88, 99) if (x // 3 + y // 3) % 4 else (75, 106, 110)
+    if (x + 3 * y) % 37 in (0, 1):
+        return 174, 151, 101, 255
+    return shade(base, (x + y) % 5)
+
+
+def stray_icon(item):
+    outlines = {
+        'stray_hat': ((4, 11), (5, 6), (9, 3), (15, 3), (19, 6), (20, 17), (16, 20), (15, 15), (8, 15), (7, 20), (4, 17)),
+        'stray_robe': ((3, 6), (8, 3), (10, 5), (14, 5), (16, 3), (21, 6), (23, 13), (19, 15), (17, 13), (17, 22), (7, 22), (7, 13), (5, 15), (1, 13)),
+        'stray_pants': ((5, 4), (19, 4), (20, 21), (13, 21), (12, 12), (11, 12), (10, 21), (4, 21)),
+    }
+    return png_rgba(24, 24, lambda x, y: stray_fabric(x, y) if covered(outlines[item], x + .5, y + .5) else (0, 0, 0, 0))
+
+
 def effect_mesh(rings, segments):
     positions, normals, uvs, indices = [], [], [], []
     for ring, (z, radius) in enumerate(rings):
@@ -298,6 +386,24 @@ def build(resources):
                                ('models/item/' + icon, {'parent': 'minecraft:item/generated', 'textures': {'layer0': 'epicfight:item/' + icon}})]:
             write(f'assets/epicfight/{name}.json', (json.dumps(document, separators=(',', ':')) + '\n').encode())
         write(f'assets/epicfight/textures/item/{icon}.png', book_texture(color, emblem))
+    def item(name, texture, handheld=False):
+        model_type = 'handheld' if handheld else 'generated'
+        model = {'parent': 'minecraft:item/' + model_type, 'textures': {'layer0': 'epicfight:item/' + name}}
+        declaration = {'model': {'type': 'minecraft:model', 'model': 'epicfight:item/' + name}}
+        write(f'assets/epicfight/items/{name}.json', (json.dumps(declaration, separators=(',', ':')) + '\n').encode())
+        write(f'assets/epicfight/models/item/{name}.json', (json.dumps(model, separators=(',', ':')) + '\n').encode())
+        write(f'assets/epicfight/textures/item/{name}.png', texture)
+    for family in ('greatsword', 'longsword', 'dagger', 'tachi', 'spear'):
+        for metal in WEAPON_METALS:
+            item(f'{metal}_{family}', weapon_texture(family, metal), True)
+    item('uchigatana', weapon_texture('tachi', (101, 168, 194)), True)
+    item('uchigatana_sheath', weapon_texture('sheath', (77, 52, 93)), True)
+    item('bokken', weapon_texture('bokken', 'wooden'), True)
+    item('glove', glove_texture(), True)
+    for name in ('stray_hat', 'stray_robe', 'stray_pants'):
+        item(name, stray_icon(name))
+    for layer in ('humanoid', 'humanoid_leggings'):
+        write(f'assets/epicfight/textures/entity/equipment/{layer}/stray_cloth.png', png_rgba(64, 32, stray_fabric))
     for name, rings, sides in [
             ('air_burst', [(0, .62), (.07, .91), (.23, 1.34)], 24),
             ('force_field', [(-.79, .18), (-.61, .66), (-.27, .95), (.22, .97), (.69, .66), (.85, .14)], 32),

@@ -1,0 +1,360 @@
+diff --git a/src/main/java/yesman/epicfight/EpicFightFabric.java b/src/main/java/yesman/epicfight/EpicFightFabric.java
+index edb8f3c..968353c 100644
+--- a/src/main/java/yesman/epicfight/EpicFightFabric.java
++++ b/src/main/java/yesman/epicfight/EpicFightFabric.java
+@@ -63,6 +63,7 @@ import yesman.epicfight.world.item.SkillBookItem;
+ 
+ import net.minecraft.core.registries.BuiltInRegistries;
+ import net.minecraft.world.item.ItemStack;
++import net.minecraft.world.level.storage.LevelResource;
+ 
+ import java.nio.file.Files;
+ import java.nio.file.Path;
+@@ -198,7 +199,9 @@ public class EpicFightFabric implements ModInitializer {
+         ServerEntityWorldChangeEvents.AFTER_PLAYER_CHANGE_WORLD.register((player, origin, destination) -> VanillaPlayerEventHooks.onChagneDimension(player));
+         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
+             try {
+-                VanillaWorldEventHooks.onDatapackSync(handler.getPlayer());
++                var player = handler.getPlayer();
++                VanillaPlayerEventHooks.onLoad(player, server.getWorldPath(LevelResource.PLAYER_DATA_DIR).toFile(), player.getStringUUID());
++                VanillaWorldEventHooks.onDatapackSync(player);
+             } catch (Throwable e) {
+                 EpicFight.LOGGER.warn("Failed to sync datapack data to player: {}", handler.getPlayer().getName().getString(), e);
+             }
+diff --git a/src/main/java/yesman/epicfight/api/client/event/types/render/RenderHandEvent.java b/src/main/java/yesman/epicfight/api/client/event/types/render/RenderHandEvent.java
+index 96c90cb..cdd6b22 100644
+--- a/src/main/java/yesman/epicfight/api/client/event/types/render/RenderHandEvent.java
++++ b/src/main/java/yesman/epicfight/api/client/event/types/render/RenderHandEvent.java
+@@ -1,10 +1,14 @@
+ package yesman.epicfight.api.client.event.types.render;
+ 
++import java.util.function.BiConsumer;
++
+ import com.mojang.blaze3d.vertex.PoseStack;
+ import net.minecraft.client.renderer.MultiBufferSource;
++import net.minecraft.client.renderer.SubmitNodeCollector;
+ import net.minecraft.client.player.LocalPlayer;
+ import yesman.epicfight.api.event.CancelableEvent;
+ import yesman.epicfight.api.event.Event;
++import yesman.epicfight.client.renderer.EntityRenderTasks;
+ 
+ /// Fired before [net.minecraft.client.renderer.ItemInHandRenderer#renderHandsWithItems].
+ ///
+@@ -14,14 +18,14 @@ public class RenderHandEvent extends Event implements CancelableEvent {
+ 	private final LocalPlayer player;
+ 	private final float partialTick;
+ 	private final PoseStack poseStack;
+-	private final MultiBufferSource bufferSource;
++	private final SubmitNodeCollector collector;
+ 	private final int packedLight;
+ 
+-	public RenderHandEvent(LocalPlayer player, float partialTick, PoseStack poseStack, MultiBufferSource bufferSource, int packedLight) {
++	public RenderHandEvent(LocalPlayer player, float partialTick, PoseStack poseStack, SubmitNodeCollector collector, int packedLight) {
+ 		this.player = player;
+ 		this.partialTick = partialTick;
+ 		this.poseStack = poseStack;
+-		this.bufferSource = bufferSource;
++		this.collector = collector;
+ 		this.packedLight = packedLight;
+ 	}
+ 
+@@ -37,9 +41,11 @@ public class RenderHandEvent extends Event implements CancelableEvent {
+ 		return poseStack;
+ 	}
+ 
+-	public MultiBufferSource getBufferSource() {
+-		return bufferSource;
+-	}
++    public void draw(BiConsumer<PoseStack, MultiBufferSource.BufferSource> callback) {
++        PoseStack captured = new PoseStack();
++        captured.last().set(this.poseStack.last());
++        EntityRenderTasks.submit(this.collector, buffers -> callback.accept(captured, buffers));
++    }
+ 
+ 	public int getPackedLight() {
+ 		return packedLight;
+diff --git a/src/main/java/yesman/epicfight/client/events/engine/RenderEngine.java b/src/main/java/yesman/epicfight/client/events/engine/RenderEngine.java
+index c1ccb3c..f5b7941 100644
+--- a/src/main/java/yesman/epicfight/client/events/engine/RenderEngine.java
++++ b/src/main/java/yesman/epicfight/client/events/engine/RenderEngine.java
+@@ -609,15 +609,15 @@ public class RenderEngine implements IEventBasedEngine {
+                     return;
+                 }
+ 
+-                this.firstPersonRenderer.render(
++                event.draw((poses, buffers) -> this.firstPersonRenderer.render(
+                       playerpatch.getOriginal()
+                     , playerpatch
+                     , (LivingEntityRenderer)this.minecraft.getEntityRenderDispatcher().getRenderer(playerpatch.getOriginal())
+-                    , event.getBufferSource()
+-                    , event.getPoseStack()
++                    , buffers
++                    , poses
+                     , event.getPackedLight()
+                     , event.getPartialTick()
+-                );
++                ));
+ 
+                 event.cancel();
+             }
+diff --git a/src/main/java/yesman/epicfight/mixin/client/MixinCamera.java b/src/main/java/yesman/epicfight/mixin/client/MixinCamera.java
+index c2e4e86..0f6cdb8 100644
+--- a/src/main/java/yesman/epicfight/mixin/client/MixinCamera.java
++++ b/src/main/java/yesman/epicfight/mixin/client/MixinCamera.java
+@@ -2,7 +2,7 @@ package yesman.epicfight.mixin.client;
+ 
+ import net.minecraft.client.Camera;
+ import net.minecraft.world.entity.Entity;
+-import net.minecraft.world.level.BlockGetter;
++import net.minecraft.world.level.Level;
+ import org.spongepowered.asm.mixin.Mixin;
+ import org.spongepowered.asm.mixin.Shadow;
+ import org.spongepowered.asm.mixin.injection.At;
+@@ -16,7 +16,7 @@ public abstract class MixinCamera {
+     @Shadow
+     private boolean initialized;
+     @Shadow
+-    private BlockGetter level;
++    private Level level;
+     @Shadow
+     private Entity entity;
+     @Shadow
+@@ -24,8 +24,8 @@ public abstract class MixinCamera {
+     @Shadow
+     private float partialTickTime;
+     
+-    @Inject(at = @At(value = "HEAD"), method = "setup(Lnet/minecraft/world/level/BlockGetter;Lnet/minecraft/world/entity/Entity;ZZF)V", cancellable = true)
+-    public void epicfight$setup(BlockGetter level, Entity entity, boolean detached, boolean thirdPersonReverse, float partialTick, CallbackInfo callbackInfo) {
++    @Inject(at = @At(value = "HEAD"), method = "setup(Lnet/minecraft/world/level/Level;Lnet/minecraft/world/entity/Entity;ZZF)V", cancellable = true)
++    public void epicfight$setup(Level level, Entity entity, boolean detached, boolean thirdPersonReverse, float partialTick, CallbackInfo callbackInfo) {
+         this.initialized = true;
+         this.level = level;
+         this.entity = entity;
+@@ -45,8 +45,8 @@ public abstract class MixinCamera {
+         }
+     }
+ 
+-    @Inject(at = @At(value = "TAIL"), method = "setup(Lnet/minecraft/world/level/BlockGetter;Lnet/minecraft/world/entity/Entity;ZZF)V")
+-    public void epicfight$computeCameraAngles(BlockGetter level, Entity entity, boolean detached, boolean thirdPersonReverse, float partialTick, CallbackInfo callbackInfo) {
++    @Inject(at = @At(value = "TAIL"), method = "setup(Lnet/minecraft/world/level/Level;Lnet/minecraft/world/entity/Entity;ZZF)V")
++    public void epicfight$computeCameraAngles(Level level, Entity entity, boolean detached, boolean thirdPersonReverse, float partialTick, CallbackInfo callbackInfo) {
+         EpicFightCameraAPI cameraApi = EpicFightCameraAPI.getInstance();
+         Camera camera = (Camera)(Object)this;
+         cameraApi.computeCameraAngles(camera, partialTick);
+diff --git a/src/main/java/yesman/epicfight/mixin/client/MixinInventory.java b/src/main/java/yesman/epicfight/mixin/client/MixinInventory.java
+index 139af72..d939126 100644
+--- a/src/main/java/yesman/epicfight/mixin/client/MixinInventory.java
++++ b/src/main/java/yesman/epicfight/mixin/client/MixinInventory.java
+@@ -1,26 +1,22 @@
+ package yesman.epicfight.mixin.client;
+ 
++import net.minecraft.world.entity.player.Inventory;
++import net.minecraft.world.entity.player.Player;
++import org.spongepowered.asm.mixin.Final;
+ import org.spongepowered.asm.mixin.Mixin;
++import org.spongepowered.asm.mixin.Shadow;
+ import org.spongepowered.asm.mixin.injection.At;
+ import org.spongepowered.asm.mixin.injection.Inject;
+ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+-
+-import net.minecraft.world.entity.player.Inventory;
+ import yesman.epicfight.client.events.engine.ControlEngine;
+ 
+ @Mixin(Inventory.class)
+-public class MixinInventory {
+-    @Inject(
+-            method = "swapPaint",
+-            at = @At("HEAD"),
+-            cancellable = true
+-    )
+-    private void onCycleHotbarSlot(double direction, CallbackInfo ci) {
+-        // Called whenever the player changes their selected hotbar item via the mouse wheel or other input systems.
+-        if (ControlEngine.isHotbarCyclingDisabled()) {
+-            // Object.MouseScrollingEvent is already cancelled in ControlEngine.Events#mouseScrollEvent to block hotbar cycling for mouse input.
+-            // Controller inputs are unaffected, so we also cancel it here to enforce the restriction
+-            // for all input methods.
++abstract class MixinInventory {
++    @Shadow @Final public Player player;
++
++    @Inject(method = "setSelectedSlot", at = @At("HEAD"), cancellable = true)
++    private void epicfight$preventHotbarSelectionDuringAction(int slot, CallbackInfo ci) {
++        if (this.player.isLocalPlayer() && ControlEngine.isHotbarCyclingDisabled()) {
+             ci.cancel();
+         }
+     }
+diff --git a/src/main/java/yesman/epicfight/mixin/client/MixinItemInHandRenderer.java b/src/main/java/yesman/epicfight/mixin/client/MixinItemInHandRenderer.java
+index efe2cf8..972c054 100644
+--- a/src/main/java/yesman/epicfight/mixin/client/MixinItemInHandRenderer.java
++++ b/src/main/java/yesman/epicfight/mixin/client/MixinItemInHandRenderer.java
+@@ -1,37 +1,24 @@
+-package yesman.epicfight.mixin.client;
+-
+-import com.mojang.blaze3d.vertex.PoseStack;
+-import net.minecraft.client.player.LocalPlayer;
+-import net.minecraft.client.renderer.ItemInHandRenderer;
+-import net.minecraft.client.renderer.MultiBufferSource;
+-import org.spongepowered.asm.mixin.Mixin;
+-import org.spongepowered.asm.mixin.injection.At;
+-import org.spongepowered.asm.mixin.injection.Inject;
+-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+-import yesman.epicfight.api.client.event.EpicFightClientEventHooks;
+-import yesman.epicfight.api.client.event.types.render.RenderHandEvent;
+-
+-@Mixin(value = ItemInHandRenderer.class)
+-public abstract class MixinItemInHandRenderer {
+-    @Inject(
+-        method = "renderHandsWithItems(FLcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource$BufferSource;Lnet/minecraft/client/player/LocalPlayer;I)V",
+-        at = @At(
+-            value = "INVOKE",
+-            target = "Lnet/minecraft/client/renderer/ItemInHandRenderer;renderArmWithItem(Lnet/minecraft/client/player/AbstractClientPlayer;FFLnet/minecraft/world/InteractionHand;FLnet/minecraft/world/item/ItemStack;FLcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;I)V",
+-            ordinal = 0
+-        ),
+-        cancellable = true
+-    )
+-    private void epicfight$renderHandsWithItems(float partialTicks, PoseStack poseStack, MultiBufferSource.BufferSource bufferSource, LocalPlayer player, int packedLight, CallbackInfo callbackInfo) {
+-        RenderHandEvent event = new RenderHandEvent(player, partialTicks, poseStack, bufferSource, packedLight);
+-
+-        boolean canceled = EpicFightClientEventHooks.Render.RENDER_HAND.post(event).isCanceled();
+-        if (canceled) {
+-            // Vanilla renderHandsWithItems calls bufferSource.endBatch() at the end.
+-            // Since we cancel the entire method, we must flush the buffer here,
+-            // otherwise the EpicFight first-person model is drawn but never appears on screen.
+-            bufferSource.endBatch();
+-            callbackInfo.cancel();
+-        }
+-    }
+-}
+\ No newline at end of file
++package yesman.epicfight.mixin.client;
++
++import com.mojang.blaze3d.vertex.PoseStack;
++import net.minecraft.client.player.LocalPlayer;
++import net.minecraft.client.renderer.ItemInHandRenderer;
++import net.minecraft.client.renderer.SubmitNodeCollector;
++import org.spongepowered.asm.mixin.Mixin;
++import org.spongepowered.asm.mixin.injection.At;
++import org.spongepowered.asm.mixin.injection.Inject;
++import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
++import yesman.epicfight.api.client.event.EpicFightClientEventHooks;
++import yesman.epicfight.api.client.event.types.render.RenderHandEvent;
++
++@Mixin(ItemInHandRenderer.class)
++abstract class MixinItemInHandRenderer {
++    @Inject(method = "renderHandsWithItems", at = @At("HEAD"), cancellable = true)
++    private void epicfight$submitHands(float partialTick, PoseStack poses, SubmitNodeCollector collector, LocalPlayer player,
++        int light, CallbackInfo ci) {
++        RenderHandEvent event = new RenderHandEvent(player, partialTick, poses, collector, light);
++        if (EpicFightClientEventHooks.Render.RENDER_HAND.post(event).isCanceled()) {
++            ci.cancel();
++        }
++    }
++}
+diff --git a/src/main/java/yesman/epicfight/mixin/common/MixinEntity.java b/src/main/java/yesman/epicfight/mixin/common/MixinEntity.java
+index 0c3e736..5af3741 100644
+--- a/src/main/java/yesman/epicfight/mixin/common/MixinEntity.java
++++ b/src/main/java/yesman/epicfight/mixin/common/MixinEntity.java
+@@ -74,20 +74,6 @@ public abstract class MixinEntity implements IEpicFightEntityPatchHolder, IPersi
+     @Unique
+     private int lastOnGroundTick;
+     
+-	// On NeoForge, Entity.onAddedToLevel() is a patched method that fires when an entity
+-	// is added to the level's entity storage. Fabric doesn't have this method, so this
+-	// injection is silently skipped (defaultRequire=0). The onAddedToLevel() behavior is
+-	// instead handled by the Fabric entity join handlers in MixinClientLevel and EpicFightFabric.
+-	@Inject(at = @At(value = "TAIL"), method = "onAddedToLevel()V", remap = false, require = 0)
+-	private void epicfight$onAddedToLevel(CallbackInfo callbackInfo) {
+-		Entity self = (Entity)((Object)this);
+-		EntityPatch<?> entitypatch = safeGetEntityPatch(self);
+-
+-		if (entitypatch != null) {
+-			try { entitypatch.onAddedToLevel(); } catch (Throwable ignored) {}
+-		}
+-	}
+-
+ 	/// Fires Epic Fight's onConstruct hook at the end of Entity constructor.
+ 	/// On NeoForge this was EntityEvent.EntityConstructing. On Fabric we inject directly.
+ 	@Inject(at = @At(value = "TAIL"), method = "<init>(Lnet/minecraft/world/entity/EntityType;Lnet/minecraft/world/level/Level;)V")
+@@ -241,15 +227,4 @@ public abstract class MixinEntity implements IEpicFightEntityPatchHolder, IPersi
+         try { return EpicFightCapabilities.getUnparameterizedEntityPatch(entity, type); } catch (Throwable e) { return java.util.Optional.empty(); }
+     }
+ 
+-    /*
+-    /// Useful mixin to debug y rotation, especially for action animations
+-    @Inject(at = @At(value = "HEAD"), method = "setYRot()V")
+-    private void epicfight$setYRot(float pYRot, CallbackInfo callbackInfo) {
+-        if (Float.isFinite(pYRot)) {
+-            if (!Minecraft.getInstance().isPaused()) {
+-                System.out.println("set YRot " + pYRot + ((Entity)(Object)this).level().isClientSide());
+-                new Exception().printStackTrace();
+-            }
+-        }
+-    }*/
+ }
+\ No newline at end of file
+diff --git a/src/main/java/yesman/epicfight/mixin/common/MixinPlayerList.java b/src/main/java/yesman/epicfight/mixin/common/MixinPlayerList.java
+deleted file mode 100644
+index 9913d17..0000000
+--- a/src/main/java/yesman/epicfight/mixin/common/MixinPlayerList.java
++++ /dev/null
+@@ -1,49 +0,0 @@
+-package yesman.epicfight.mixin.common;
+-
+-import net.minecraft.nbt.Tag;
+-import net.minecraft.server.level.ServerPlayer;
+-import net.minecraft.server.players.PlayerList;
+-import net.minecraft.world.level.storage.PlayerDataStorage;
+-import org.spongepowered.asm.mixin.Mixin;
+-import org.spongepowered.asm.mixin.Shadow;
+-import org.spongepowered.asm.mixin.injection.At;
+-import org.spongepowered.asm.mixin.injection.Inject;
+-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+-import yesman.epicfight.api.event.impl.VanillaPlayerEventHooks;
+-
+-import java.io.File;
+-
+-/// Mixin for [PlayerList] to wire [PlayerEvent.LoadFromFile].
+-///
+-/// In NeoForge, this event fires when a player's data is loaded from disk.
+-/// In Fabric, we intercept [PlayerList.load] which is called when a player logs in.
+-///
+-/// Note: Entity join level is handled by ServerEntityEvents.ENTITY_LOAD registered in
+-/// EpicFightFabric, not by a mixin here. This is the standard Fabric API approach.
+-@Mixin(value = PlayerList.class)
+-public abstract class MixinPlayerList {
+-
+-    @Shadow
+-    private PlayerDataStorage playerIo;
+-
+-    @Inject(
+-        at = @At(value = "RETURN"),
+-        method = "load(Lnet/minecraft/server/level/ServerPlayer;)Ljava/util/Optional;"
+-    )
+-    private void epicfight$load(ServerPlayer serverPlayer, CallbackInfoReturnable<java.util.Optional<net.minecraft.nbt.CompoundTag>> info) {
+-        // Get the player data directory from the player data storage
+-        File playerDirectory = getPlayerDir();
+-        VanillaPlayerEventHooks.onLoad(serverPlayer, playerDirectory, serverPlayer.getStringUUID());
+-    }
+-
+-    private File getPlayerDir() {
+-        // Access the playerDir field via reflection since it's private in PlayerDataStorage
+-        try {
+-            java.lang.reflect.Field field = PlayerDataStorage.class.getDeclaredField("playerDir");
+-            field.setAccessible(true);
+-            return (File) field.get(this.playerIo);
+-        } catch (Exception e) {
+-            return new File(".");
+-        }
+-    }
+-}
+diff --git a/src/main/resources/epicfight.mixins.json b/src/main/resources/epicfight.mixins.json
+index 4a09ad2..3a8684c 100644
+--- a/src/main/resources/epicfight.mixins.json
++++ b/src/main/resources/epicfight.mixins.json
+@@ -67,7 +67,6 @@
+         "common.MixinServerEntity",
+         "common.MixinServerPlayerEvents",
+         "common.MixinServerPlayerGameMode",
+-        "common.MixinPlayerList",
+         "common.MixinBowItem",
+         "common.MixinThrownTrident",
+         "common.MixinTridentAttack",
