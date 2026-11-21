@@ -456,6 +456,20 @@ def battle_icons():
     return png_rgba(256, 256, pixel)
 
 
+def sweeping_edge_icon():
+    def pixel(x, y):
+        # A diagonal blade across a curved slash. Keep the margin transparent in the HUD.
+        if covered(((6, 25), (9, 27), (14, 21), (11, 18)), x + .5, y + .5):
+            return 208, 152, 69, 255
+        if covered(((11, 18), (22, 7), (26, 6), (25, 11), (15, 21)), x + .5, y + .5):
+            return 235, 247, 255, 255
+        radius_squared = (x - 10) ** 2 + (y - 8) ** 2
+        if x > 11 and y >= 13 and 225 <= radius_squared <= 361:
+            return 101, 194, 247, 255
+        return 0, 0, 0, 0
+    return png_rgba(32, 32, pixel)
+
+
 def particle_descriptions():
     smoke = [f'minecraft:generic_{i}' for i in reversed(range(8))]
     arc = [f'minecraft:sweep_{i}' for i in range(8)]
@@ -552,6 +566,7 @@ def build(resources):
         (224, 84, 85), (231, 140, 86), (154, 202, 113), (101, 177, 230), (202, 135, 229), (122, 214, 184))))
     write('assets/epicfight/textures/gui/healthbars2.png', healthbars(((220, 102, 91),) * 6))
     write('assets/epicfight/textures/gui/battle_icons.png', battle_icons())
+    write('assets/epicfight/textures/gui/skills/weapon_innate/sweeping_edge.png', sweeping_edge_icon())
     write('assets/epicfight/textures/particle/swing_trail.png', trail_texture())
     for icon, (color, emblem) in BOOKS.items():
         for name, document in [('items/' + icon, {'model': {'type': 'minecraft:model', 'model': 'epicfight:item/' + icon}}),

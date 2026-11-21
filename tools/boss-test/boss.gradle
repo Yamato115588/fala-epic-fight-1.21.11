@@ -1,0 +1,31 @@
+def probe = gradle.startParameter.initScripts.find { it.name == 'boss.gradle' }.parentFile
+rootProject { project ->
+    project.plugins.withId('fabric-loom') {
+        def classes = project.layout.buildDirectory.dir('boss-probe/classes')
+        def compileProbe = project.tasks.register('compileBossProbe', JavaCompile) {
+            dependsOn project.tasks.named('classes')
+            source project.fileTree(probe) { include '*.java' }
+            classpath = project.sourceSets.main.output + project.configurations.compileClasspath
+            destinationDirectory.set(classes)
+            options.release = 21
+            options.compilerArgs.add('-proc:none')
+        }
+        def probeJar = project.tasks.register('bossProbeJar', Jar) {
+            dependsOn compileProbe
+            from(classes)
+            from(new File(probe, 'fabric.mod.json'))
+            destinationDirectory.set(project.layout.buildDirectory.dir('boss-probe'))
+            archiveFileName.set('natural-boss-probe-named.jar')
+        }
+        project.afterEvaluate {
+            def remapTaskType = project.tasks.named('remapJar').get().class.superclass
+            project.tasks.register('remapBossProbeJar', remapTaskType) {
+                dependsOn probeJar
+                inputFile.set(probeJar.get().archiveFile)
+                archiveFileName.set('natural-boss-probe.jar')
+                destinationDirectory.set(project.layout.buildDirectory.dir('boss-probe'))
+                addNestedDependencies.set(false)
+            }
+        }
+    }
+}

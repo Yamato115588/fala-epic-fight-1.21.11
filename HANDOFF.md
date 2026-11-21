@@ -2,7 +2,18 @@
 
 งานชุดนี้ต่อจาก `1289d92ef673` บน `fabric-1.21.11` ใช้ `git rev-parse HEAD` ตรวจ commit และตรวจไฟล์ `.sha256` ของ JAR ใน Actions ที่มี head SHA เดียวกัน
 
-## ทดสอบใหม่หลัง `1289d92ef673`
+## รอบทดสอบ 21 พฤศจิกายน 2569
+
+- เริ่มจาก `78deb6cc8a24` ซึ่งต่อจาก `1289d92ef673` โดยตรง [Actions รอบที่ค้าง](https://github.com/Yamato115588/fala-epic-fight-1.21.11/actions/runs/44731427191) หยุดที่ spawn 16% ด้วย `Timeout loading world` ส่วน [รอบหลังแยก NetworkSynchronizer ของ Fabric Client GameTest](https://github.com/Yamato115588/fala-epic-fight-1.21.11/actions/runs/44787185235) เปิดโลกได้ใน 7.9 วินาทีและตรวจฝุ่นกับ IK ได้ คง timeout 6 นาทีเฉพาะขั้น smoke ตัวสรุปจะถือว่าขั้นนี้ล้มเหลวถ้าขาดผลฝุ่นหรือ IK แม้ Gradle คืนสถานะสำเร็จ
+- เครื่องทดสอบปัจจุบันเปิด Unix socket ของ Xvfb ไม่ได้ ตัวทดสอบใช้หมายเลขจออัตโนมัติและรองรับ TCP พร้อม cookie แยกแต่ละรอบ Gradle ในเครื่องใช้ JDK 21 ที่ตรวจพบได้และ cache ของ Loom สำหรับการบิลด์แบบออฟไลน์
+- แก้คำเตือนเมื่อเข้าโหมดต่อสู้ด้วยไอคอน Sweeping Edge ขนาด 32×32 ที่สร้างใหม่ ตรวจไฟล์ใน JAR พร้อมรายการ SHA-256 ของแอสเซต CC0 ทั้ง 322 รายการ
+- JAR จาก clean build รอบนี้มี SHA-256 `034d5f19c96f4bdd28c06299bc7d1cf73d070a70dcc5d9186a00a8f9a36c90ff` ตรวจ `testPortData` และ `testComputeRenderPass` ด้วย llvmpipe แล้ว [ตรวจ CI และ Artifacts ตาม commit](https://github.com/Yamato115588/fala-epic-fight-1.21.11/actions/workflows/fabric-build.yml?query=branch%3Afabric-1.21.11)
+- รัน JAR ที่มี hash ข้างต้นกับ Fala Lite ใหม่ Client ทั้งสองโหลดครบ 24 ม็อด ส่วน Dedicated ติดตั้ง 20 JAR และ Fabric โหลด 13 ม็อดที่รองรับเซิร์ฟเวอร์ ตรวจ hash ของแพ็กและม็อดทั้งสองโปรไฟล์ Client สองตัวเห็นมังกรครบ 6 เฟสและตาย รวมถึงท่าฟื้นและบินขึ้น, Landing IK, ฝุ่น `dust_contractive` และเสียงลมหายใจ Wither เข้าเกราะ โคลน Ghost เลเซอร์ 3 เป้า เสียงยิง และตายครบทั้งสอง Client
+- กดโจมตีและกลิ้งจริงบน Client แรก Dedicated รับคอมโบดาบเหล็ก 3 จังหวะ เป้าหมายเสีย HP จาก 10 เป็น 0 และรับท่ากลิ้งหน้า ตรวจ sound events ของการเหวี่ยงดาบ ฟัน และกลิ้ง [ผลย่อของ JAR รอบนี้](test-evidence/lite-lifecycle.json)
+- วิธีทดสอบสอง Client และ Dedicated ใช้ [คู่มือตัวทดสอบบอส](tools/boss-test/README.md) โปรแกรมเปิดเซิร์ฟเวอร์เฉพาะ `127.0.0.1` และตรวจ hash ของแพ็กก่อนเปิดเกม
+- Multiplayer แบบยืนยันบัญชีจริง **NOT TESTED** ไม่มีบัญชีและเซิร์ฟเวอร์ทดสอบที่ได้รับอนุญาต
+
+## ผลย้อนหลังของ `78deb6cc8a24`
 
 - เครื่องทดสอบเจอ Xvfb แจ้งว่า display หมายเลขเดิมกำลังใช้งาน ส่งผลให้ GLFW เปิดไม่ได้ ใช้การเลือก display อัตโนมัติและตรวจว่า Xvfb พร้อมก่อนเปิดเกม
 - [Actions รอบเดิม](https://github.com/Yamato115588/fala-epic-fight-1.21.11/actions/runs/44731427191) และการรันซ้ำในเครื่องหยุดที่ spawn 16% แล้ว Fabric Client GameTest แจ้ง `Timeout loading world` การปิด NetworkSynchronizer เฉพาะ smoke test ทำให้โลก Flat โหลดได้ใน 8.5–9.6 วินาทีในการตรวจสาเหตุ ใช้ timeout เดิมของการโหลดโลก ตัวรัน CI เก็บเฉพาะสถานะ spawn ที่เปลี่ยน ผลตรวจ และท้าย error

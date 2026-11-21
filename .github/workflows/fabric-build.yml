@@ -34,10 +34,13 @@ jobs:
           set -o pipefail
           ./gradlew --no-daemon --no-problems-report --console=plain --max-workers=2 --continue \
             -I "$GITHUB_WORKSPACE/tools/compiler-diagnostics.gradle" clean build 2>&1 | tee "$RUNNER_TEMP/epicfight-build.log"
-      - name: Test replacement asset loading, animation data and skinned model geometry
+      - name: Test replacement assets and compile the boss lifecycle probe
         if: ${{ !cancelled() && steps.full-build.outcome != 'skipped' }}
         working-directory: ${{ runner.temp }}/epicfight-fabric-work
-        run: ./gradlew --no-daemon --console=plain --max-workers=2 -I "$GITHUB_WORKSPACE/tools/data-test/data.gradle" testPortData
+        run: |
+          ./gradlew --no-daemon --console=plain --max-workers=2 \
+            -I "$GITHUB_WORKSPACE/tools/data-test/data.gradle" testPortData \
+            -I "$GITHUB_WORKSPACE/tools/boss-test/boss.gradle" remapBossProbeJar
       - name: Test compute output in Minecraft RenderPass
         if: ${{ !cancelled() && steps.full-build.outcome != 'skipped' }}
         working-directory: ${{ runner.temp }}/epicfight-fabric-work

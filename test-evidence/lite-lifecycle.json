@@ -1,0 +1,55 @@
+{
+  "jar_sha256": "034d5f19c96f4bdd28c06299bc7d1cf73d070a70dcc5d9186a00a8f9a36c90ff",
+  "pack_sha256": "2676674d1ce000613129d948cd77344e71393994c0704b4e7f597ea91af04415",
+  "client_pack_jars": 24,
+  "server_pack_jars": 20,
+  "clients": 2,
+  "combat": [
+    "sword_auto1",
+    "sword_auto2",
+    "sword_auto3",
+    "target HP 10 -> 0",
+    "roll_forward",
+    "weapon whoosh, blade hit and roll sound events"
+  ],
+  "markers": [
+    "dragon Flying",
+    "dragon Airstrike",
+    "dragon Landing",
+    "dragon Ground Battle",
+    "dragon Crystal Link",
+    "dragon Neutralized",
+    "dragon IK active",
+    "dragon death true",
+    "dragon animation epicfight:dragon/neutralized_recovery",
+    "dragon animation epicfight:dragon/ground_to_fly",
+    "particle dust_contractive created",
+    "wither armor true",
+    "wither ghost true",
+    "wither clone",
+    "wither lasers 3",
+    "wither death true",
+    "sound epicfight:sfx.laser_blast",
+    "sound epicfight:entity.enderdragon.dragon_breath"
+  ],
+  "authenticated_multiplayer": "NOT TESTED",
+  "inputs": [
+    "world seeded and three crystals retained",
+    "normal head damage",
+    "stun-impact API",
+    "normal lethal damage"
+  ],
+  "loaded_pack_jars": {
+    "client": 24,
+    "client-peer": 24,
+    "server": 13
+  },
+  "server_pack_note": "Fabric skipped seven client-only JARs from the 20 installed pack JARs",
+  "local_verification": [
+    "clean build",
+    "322 CC0 resources, including the Sweeping Edge HUD icon",
+    "llvmpipe RenderPass and particle geometry"
+  ],
+  "audio_scope": "Client sound-manager events with null audio output",
+  "runtime_scope": "Two Fabric clients and dedicated loopback with controlled boss lifecycle inputs"
+}

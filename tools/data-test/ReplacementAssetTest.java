@@ -30,7 +30,13 @@ final class ReplacementAssetTest {
         var manifest = object(ReplacementAssetTest.class.getResourceAsStream("/META-INF/fala-replacement-assets/manifest.json").readAllBytes());
         check(manifest.get("license").getAsString().equals("CC0-1.0"), "asset license");
         var hashes = manifest.getAsJsonObject("sha256");
-        check(hashes.size() == 321, "expected independent asset inventory");
+        check(hashes.size() == 322, "expected independent asset inventory");
+        var sweepingEdge = "textures/gui/skills/weapon_innate/sweeping_edge.png";
+        check(hashes.has("assets/epicfight/" + sweepingEdge), "Sweeping Edge HUD icon inventory");
+        try (var stream = AssetResourceSource.open(null, Identifier.fromNamespaceAndPath("epicfight", sweepingEdge))) {
+            var icon = javax.imageio.ImageIO.read(stream);
+            check(icon != null && icon.getWidth() == 32 && icon.getHeight() == 32, "Sweeping Edge HUD icon size");
+        }
         checkMobMotions(hashes);
         checkSounds();
         checkParticleAtlases();
