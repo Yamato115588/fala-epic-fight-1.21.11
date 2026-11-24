@@ -44,7 +44,7 @@ Get-FileHash .\epicfight-fabric-1.21.11-beta-0.1.0.jar -Algorithm SHA256
 
 - **Authenticated multiplayer: NOT TESTED**
 - GPU จริงหลายรุ่น, การฟังเสียงจากอุปกรณ์จริง, อาวุธ/สกิลทั้งหมด และ optional integrations ทั้งหมด: ยังไม่มีหลักฐานยืนยันครบ
-- รอบเตรียม Release ตรวจไฟล์/สิทธิ์/checksum ไม่ได้รันเกมหรือ Gradle ซ้ำ
+- รอบเตรียม Release ตรวจไฟล์/สิทธิ์/checksum และใช้ผลทดสอบเกมเดิม งาน build อัตโนมัติที่เกิดจากการแก้ไฟล์ workflow ถูกยกเลิกระหว่างขั้น Gradle และข้าม runtime tests ไม่ใช้รอบที่ยกเลิกเป็นหลักฐานว่าผ่าน
 
 ## Source และสิทธิ์
 
