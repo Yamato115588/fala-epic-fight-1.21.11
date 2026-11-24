@@ -6,9 +6,10 @@
 - ตรวจ JAR metadata, intermediary access widener, CI, checksum และรายการแอสเซตผ่าน: 322 CC0 resources + 5 port resources ไม่มีไฟล์นอก allowlist และไม่พบแอสเซตที่เหมือนต้นฉบับที่สงวนสิทธิ์ ตรวจ NightConfig core/toml 3.8.0 ตรงกับ Maven ทุก class พร้อมจัดเตรียม LGPL license/source
 - Dependencies ที่ใช้ทดสอบ: Minecraft 1.21.11, Java 21, Fabric Loader 0.19.3, Fabric API 0.141.6+1.21.11 วิธีติดตั้งและขอบเขตผลทดสอบอยู่ใน `releases/beta-0.1.0/INSTALL-TH.md`
 - **Authenticated multiplayer: NOT TESTED** ผลเสียงเดิมเป็น sound-manager events ด้วย null audio output บอสใช้ controlled lifecycle inputs ไม่ได้ยืนยันอาวุธ/สกิลทั้งหมดหรือ GPU จริงหลายรุ่น
-- สร้าง draft release ID `456413733` tag `v0.1.0-beta` แล้ว แต่การอัปโหลดจาก Cloud ไป `uploads.github.com` ตอบ `401 Bad credentials` ทั้งที่ GitHub API อ่าน/สร้าง draft ได้ จึงใช้ workflow `release-beta.yml` ให้อัปโหลด artifact เดิมและ corresponding source โดยไม่บิลด์/เล่นเกมซ้ำ Workflow จะคง draft หากตรวจไฟล์ไม่ผ่าน และเผยแพร่ prerelease เมื่อไฟล์แนบครบและ checksum ตรง
+- ส่งมอบ [Beta 0.1.0](https://github.com/Yamato115588/fala-epic-fight-1.21.11/releases/tag/v0.1.0-beta) เป็น prerelease แล้ว (`draft=false`, `prerelease=true`) tag ชี้ `b7875ca3b1ed` ตามเดิม [Release Actions 45346596388 ผ่าน](https://github.com/Yamato115588/fala-epic-fight-1.21.11/actions/runs/45346596388) ตรวจ digest/ขนาดของไฟล์แนบครบ 12 ไฟล์ รวม production JAR, SHA-256, corresponding source, dependencies/วิธีติดตั้ง และใบอนุญาต
+- การอัปโหลดจาก Cloud ไป `uploads.github.com` เคยตอบ `401 Bad credentials` แก้โดยใช้ GitHub Actions อัปโหลดสำเร็จ ไม่ใช่ blocker ค้างแล้ว Workflow เตรียม Release ไม่บิลด์/เล่นเกมใหม่ งาน build อัตโนมัติ `45346273720` ซึ่งเริ่มจากการแก้ไฟล์ workflow ถูกยกเลิกระหว่างขั้น Gradle และข้าม runtime tests ใช้ผลผ่านของ commit เดิมเท่านั้น
 - **Public distribution ยังติดข้อจำกัด**: Repository เป็น Private ผู้ไม่มีสิทธิ์ดาวน์โหลดไม่ได้ ไม่ได้เปลี่ยน visibility ของ repository
-- ตรวจผล workflow และ release ก่อนสรุปว่าส่งมอบแล้ว: https://github.com/Yamato115588/fala-epic-fight-1.21.11/releases/tag/v0.1.0-beta
+- [ดาวน์โหลด JAR](https://github.com/Yamato115588/fala-epic-fight-1.21.11/releases/download/v0.1.0-beta/epicfight-fabric-1.21.11-beta-0.1.0.jar) ต้องมีสิทธิ์เข้าถึง repository ส่วนข้อจำกัด Public distribution ข้างต้นยังคงอยู่
 
 งานชุดนี้ต่อจาก `1289d92ef673` บน `fabric-1.21.11` ใช้ `git rev-parse HEAD` ตรวจ commit และตรวจไฟล์ `.sha256` ของ JAR ใน Actions ที่มี head SHA เดียวกัน
 
