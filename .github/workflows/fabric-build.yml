@@ -4,6 +4,10 @@ on:
   push:
     branches:
       - fabric-1.21.11
+    paths-ignore:
+      - HANDOFF.md
+      - releases/beta-0.1.0/**
+      - .github/workflows/release-beta.yml
   workflow_dispatch:
     inputs:
       boss_smoke:

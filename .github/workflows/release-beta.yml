@@ -1,0 +1,28 @@
+name: Publish verified Beta 0.1.0
+
+on:
+  push:
+    branches: [fabric-1.21.11]
+    paths:
+      - .github/workflows/release-beta.yml
+      - releases/beta-0.1.0/**
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: epicfight-beta-0.1.0-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Verify existing artifact, package sources and publish prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 releases/beta-0.1.0/publish.py

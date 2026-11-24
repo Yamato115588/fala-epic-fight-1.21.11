@@ -1,0 +1,21 @@
+Epic Fight Fabric 1.21.11 — Fala Beta 0.1.0
+
+Epic Fight code: GPL-3.0, Epic Fight contributors.
+Pinned upstream: https://github.com/Antikythera-Studios/epicfight/tree/866a2a1e4268d0d7897c6a5be4ef1e58e47d7443
+Fala modifications: commit b7875ca3b1ed15ddec14f64d9466a040f2aba52a.
+The source archive includes the prepared Gradle project and exact port recipe, patches and build scripts.
+This is a community port, not an official Epic Fight release.
+
+Independent replacement assets: CC0-1.0. All 322 generated resources are listed with SHA-256 in META-INF/fala-replacement-assets/manifest.json inside the JAR.
+Five additional port resources (Stray equipment declaration, compute packing shader, glint shader, preview vertex and fragment shaders) are supplied by the GPL-3.0 port patches.
+Original upstream assets are All Rights Reserved under LICENSE-ASSETS and are excluded.
+The exact packaged resource allowlist and hashes passed tools/check_fabric_jar.py.
+Vanilla texture and sound identifiers reference the user's installed Minecraft files; Minecraft assets are not redistributed.
+
+Bundled NightConfig core and toml 3.8.0: LGPL-3.0, TheElectronWill and contributors.
+Source: https://github.com/TheElectronWill/night-config/tree/64a63d7aa37b6cd7bf1a889b0356dc6dfcad6d4e
+Maven license declarations: https://repo.maven.apache.org/maven2/com/electronwill/night-config/core/3.8.0/core-3.8.0.pom and https://repo.maven.apache.org/maven2/com/electronwill/night-config/toml/3.8.0/toml-3.8.0.pom
+Every packaged NightConfig class matches the published 3.8.0 binary. Fabric Loom adds mod metadata for nested loading. The complete tagged library source and license are supplied in the source archive.
+Users may modify/relink or replace these libraries under their license; no additional restriction is imposed by this release.
+
+This distribution retains the GPL, CC0, upstream asset notice and NightConfig license. See the source archive for source and build instructions.

@@ -1,5 +1,15 @@
 # Epic Fight Fabric 1.21.11
 
+## เตรียม Beta 0.1.0 — 24 พฤศจิกายน 2569
+
+- Target ยังคงเป็น `b7875ca3b1ed15ddec14f64d9466a040f2aba52a` ไม่แก้ runtime หรือ Fala Lite ใช้ผล runtime เดิมเพราะ JAR จาก Actions `44862928688` มี SHA-256 ตรงกับ `test-evidence/lite-lifecycle.json`: `034d5f19c96f4bdd28c06299bc7d1cf73d070a70dcc5d9186a00a8f9a36c90ff`
+- ตรวจ JAR metadata, intermediary access widener, CI, checksum และรายการแอสเซตผ่าน: 322 CC0 resources + 5 port resources ไม่มีไฟล์นอก allowlist และไม่พบแอสเซตที่เหมือนต้นฉบับที่สงวนสิทธิ์ ตรวจ NightConfig core/toml 3.8.0 ตรงกับ Maven ทุก class พร้อมจัดเตรียม LGPL license/source
+- Dependencies ที่ใช้ทดสอบ: Minecraft 1.21.11, Java 21, Fabric Loader 0.19.3, Fabric API 0.141.6+1.21.11 วิธีติดตั้งและขอบเขตผลทดสอบอยู่ใน `releases/beta-0.1.0/INSTALL-TH.md`
+- **Authenticated multiplayer: NOT TESTED** ผลเสียงเดิมเป็น sound-manager events ด้วย null audio output บอสใช้ controlled lifecycle inputs ไม่ได้ยืนยันอาวุธ/สกิลทั้งหมดหรือ GPU จริงหลายรุ่น
+- สร้าง draft release ID `456413733` tag `v0.1.0-beta` แล้ว แต่การอัปโหลดจาก Cloud ไป `uploads.github.com` ตอบ `401 Bad credentials` ทั้งที่ GitHub API อ่าน/สร้าง draft ได้ จึงใช้ workflow `release-beta.yml` ให้อัปโหลด artifact เดิมและ corresponding source โดยไม่บิลด์/เล่นเกมซ้ำ Workflow จะคง draft หากตรวจไฟล์ไม่ผ่าน และเผยแพร่ prerelease เมื่อไฟล์แนบครบและ checksum ตรง
+- **Public distribution ยังติดข้อจำกัด**: Repository เป็น Private ผู้ไม่มีสิทธิ์ดาวน์โหลดไม่ได้ ไม่ได้เปลี่ยน visibility ของ repository
+- ตรวจผล workflow และ release ก่อนสรุปว่าส่งมอบแล้ว: https://github.com/Yamato115588/fala-epic-fight-1.21.11/releases/tag/v0.1.0-beta
+
 งานชุดนี้ต่อจาก `1289d92ef673` บน `fabric-1.21.11` ใช้ `git rev-parse HEAD` ตรวจ commit และตรวจไฟล์ `.sha256` ของ JAR ใน Actions ที่มี head SHA เดียวกัน
 
 ## รอบทดสอบ 21 พฤศจิกายน 2569
