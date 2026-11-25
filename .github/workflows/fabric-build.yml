@@ -20,6 +20,7 @@ permissions:
 
 jobs:
   build:
+    if: github.ref == 'refs/heads/fabric-1.21.11'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -29,7 +30,7 @@ jobs:
           distribution: temurin
           java-version: '21'
       - name: Prepare pinned Fabric source
-        run: python3 tools/prepare_fabric_port.py "$RUNNER_TEMP/epicfight-fabric-work"
+        run: python3 tools/prepare_fabric_port.py "$RUNNER_TEMP/epicfight-fabric-work" --beta-reference-assets
       - name: Run Gradle Wrapper build
         id: full-build
         working-directory: ${{ runner.temp }}/epicfight-fabric-work

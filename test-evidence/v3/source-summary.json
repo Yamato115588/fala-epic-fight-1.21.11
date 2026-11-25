@@ -1,0 +1,395 @@
+{
+  "fabric_files": 1000,
+  "neoforge": "a78aa24b72e90a9d09f5fd61925e4369d117abaf",
+  "neoforge_files": 938,
+  "neoforge_to_official_fabric": {
+    "absent": 24,
+    "added": 86,
+    "changed": 314,
+    "identical": 600
+  },
+  "official_fabric": "866a2a1e4268d0d7897c6a5be4ef1e58e47d7443",
+  "official_fabric_to_v3": {
+    "absent": 11,
+    "added": 34,
+    "changed": 505,
+    "identical": 484
+  },
+  "original_asset_paths": 991,
+  "packages": {
+    ".": {
+      "changed": 3,
+      "identical": 1
+    },
+    "api/animation": {
+      "changed": 24,
+      "identical": 48
+    },
+    "api/asset": {
+      "added": 1,
+      "changed": 3
+    },
+    "api/client": {
+      "added": 2,
+      "changed": 32,
+      "identical": 39
+    },
+    "api/collider": {
+      "changed": 7
+    },
+    "api/data": {
+      "changed": 3
+    },
+    "api/event": {
+      "changed": 11,
+      "identical": 42
+    },
+    "api/ex_cap": {
+      "changed": 25,
+      "identical": 12
+    },
+    "api/exception": {
+      "identical": 4
+    },
+    "api/extension": {
+      "identical": 2
+    },
+    "api/model": {
+      "identical": 1
+    },
+    "api/physics": {
+      "changed": 1,
+      "identical": 9
+    },
+    "api/utils": {
+      "changed": 7,
+      "identical": 24
+    },
+    "client": {
+      "changed": 1
+    },
+    "client/camera": {
+      "identical": 2
+    },
+    "client/events": {
+      "changed": 2,
+      "identical": 1
+    },
+    "client/gui": {
+      "added": 2,
+      "changed": 59,
+      "identical": 20
+    },
+    "client/input": {
+      "changed": 4,
+      "identical": 1
+    },
+    "client/mesh": {
+      "identical": 12
+    },
+    "client/model": {
+      "changed": 4
+    },
+    "client/online": {
+      "added": 1,
+      "changed": 6
+    },
+    "client/particle": {
+      "added": 6,
+      "changed": 26
+    },
+    "client/platform": {
+      "absent_both": 2
+    },
+    "client/renderer": {
+      "absent": 3,
+      "added": 8,
+      "changed": 68,
+      "identical": 22
+    },
+    "client/world": {
+      "changed": 3
+    },
+    "compat": {
+      "identical": 3
+    },
+    "compat/azurelib": {
+      "changed": 2,
+      "identical": 2
+    },
+    "compat/betterthirdperson": {
+      "identical": 1
+    },
+    "compat/controlify": {
+      "changed": 4,
+      "identical": 3
+    },
+    "compat/curiosapi": {
+      "absent_both": 1
+    },
+    "compat/fgm": {
+      "changed": 2,
+      "identical": 2
+    },
+    "compat/firstperson": {
+      "identical": 1
+    },
+    "compat/geckolib": {
+      "changed": 2,
+      "identical": 2
+    },
+    "compat/iris": {
+      "identical": 1
+    },
+    "compat/jei": {
+      "changed": 1,
+      "identical": 1
+    },
+    "compat/kubejs": {
+      "absent_both": 6
+    },
+    "compat/mcreator": {
+      "changed": 1
+    },
+    "compat/playeranimator": {
+      "identical": 1
+    },
+    "compat/playerrevive": {
+      "identical": 1
+    },
+    "compat/shouldersurfing": {
+      "changed": 1
+    },
+    "compat/simplytooltips": {
+      "changed": 1,
+      "identical": 1
+    },
+    "compat/skinlayer3d": {
+      "changed": 2,
+      "identical": 3
+    },
+    "compat/sodium": {
+      "changed": 1
+    },
+    "compat/spatialgui": {
+      "identical": 3
+    },
+    "compat/trinkets": {
+      "changed": 1
+    },
+    "compat/vampirism": {
+      "absent_both": 3
+    },
+    "compat/werewolves": {
+      "absent_both": 3
+    },
+    "config": {
+      "changed": 1,
+      "identical": 3
+    },
+    "data": {
+      "absent_both": 1
+    },
+    "data/conditions": {
+      "changed": 10,
+      "identical": 2
+    },
+    "data/loot": {
+      "changed": 2,
+      "identical": 1
+    },
+    "data/recipes": {
+      "changed": 1
+    },
+    "data/tags": {
+      "changed": 1,
+      "identical": 1
+    },
+    "epicskins/animation": {
+      "identical": 1
+    },
+    "epicskins/client": {
+      "changed": 3
+    },
+    "epicskins/exception": {
+      "identical": 2
+    },
+    "epicskins/user": {
+      "changed": 2
+    },
+    "epicskins/util": {
+      "identical": 2
+    },
+    "gameasset": {
+      "changed": 3,
+      "identical": 1
+    },
+    "generated": {
+      "identical": 1
+    },
+    "main": {
+      "changed": 1,
+      "identical": 4
+    },
+    "mixin/client": {
+      "absent": 6,
+      "added": 6,
+      "changed": 21,
+      "identical": 13
+    },
+    "mixin/common": {
+      "absent": 1,
+      "added": 3,
+      "changed": 13,
+      "identical": 20
+    },
+    "model/armature": {
+      "identical": 13
+    },
+    "network": {
+      "added": 1,
+      "changed": 4,
+      "identical": 6
+    },
+    "network/client": {
+      "identical": 10
+    },
+    "network/common": {
+      "identical": 4
+    },
+    "network/server": {
+      "identical": 23
+    },
+    "particle": {
+      "identical": 1
+    },
+    "platform": {
+      "identical": 2
+    },
+    "platform/client": {
+      "identical": 3
+    },
+    "platform/fabric": {
+      "changed": 1,
+      "identical": 7
+    },
+    "platform/neoforge": {
+      "absent_both": 7
+    },
+    "platform/neoforged": {
+      "absent": 1,
+      "changed": 3,
+      "identical": 6
+    },
+    "registry": {
+      "changed": 1,
+      "identical": 2
+    },
+    "registry/callbacks": {
+      "changed": 2,
+      "identical": 2
+    },
+    "registry/deferred": {
+      "changed": 10,
+      "identical": 2
+    },
+    "registry/deferred_shim": {
+      "changed": 2
+    },
+    "registry/entries": {
+      "absent_both": 1,
+      "changed": 10,
+      "identical": 15
+    },
+    "server/commands": {
+      "changed": 6
+    },
+    "skill": {
+      "changed": 4,
+      "identical": 5
+    },
+    "skill/common": {
+      "changed": 1
+    },
+    "skill/dodge": {
+      "changed": 2
+    },
+    "skill/guard": {
+      "changed": 3
+    },
+    "skill/identity": {
+      "changed": 1,
+      "identical": 2
+    },
+    "skill/modules": {
+      "identical": 2
+    },
+    "skill/mover": {
+      "changed": 2
+    },
+    "skill/passive": {
+      "changed": 12,
+      "identical": 3
+    },
+    "skill/weapon_passive": {
+      "identical": 1
+    },
+    "skill/weaponinnate": {
+      "changed": 4,
+      "identical": 9
+    },
+    "util": {
+      "added": 1,
+      "changed": 1
+    },
+    "world/capabilities": {
+      "added": 1,
+      "changed": 46,
+      "identical": 37
+    },
+    "world/damagesource": {
+      "changed": 4,
+      "identical": 2
+    },
+    "world/effect": {
+      "changed": 1
+    },
+    "world/entity": {
+      "changed": 7,
+      "identical": 9
+    },
+    "world/gamerule": {
+      "added": 1,
+      "changed": 1
+    },
+    "world/item": {
+      "added": 1,
+      "changed": 10
+    },
+    "world/level": {
+      "changed": 2,
+      "identical": 2
+    }
+  },
+  "port_files": 1023,
+  "prepared_asset_paths": [
+    "epicfight/equipment/stray_cloth.json",
+    "epicfight/shaders/compute/vertex_buffer_pack.comp",
+    "epicfight/shaders/core/colored_glint.fsh",
+    "epicfight/shaders/core/preview_model.fsh",
+    "epicfight/shaders/core/preview_model.vsh"
+  ],
+  "removed_paths": [
+    "yesman/epicfight/client/renderer/EpicFightShaders.java",
+    "yesman/epicfight/client/renderer/entity/NoopLivingEntityRenderer.java",
+    "yesman/epicfight/client/renderer/patched/item/EpicFightItemProperties.java",
+    "yesman/epicfight/mixin/client/ElytraLayerAccessor.java",
+    "yesman/epicfight/mixin/client/LightTextureAccessor.java",
+    "yesman/epicfight/mixin/client/MinecraftAccessor.java",
+    "yesman/epicfight/mixin/client/MixinAgeableListModel.java",
+    "yesman/epicfight/mixin/client/MixinCompositeRenderType.java",
+    "yesman/epicfight/mixin/client/MixinItemRenderer.java",
+    "yesman/epicfight/mixin/common/MixinPlayerList.java",
+    "yesman/epicfight/platform/neoforged/client/event/RegisterShadersEvent.java"
+  ]
+}

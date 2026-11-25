@@ -1,0 +1,11 @@
+--- a/gradle.properties
++++ b/gradle.properties
+@@ -9,7 +9,7 @@
+ loader_version=0.19.3
+ 
+ # Mod Properties
+-mod_version=21.17.3-fala.2+mc1.21.11
++mod_version=21.17.3-fala.3-dev+mc1.21.11
+ group_id=yesman.epicfight
+ mod_id=epicfight
+ display_name=Epic Fight

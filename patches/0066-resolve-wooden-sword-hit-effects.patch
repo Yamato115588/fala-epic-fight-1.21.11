@@ -1,0 +1,13 @@
+--- a/src/main/resources/data/minecraft/capabilities/weapons/wooden_sword.json
++++ b/src/main/resources/data/minecraft/capabilities/weapons/wooden_sword.json
+@@ -7,7 +7,7 @@
+ 			"max_strikes":1
+ 		}
+ 	},
+-	"hit_particle":"blunt",
+-	"hit_sound":"entity.hit.blunt",
++	"hit_particle":"epicfight:hit_blunt",
++	"hit_sound":"epicfight:entity.hit.blunt",
+ 	"type":"epicfight:sword"
+ }
+\ No newline at end of file

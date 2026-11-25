@@ -1,0 +1,10 @@
+allprojects {
+    plugins.withId('java') {
+        tasks.register('writeParityClasspath') {
+            dependsOn classes
+            doLast {
+                file(providers.gradleProperty('parityClasspath').get()).text = (sourceSets.main.runtimeClasspath + sourceSets.main.compileClasspath).asPath
+            }
+        }
+    }
+}

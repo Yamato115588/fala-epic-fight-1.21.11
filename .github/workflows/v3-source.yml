@@ -1,0 +1,35 @@
+name: V3 upstream source verification
+on:
+  push:
+    branches: [v3/upstream-parity]
+    paths-ignore: ['**/*.md', 'test-evidence/**']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Prepare official sources with pinned archive digests
+        shell: bash
+        run: |
+          cd "$RUNNER_TEMP"
+          curl -fsSL --retry 3 https://codeload.github.com/Antikythera-Studios/epicfight/tar.gz/866a2a1e4268d0d7897c6a5be4ef1e58e47d7443 -o fabric.tar.gz
+          curl -fsSL --retry 3 https://codeload.github.com/Antikythera-Studios/epicfight/tar.gz/a78aa24b72e90a9d09f5fd61925e4369d117abaf -o neo.tar.gz
+          python "$GITHUB_WORKSPACE/tools/prepare_fabric_port.py" v3 --upstream-archive fabric.tar.gz
+          python "$GITHUB_WORKSPACE/tools/audit_source_port.py" neo.tar.gz fabric.tar.gz v3 evidence
+          diff -u "$GITHUB_WORKSPACE/test-evidence/v3/source-diff.tsv" evidence/source-diff.tsv
+      - name: Build and run original unit tests
+        working-directory: ${{ runner.temp }}/v3
+        run: ./gradlew --no-daemon --max-workers=2 clean build -I "$GITHUB_WORKSPACE/tools/parity/classpath.gradle" "-PparityClasspath=$RUNNER_TEMP/math-classpath" writeParityClasspath
+      - name: Compare original and port math
+        run: python tools/parity/compare_matrices.py "$RUNNER_TEMP/fabric.tar.gz" "$RUNNER_TEMP/math-classpath"
+      - name: Run the complete data and model verification
+        working-directory: ${{ runner.temp }}/v3
+        run: ./gradlew --no-daemon --max-workers=2 -I "$GITHUB_WORKSPACE/tools/data-test/data.gradle" testPortData

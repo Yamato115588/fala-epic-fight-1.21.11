@@ -61,6 +61,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('output', type=Path, help='New directory for the generated Gradle project')
     parser.add_argument('--upstream-archive', type=Path, help='Use the pinned tar.gz from disk')
+    parser.add_argument('--beta-reference-assets', action='store_true',
+                        help='Reproduce the historical Beta replacement assets for comparison')
     args = parser.parse_args()
 
     output = args.output.resolve()
@@ -88,8 +90,9 @@ def main():
             )
         shutil.copytree(PROJECT / 'bridge-api/src/main/java', stage / 'src/main/java',
                         dirs_exist_ok=True)
-        subprocess.run([sys.executable, str(PROJECT / 'replacement-assets/build_assets.py'),
-                        str(stage / 'src/main/resources')], check=True)
+        if args.beta_reference_assets:
+            subprocess.run([sys.executable, str(PROJECT / 'replacement-assets/build_assets.py'),
+                            str(stage / 'src/main/resources')], check=True)
         migrate_recipes(stage)
         migrated = migrate(stage)
         stage.rename(output)

@@ -105,3 +105,7 @@ LIBGL_ALWAYS_SOFTWARE=1 ALSOFT_DRIVERS=null LP_NUM_THREADS=2 \
 
 - เล่นการต่อสู้กับบอสครบทุกช่วงและทดสอบอาวุธกับสกิลของผู้เล่นที่อยู่นอกชุดทดสอบปัจจุบัน
 - ทดสอบเซิร์ฟเวอร์ที่ยืนยันบัญชีจริงและเรนเดอร์ด้วย GPU จริงหลายรุ่น
+
+## V3 native Fabric checkpoint
+
+Use the v3/upstream-parity branch for original implementation work. The recipe defaults to upstream source with the 1.21.11 API port, no Beta asset generation. The development version is 21.17.3-fala.3-dev+mc1.21.11. The public-distribution and gameplay gates are held. Beta tag, JAR and existing QA packs are preserved. See PORT_COVERAGE.md and QA_REPORT.md for current scope. Continue from the verified source and matrix comparison. Required inputs include written asset rights, the referenced video, an authorized online test account and target devices.
