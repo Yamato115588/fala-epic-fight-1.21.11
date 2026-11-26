@@ -1,0 +1,5 @@
+{
+  "required": true, "minVersion":"0.8", "compatibilityLevel":"JAVA_21",
+  "package":"th.falasiayacraft.economy", "client":["SignShopFieldMixin"],
+  "injectors":{"defaultRequire":1}
+}

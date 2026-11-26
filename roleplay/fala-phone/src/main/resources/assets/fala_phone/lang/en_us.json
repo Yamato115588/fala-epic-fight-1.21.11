@@ -1,0 +1,19 @@
+{
+  "item.fala_phone.phone": "Fala Phone",
+  "fala_phone.gps": "Coordinates",
+  "fala_phone.weather": "Weather",
+  "fala_phone.calendar": "Calendar",
+  "fala_phone.web": "Fala website",
+  "fala_phone.bank": "Send money",
+  "fala_phone.recipient": "Player name",
+  "fala_phone.amount": "Amount",
+  "fala_phone.review": "Review transfer",
+  "fala_phone.home": "Home",
+  "fala_phone.back": "Back",
+  "fala_phone.send": "Confirm transfer",
+  "fala_phone.day": "World day %s",
+  "fala_phone.clear": "Clear skies",
+  "fala_phone.rain": "Rain",
+  "fala_phone.thunder": "Thunderstorm",
+  "fala_phone.confirm": "%s to %s"
+}

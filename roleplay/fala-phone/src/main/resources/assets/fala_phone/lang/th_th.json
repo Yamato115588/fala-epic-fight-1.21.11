@@ -1,0 +1,19 @@
+{
+  "item.fala_phone.phone": "โทรศัพท์ Fala",
+  "fala_phone.gps": "พิกัด",
+  "fala_phone.weather": "อากาศ",
+  "fala_phone.calendar": "ปฏิทิน",
+  "fala_phone.web": "เว็บไซต์ Fala",
+  "fala_phone.bank": "โอนเงิน",
+  "fala_phone.recipient": "ชื่อผู้เล่น",
+  "fala_phone.amount": "จำนวนเงิน",
+  "fala_phone.review": "ตรวจสอบการโอน",
+  "fala_phone.home": "หน้าหลัก",
+  "fala_phone.back": "ย้อนกลับ",
+  "fala_phone.send": "ยืนยันการโอน",
+  "fala_phone.day": "วันที่ %s ในโลก",
+  "fala_phone.clear": "ฟ้าโปร่ง",
+  "fala_phone.rain": "ฝนตก",
+  "fala_phone.thunder": "พายุฝนฟ้าคะนอง",
+  "fala_phone.confirm": "โอน %s ให้ %s"
+}

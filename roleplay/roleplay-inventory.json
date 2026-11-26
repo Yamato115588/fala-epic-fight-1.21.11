@@ -1,0 +1,1503 @@
+{
+  "base_sha256": "1547ba068abefd036434bdfd091b24e31cf6cd4e5c83d602b923e05bf54a2d18",
+  "candidate_additions": {
+    "1u6JkXh5": "oY3E2pzA",
+    "dtWC90iB": "xhmciaUD",
+    "GURcjz8O": "VwHKtWix",
+    "C7I0BCni": "uriWt4r9",
+    "B8jaH3P1": "KQqPCHJC",
+    "kNxa8z3e": "G56MgNgk",
+    "w4an97C2": "DXV1gXS5",
+    "iP3wH1ha": "HePuVuYI",
+    "GmwLse2I": "KvcFYpyP",
+    "VRLhWB91": "RgddKk8C",
+    "CgGEe1h3": "LGF5NPar",
+    "Epm6R3P2": "G1OZQmxR",
+    "uTGjf7vA": "9KZf3Wc6",
+    "vRkO4kGw": "8kYr8wna"
+  },
+  "mods": [
+    {
+      "id": "badoptimizations",
+      "name": "BadOptimizations-2.4.1-1.21.11.jar",
+      "version": "2.4.1",
+      "side": "client",
+      "depends": {
+        "minecraft": ">=1.21.10",
+        "fabricloader": ">=0.15.0"
+      },
+      "sha256": "91cec18c7d5b915e3d0700b65d93f246208ab835458ce06adb079bacb31306b5",
+      "original": true,
+      "index_path": "mods/BadOptimizations-2.4.1-1.21.11.jar"
+    },
+    {
+      "id": "bendable_cuboids",
+      "name": "BendableCuboidsFabric-2.0.1+mc.1.21.11.jar",
+      "version": "2.0.1+mc.1.21.11",
+      "side": "client",
+      "depends": {
+        "fabricloader": ">=0.18.4",
+        "minecraft": ">=1.21.11"
+      },
+      "sha256": "53b29661dd17f74de2b39f555f13eb72ebc29c0bd0e2e7abdbc6f122061f0e97",
+      "original": true,
+      "index_path": "mods/BendableCuboidsFabric-2.0.1+mc.1.21.11.jar"
+    },
+    {
+      "id": "bettergrass",
+      "name": "BetterGrassify-1.8.7+fabric.1.21.11.jar",
+      "version": "1.8.7+fabric.1.21.11",
+      "side": "client",
+      "depends": {
+        "minecraft": "1.21.11",
+        "fabricloader": "*",
+        "fabric-api": "*"
+      },
+      "sha256": "a283f30fe092e786712de975985fd92f1021e76bc1cdf176eb4a66a1afbaaea4",
+      "original": true,
+      "index_path": "mods/BetterGrassify-1.8.7+fabric.1.21.11.jar"
+    },
+    {
+      "id": "clumps",
+      "name": "Clumps-fabric-1.21.11-29.0.0.1.jar",
+      "version": "29.0.0.1",
+      "side": "both",
+      "depends": {
+        "fabricloader": ">=0.18.2",
+        "java": ">=21",
+        "minecraft": "1.21.11"
+      },
+      "sha256": "e3211208529817e5efcd0e2ee96f9c8c516e8bbade5a286cd6b8a2f4e70f6163",
+      "original": true,
+      "index_path": "mods/Clumps-fabric-1.21.11-29.0.0.1.jar"
+    },
+    {
+      "id": "config_manager",
+      "name": "ConfigManager-fabric-1.21.x-1.1.1.jar",
+      "version": "1.1.1",
+      "side": "both",
+      "depends": {
+        "minecraft": ">=1.21"
+      },
+      "sha256": "3dd1965789f4a8b69082544a80ef25f7da163edd8354b6c1e9a03ea9bf79873c",
+      "original": true,
+      "index_path": "mods/ConfigManager-fabric-1.21.x-1.1.1.jar"
+    },
+    {
+      "id": "crash_assistant",
+      "name": "CrashAssistant-fabric-1.21.5-1.21.11-1.11.12.jar",
+      "version": "1.11.12",
+      "side": "both",
+      "depends": {
+        "fabricloader": ">=0.16.10",
+        "minecraft": ">=1.21.5 <1.22",
+        "java": ">=21"
+      },
+      "sha256": "44474c582d2833fcc1c689b684c2bc7bbaaaceee2d77a26406e37bd79c303e3f",
+      "original": true,
+      "index_path": "mods/CrashAssistant-fabric-1.21.5-1.21.11-1.11.12.jar"
+    },
+    {
+      "id": "forgeconfigapiport",
+      "name": "ForgeConfigAPIPort-v21.11.1-mc1.21.11-Fabric.jar",
+      "version": "21.11.1",
+      "side": "both",
+      "depends": {
+        "minecraft": ">=1.21.11- <1.21.12-",
+        "fabricloader": ">=0.18.0",
+        "fabric-api": ">=0.139.0"
+      },
+      "sha256": "31a0686904fad1cfdeb1d6b011ac1c2280990d6e76ac2416468147e2246b4db1",
+      "original": true,
+      "index_path": "mods/ForgeConfigAPIPort-v21.11.1-mc1.21.11-Fabric.jar"
+    },
+    {
+      "id": "ixeris",
+      "name": "Ixeris-4.6.11+1.21.11-fabric.jar",
+      "version": "4.6.11+1.21.11-fabric",
+      "side": "client",
+      "depends": {
+        "minecraft": ">=1.21.9 <=1.21.11",
+        "fabricloader": ">=0.16.0"
+      },
+      "sha256": "74eefdbf476ff7b8e40b731aa3485394d18bc26990ce3c2cebc25ea3d6f53748",
+      "original": true,
+      "index_path": "mods/Ixeris-4.6.11+1.21.11-fabric.jar"
+    },
+    {
+      "id": "ksyxis",
+      "name": "Ksyxis-1.4.5.jar",
+      "version": "1.4.5",
+      "side": "both",
+      "depends": {},
+      "sha256": "a08ca6d645e500d50edcffaefa5e3c182a86e8128f9f2981eca26f2a8f6e1d02",
+      "original": true,
+      "index_path": "mods/Ksyxis-1.4.5.jar"
+    },
+    {
+      "id": "mousetweaks",
+      "name": "MouseTweaks-fabric-mc1.21.11-2.30.jar",
+      "version": "2.30",
+      "side": "client",
+      "depends": {
+        "fabricloader": ">=0.18.2",
+        "fabric-api": "*",
+        "minecraft": "~1.21.11",
+        "java": ">=21"
+      },
+      "sha256": "e6718c6f35f6435294632b68ef8f251fe680bcd5324ffb4943daa41390c1c3c6",
+      "original": true,
+      "index_path": "mods/MouseTweaks-fabric-mc1.21.11-2.30.jar"
+    },
+    {
+      "id": "nochatreports",
+      "name": "NoChatReports-FABRIC-1.21.11-v2.18.0.jar",
+      "version": "1.21.11-v2.18.0",
+      "side": "both",
+      "depends": {
+        "fabricloader": ">=0.17.2",
+        "fabric-api": "*",
+        "minecraft": [
+          ">=1.21.9"
+        ],
+        "java": ">=21"
+      },
+      "sha256": "148023989f014fdf012e50d8a43a75cc4ad39199f89814f5c8ca38dcdefe10b8",
+      "original": true,
+      "index_path": "mods/NoChatReports-FABRIC-1.21.11-v2.18.0.jar"
+    },
+    {
+      "id": "nochatrestrictions",
+      "name": "NoChatRestrictions-Fabric-MC1.21.11-v1.0.2.jar",
+      "version": "Fabric-MC1.21.11-v1.0.2",
+      "side": "both",
+      "depends": {
+        "fabricloader": ">=0.16",
+        "minecraft": ">=1.21 <=1.21.11",
+        "java": ">=21",
+        "fabric": "*"
+      },
+      "sha256": "d0855d6a82d82a2f037da106caecac41984f89b49526d9b7e54171b0bd6494e8",
+      "original": true,
+      "index_path": "mods/NoChatRestrictions-Fabric-MC1.21.11-v1.0.2.jar"
+    },
+    {
+      "id": "player_animation_library",
+      "name": "PlayerAnimationLibFabric-1.1.10+mc.1.21.11.jar",
+      "version": "1.1.10+mc.1.21.11",
+      "side": "both",
+      "depends": {
+        "fabricloader": ">=0.18.3",
+        "minecraft": ">=1.21.11",
+        "fabric-resource-loader-v1": "*",
+        "fabric-command-api-v2": "*"
+      },
+      "sha256": "47b3e8b5e17d8501df92730e0a4e1dc9894b78333a1fdebc7341f1524ea283a4",
+      "original": true,
+      "index_path": "mods/PlayerAnimationLibFabric-1.1.10+mc.1.21.11.jar"
+    },
+    {
+      "id": "presencefootsteps",
+      "name": "PresenceFootsteps-1.12.4+1.21.11.jar",
+      "version": "1.12.4+1.21.11",
+      "side": "client",
+      "depends": {
+        "minecraft": "=1.21.11",
+        "fabricloader": ">=0.17.3",
+        "java": ">=21",
+        "fabric-api": ">=0.139.1+1.21.11",
+        "kirin": ">=1.21.4+1.21.11"
+      },
+      "sha256": "c333a4f82696b38ed0fd0558878dce67489c6105b00fafe01cccba73155ae569",
+      "original": true,
+      "index_path": "mods/PresenceFootsteps-1.12.4+1.21.11.jar"
+    },
+    {
+      "id": "scalablelux",
+      "name": "ScalableLux-fabric-0.3.0-alpha.0.3-all.jar",
+      "version": "0.3.0-alpha.0.3+1.21.11",
+      "side": "both",
+      "depends": {
+        "fabricloader": ">=0.19.3",
+        "minecraft": "=1.21.11"
+      },
+      "sha256": "1686786ba93177458f386977f9b88d180c21a397834591beba5e7dc29a8ed212",
+      "original": true,
+      "index_path": "mods/ScalableLux-fabric-0.3.0-alpha.0.3-all.jar"
+    },
+    {
+      "id": "alternate-current",
+      "name": "alternate-current-mc1.21.11-1.9.0.jar",
+      "version": "1.9.0",
+      "side": "both",
+      "depends": {
+        "minecraft": "1.21.x"
+      },
+      "sha256": "29d9ac854ca53910029916553b8aef926fbea525ef78a7636ce81c970833a1e4",
+      "original": true,
+      "index_path": "mods/alternate-current-mc1.21.11-1.9.0.jar"
+    },
+    {
+      "id": "animatica",
+      "name": "animatica-0.6.1+1.21.5.jar",
+      "version": "0.6.1+1.21.5",
+      "side": "client",
+      "depends": {
+        "fabricloader": ">=0.11.3",
+        "fabric": "*",
+        "minecraft": ">=1.21.5",
+        "java": ">=21"
+      },
+      "sha256": "6091b255b7c4fe7d02aa1e20373a8a5d08b23af3bfcd81c75d7dce6678a804e9",
+      "original": true,
+      "index_path": "mods/animatica-0.6.1+1.21.5.jar"
+    },
+    {
+      "id": "appleskin",
+      "name": "appleskin-fabric-mc1.21.11-3.0.8.jar",
+      "version": "3.0.8+mc1.21.11",
+      "side": "both",
+      "depends": {
+        "fabricloader": ">=0.15.10",
+        "fabric-api": "*"
+      },
+      "sha256": "04fe837be8f10bb5e6b999238594466c59bdb641a54512f19f1e67241d882ae3",
+      "original": true,
+      "index_path": "mods/appleskin-fabric-mc1.21.11-3.0.8.jar"
+    },
+    {
+      "id": "architectury",
+      "name": "architectury-19.0.1-fabric.jar",
+      "version": "19.0.1",
+      "side": "both",
+      "depends": {
+        "minecraft": "~1.21.11",
+        "fabricloader": ">=0.15.4",
+        "fabric-api": ">=0.127.0"
+      },
+      "sha256": "661395d6f0bef0d3a794e2db74df5600c7387ba6fb946b172315977201a667c7",
+      "original": true,
+      "index_path": "mods/architectury-19.0.1-fabric.jar"
+    },
+    {
+      "id": "betterblockentities",
+      "name": "bbe-fabric-1.3.4+mc1.21.11.jar",
+      "version": "1.3.4+mc1.21.11",
+      "side": "client",
+      "depends": {
+        "fabricloader": ">=0.16.7",
+        "minecraft": ">=1.21.11",
+        "sodium": ">=0.8.7"
+      },
+      "sha256": "ff22a64c5f729749939155e736b6fd92d138042402c8802c134a57d5eaa30fbb",
+      "original": true,
+      "index_path": "mods/bbe-fabric-1.3.4+mc1.21.11.jar"
+    },
+    {
+      "id": "bettermounthud",
+      "name": "bettermounthud-1.2.6.jar",
+      "version": "1.2.6",
+      "side": "client",
+      "depends": {
+        "java": ">=21",
+        "fabricloader": ">=0.11.3"
+      },
+      "sha256": "98a625d51db9ee1d2548bef0fc28540e991034654da14ceb2b541da4fc695402",
+      "original": true,
+      "index_path": "mods/bettermounthud-1.2.6.jar"
+    },
+    {
+      "id": "blur",
+      "name": "blur-fabric-6.3.1+1.21.11.jar",
+      "version": "6.3.1",
+      "side": "client",
+      "depends": {
+        "minecraft": ">=1.21.11",
+        "midnightlib": ">=1.9.3"
+      },
+      "sha256": "b9a7ec846c7521dc8002f0964445e9639635557264d06de1cf4adbf5481f90a3",
+      "original": true,
+      "index_path": "mods/blur-fabric-6.3.1+1.21.11.jar"
+    },
+    {
+      "id": "cape-provider",
+      "name": "cape-provider-5.1.0.jar",
+      "version": "5.1.0",
+      "side": "client",
+      "depends": {},
+      "sha256": "767d603fe60f0a334e56beaccf6e074ebb4576372ed9c6ce815c5ac70239bce6",
+      "original": true,
+      "index_path": "mods/cape-provider-5.1.0.jar"
+    },
+    {
+      "id": "chatanimation",
+      "name": "chatanimation-fabric-1.3.3+mc1.21.11.jar",
+      "version": "1.3.3",
+      "side": "client",
+      "depends": {
+        "fabricloader": "*",
+        "minecraft": ">=1.21.11"
+      },
+      "sha256": "a684ce1780de19dbd1e13ef36d6b85b043ec07cc4db3b3f563f6b53c6c8d669f",
+      "original": true,
+      "index_path": "mods/chatanimation-fabric-1.3.3+mc1.21.11.jar"
+    },
+    {
+      "id": "cloth-config",
+      "name": "cloth-config-21.11.153-fabric.jar",
+      "version": "21.11.153",
+      "side": "both",
+      "depends": {
+        "fabricloader": ">=0.14.0",
+        "minecraft": ">=1.21.9-"
+      },
+      "sha256": "8a40c84e5ecde525acfb6c4e13b8002dacfca3ef9534d7faf6e8049656f423c8",
+      "original": true,
+      "index_path": "mods/cloth-config-21.11.153-fabric.jar"
+    },
+    {
+      "id": "continuity",
+      "name": "continuity-3.0.1-beta.1+1.21.11.jar",
+      "version": "3.0.1-beta.1+1.21.11",
+      "side": "client",
+      "depends": {
+        "minecraft": ">=1.21.11",
+        "fabric-api": ">=0.140.0"
+      },
+      "sha256": "1d4d4e86fb20bd0b078fcc518f4641d21985cc8bfaefa6dd49cfa1beff52ac83",
+      "original": true,
+      "index_path": "mods/continuity-3.0.1-beta.1+1.21.11.jar"
+    },
+    {
+      "id": "controlify",
+      "name": "controlify-3.0.1+lts+1.21.11-fabric.jar",
+      "version": "3.0.1+lts+1.21.11-fabric",
+      "side": "both",
+      "depends": {
+        "fabricloader": ">=0.18.0",
+        "minecraft": "~1.21.11",
+        "java": ">=21",
+        "yet_another_config_lib_v3": ">=3.8.0"
+      },
+      "sha256": "f50502732f2da7c469f5ca83706c12c492d0b797924cd8c3772b132265700bca",
+      "original": true,
+      "index_path": "mods/controlify-3.0.1+lts+1.21.11-fabric.jar"
+    },
+    {
+      "id": "cubes-without-borders",
+      "name": "cwb-fabric-3.0.0-build.14+mc1.21.11.jar",
+      "version": "3.0.0-build.14+mc1.21.11",
+      "side": "client",
+      "depends": {
+        "fabricloader": ">=0.18.2",
+        "minecraft": ">=1.21.11 <26.1",
+        "java": ">=21"
+      },
+      "sha256": "6b45bbaa330321705dca8543a5dee53aefcbcc68c507f8ca8445a957d186e53f",
+      "original": true,
+      "index_path": "mods/cwb-fabric-3.0.0-build.14+mc1.21.11.jar"
+    },
+    {
+      "id": "debugify",
+      "name": "debugify-1.21.11+1.1.jar",
+      "version": "1.21.11+1.1",
+      "side": "both",
+      "depends": {
+        "fabricloader": ">=0.18.0",
+        "minecraft": "~1.21.11",
+        "java": ">=21",
+        "fabric-resource-loader-v0": "*"
+      },
+      "sha256": "61fafe1a0697292e4b2a9aa7078c9b9b7fd05dda0a839fefc63d0e50fa304447",
+      "original": true,
+      "index_path": "mods/debugify-1.21.11+1.1.jar"
+    },
+    {
+      "id": "dynamic_fps",
+      "name": "dynamic-fps-3.11.6+minecraft-1.21.11-fabric.jar",
+      "version": "3.11.6",
+      "side": "client",
+      "depends": {
+        "fabricloader": ">=0.15.10",
+        "minecraft": ">=1.21.9-beta.1",
+        "mixinextras": ">=0.3.2",
+        "fabric-resource-loader-v0": "*",
+        "fabric-lifecycle-events-v1": "*"
+      },
+      "sha256": "42c6f5526acb29713969156018ab08ac921a0a0f37c2a79a39e3783792caa04f",
+      "original": true,
+      "index_path": "mods/dynamic-fps-3.11.6+minecraft-1.21.11-fabric.jar"
+    },
+    {
+      "id": "e4mc",
+      "name": "e4mc-fabric-6.2.1-fala.1.jar",
+      "version": "6.2.1+fala.mc1.21.11.1",
+      "side": "both",
+      "depends": {
+        "fabric": "*",
+        "minecraft": "=1.21.11"
+      },
+      "sha256": "ac85d0f3aba0bcce708aa55c4f795c3c2bc20cfe77c62d64729d2fb9fc5c9256",
+      "original": false,
+      "base_file": "e4mc-fabric-6.2.1.jar",
+      "base_sha256": "6e24087ebdc0a658c68d6b687e8b59d498fd201a57daa5092d78a4c3c474336b",
+      "index_path": "mods/e4mc-fabric-6.2.1.jar"
+    },
+    {
+      "id": "emotecraft",
+      "name": "emotecraft-fabric-for-MC1.21.11-3.2.0-b.build.163.jar",
+      "version": "3.2.0-b.build.163",
+      "side": "both",
+      "depends": {
+        "fabric-command-api-v2": "*",
+        "fabric-networking-api-v1": "*",
+        "fabric-key-binding-api-v1": "*",
+        "fabric-lifecycle-events-v1": "*",
+        "fabric-rendering-v1": ">=12.5.1+fbe231d52c",
+        "minecraft": ">=1.21.11",
+        "player_animation_library": ">=1.1.10+mc.1.21.11",
+        "fabricloader": ">=0.18.3"
+      },
+      "sha256": "4c1132499f1a08102942611eb788f3461a2929a609d8bbe4f476e65fd9792f38",
+      "original": true,
+      "index_path": "mods/emotecraft-fabric-for-MC1.21.11-3.2.0-b.build.163.jar"
+    },
+    {
+      "id": "entity_model_features",
+      "name": "entity_model_features-3.2.4-1.21.11-fabric.jar",
+      "version": "3.2.4",
+      "side": "client",
+      "depends": {
+        "fabricloader": "*",
+        "minecraft": "*",
+        "entity_texture_features": ">=7.1"
+      },
+      "sha256": "fbf61b2636e2ffdd62220feee231f5af881cb7080fdd5180924f9c783c0584ae",
+      "original": true,
+      "index_path": "mods/entity_model_features-3.2.4-1.21.11-fabric.jar"
+    },
+    {
+      "id": "entity_texture_features",
+      "name": "entity_texture_features_1.21.11-fabric-7.1.jar",
+      "version": "7.1",
+      "side": "client",
+      "depends": {
+        "fabricloader": "*",
+        "minecraft": "*"
+      },
+      "sha256": "7c1a70766b31238eb636a5497b9f0c9c260d5ed94c0934c4cfd11b9a6854adaf",
+      "original": true,
+      "index_path": "mods/entity_texture_features_1.21.11-fabric-7.1.jar"
+    },
+    {
+      "id": "entityculling",
+      "name": "entityculling-fabric-1.10.5-mc1.21.11.jar",
+      "version": "1.10.5",
+      "side": "both",
+      "depends": {
+        "minecraft": "1.21.x",
+        "fabric-api": "*"
+      },
+      "sha256": "388e836774497645abe1d5dadb153561adcea9101ba72fe6f3801d718d691918",
+      "original": true,
+      "index_path": "mods/entityculling-fabric-1.10.5-mc1.21.11.jar"
+    },
+    {
+      "id": "fabric-api",
+      "name": "fabric-api-0.141.6+1.21.11.jar",
+      "version": "0.141.6+1.21.11",
+      "side": "both",
+      "depends": {
+        "fabricloader": ">=0.17.3",
+        "java": ">=21",
+        "minecraft": ">=1.21.11- <1.21.12-"
+      },
+      "sha256": "bdff7fd7e220085cfad2ff9b1f40dde6534ae0b96cf378f97a374bc54cb9ed0f",
+      "original": true,
+      "index_path": "mods/fabric-api-0.141.6+1.21.11.jar"
+    },
+    {
+      "id": "carpet",
+      "name": "fabric-carpet-1.21.11-1.4.194+v251223.jar",
+      "version": "1.4.194+v251223",
+      "side": "both",
+      "depends": {
+        "minecraft": "1.21.11",
+        "fabricloader": ">=0.18.2",
+        "java": ">=21"
+      },
+      "sha256": "1b4d66f0332bda5deee08755e493c2d6ac64d64d5285e1134aa03604975c2521",
+      "original": true,
+      "index_path": "mods/fabric-carpet-1.21.11-1.4.194+v251223.jar"
+    },
+    {
+      "id": "fabric-language-kotlin",
+      "name": "fabric-language-kotlin-1.13.13+kotlin.2.4.10.jar",
+      "version": "1.13.13+kotlin.2.4.10",
+      "side": "both",
+      "depends": {
+        "fabricloader": ">=0.16.9"
+      },
+      "sha256": "34ccdacf13bb9351fe43ce61912c2e09b72364e43e787d36ba3d2d04dec75a52",
+      "original": true,
+      "index_path": "mods/fabric-language-kotlin-1.13.13+kotlin.2.4.10.jar"
+    },
+    {
+      "id": "fabrishot",
+      "name": "fabrishot-1.16.4.jar",
+      "version": "1.16.4",
+      "side": "client",
+      "depends": {
+        "minecraft": ">=1.21.11",
+        "fabric-lifecycle-events-v1": "*",
+        "fabric-key-binding-api-v1": "*"
+      },
+      "sha256": "e14cf73c68555ed46f331bc42fabcb172bfeb4fb5916ceabb5d5005738ac77bd",
+      "original": true,
+      "index_path": "mods/fabrishot-1.16.4.jar"
+    },
+    {
+      "id": "fastquit",
+      "name": "fastquit-3.1.3+mc1.21.11.jar",
+      "version": "3.1.3+mc1.21.11",
+      "side": "client",
+      "depends": {
+        "fabricloader": ">=0.16.9",
+        "minecraft": ">=1.21.11",
+        "fabric-resource-loader-v0": "*",
+        "cloth-config": "*",
+        "java": ">=21"
+      },
+      "sha256": "b66c86ca154705579ae457a00c2770702e3baa0823501099d613835f1f0b3453",
+      "original": true,
+      "index_path": "mods/fastquit-3.1.3+mc1.21.11.jar"
+    },
+    {
+      "id": "ferritecore",
+      "name": "ferritecore-8.2.0-fabric.jar",
+      "version": "8.2.0",
+      "side": "both",
+      "depends": {
+        "fabricloader": ">=0.14.21",
+        "minecraft": ">=1.21.11 <1.22"
+      },
+      "sha256": "f76bd760cbf48280cc7c43180f5089a46235fa24d934a8acf3da04a664c2c715",
+      "original": true,
+      "index_path": "mods/ferritecore-8.2.0-fabric.jar"
+    },
+    {
+      "id": "figuraextrabone",
+      "name": "figuraextrabone-0.0.42-fabric-hotfix.jar",
+      "version": "0.0.42-fabric-hotfix",
+      "side": "client",
+      "depends": {
+        "fabricloader": ">=0.18.2",
+        "minecraft": "~1.21.8",
+        "java": ">=21",
+        "fabric-api": "*",
+        "emotecraft": ">=2.4.12+1.21.1-fabric",
+        "figura": ">=0.1.5+1.21.1"
+      },
+      "sha256": "ae8c48020b9fb2e13d5ec5789c956a02b5f6f4a075ff5f38193077ed6ba7e7d6",
+      "original": true,
+      "index_path": "mods/figuraextrabone-0.0.42-fabric-hotfix.jar"
+    },
+    {
+      "id": "freecam",
+      "name": "freecam-fabric-1.4.1+mc1.21.11.jar",
+      "version": "1.4.1",
+      "side": "client",
+      "depends": {
+        "minecraft": "=1.21.11",
+        "fabricloader": ">=0.14.0",
+        "fabric-api-base": "*",
+        "fabric-key-binding-api-v1": "*",
+        "fabric-lifecycle-events-v1": "*",
+        "fabric-resource-loader-v1": "*"
+      },
+      "sha256": "ad393cddb234cba97d7af98402b54b97849d9be891c0e815b952b6c57391b81d",
+      "original": true,
+      "index_path": "mods/freecam-fabric-1.4.1+mc1.21.11.jar"
+    },
+    {
+      "id": "freelook",
+      "name": "freelook-1.2.8.jar",
+      "version": "1.2.8",
+      "side": "client",
+      "depends": {
+        "fabricloader": ">=0.15.11",
+        "minecraft": "1.21.x",
+        "fabric-api": "*",
+        "fabric-key-binding-api-v1": "*"
+      },
+      "sha256": "fe1a32d9e4b8894122f52985c9d81b5cefa7bb7b67e67d17e8d03c495f8ba1e4",
+      "original": true,
+      "index_path": "mods/freelook-1.2.8.jar"
+    },
+    {
+      "id": "fzzy_config",
+      "name": "fzzy_config-0.7.7+1.21.11.jar",
+      "version": "0.7.7+1.21.11",
+      "side": "both",
+      "depends": {
+        "fabricloader": ">=0.18.1",
+        "fabric": "*",
+        "fabric-language-kotlin": ">=1.12.1+kotlin.2.0.20",
+        "minecraft": ">=1.21.10",
+        "java": ">=21"
+      },
+      "sha256": "0bc70f87ac66b7577c73c0b08c23266c1f086f6e90e6b4e5930ddab1dbd74678",
+      "original": true,
+      "index_path": "mods/fzzy_config-0.7.7+1.21.11.jar"
+    },
+    {
+      "id": "iris",
+      "name": "iris-fabric-1.10.7+mc1.21.11.jar",
+      "version": "1.10.7+mc1.21.11",
+      "side": "client",
+      "depends": {
+        "fabricloader": ">=0.12.3",
+        "sodium": [
+          "0.8.x"
+        ]
+      },
+      "sha256": "58c55da18189c91a49f847d3cee451633a23b575fb69c0c5b65ddb274436cb19",
+      "original": true,
+      "index_path": "mods/iris-fabric-1.10.7+mc1.21.11.jar"
+    },
+    {
+      "id": "lambdynlights",
+      "name": "lambdynamiclights-4.9.1+1.21.11.jar",
+      "version": "4.9.1+1.21.11",
+      "side": "client",
+      "depends": {
+        "lambdynlights_runtime": ">=4.9.1+1.21.11"
+      },
+      "sha256": "99bcfbb13cbd7c98ec9574c2959a1c6a145aac26efed54bcb32ebf08abf9282c",
+      "original": true,
+      "index_path": "mods/lambdynamiclights-4.9.1+1.21.11.jar"
+    },
+    {
+      "id": "languagereload",
+      "name": "language-reload-1.7.7+1.21.11.jar",
+      "version": "1.7.7+1.21.11",
+      "side": "client",
+      "depends": {
+        "fabric-resource-loader-v0": "*",
+        "fabric-key-binding-api-v1": "*",
+        "fabricloader": ">=0.16.14",
+        "minecraft": ">=1.21.11 <26.1"
+      },
+      "sha256": "3c32e061400582bedf4cc7c7eab02c7414d1e991fc9970836b914daa1d95f494",
+      "original": true,
+      "index_path": "mods/language-reload-1.7.7+1.21.11.jar"
+    },
+    {
+      "id": "lithium",
+      "name": "lithium-fabric-0.21.4+mc1.21.11.jar",
+      "version": "0.21.4+mc1.21.11",
+      "side": "both",
+      "depends": {
+        "fabricloader": ">=0.15.1",
+        "minecraft": "1.21.11"
+      },
+      "sha256": "5135c41da5b43cbdcb29424bde65195143ac4084e23834c8eac065942201c78b",
+      "original": true,
+      "index_path": "mods/lithium-fabric-0.21.4+mc1.21.11.jar"
+    },
+    {
+      "id": "isxander-main-menu-credits",
+      "name": "main-menu-credits-1.2.0.jar",
+      "version": "1.2.0",
+      "side": "client",
+      "depends": {
+        "fabricloader": ">=0.15.0",
+        "minecraft": ">=1.20.5",
+        "java": ">=21"
+      },
+      "sha256": "b2f425db894dd38ee18f04fcbd1967886ddf1ca608940fd6fd3fda1c4e821f28",
+      "original": true,
+      "index_path": "mods/main-menu-credits-1.2.0.jar"
+    },
+    {
+      "id": "midnightlib",
+      "name": "midnightlib-fabric-1.9.3+1.21.11.jar",
+      "version": "1.9.3",
+      "side": "both",
+      "depends": {
+        "fabric-resource-loader-v0": "*",
+        "minecraft": ">=1.21.11"
+      },
+      "sha256": "515dcc1602a3e560c2e8c7c5672af661a92bbddb1a6e2acaead3176773cf446f",
+      "original": true,
+      "index_path": "mods/midnightlib-fabric-1.9.3+1.21.11.jar"
+    },
+    {
+      "id": "mixintrace",
+      "name": "mixintrace-1.1.1+1.17.jar",
+      "version": "1.1.1+1.17",
+      "side": "both",
+      "depends": {
+        "fabricloader": ">=0.12.0",
+        "minecraft": "*"
+      },
+      "sha256": "26ca21a27706cfa4561868f31c4fd07c542e8cc759419f5884ddff1f3a126a99",
+      "original": true,
+      "index_path": "mods/mixintrace-1.1.1+1.17.jar"
+    },
+    {
+      "id": "modernfix",
+      "name": "modernfix-5.26.3-build.1.jar",
+      "version": "5.26.3-build.1",
+      "side": "both",
+      "depends": {
+        "minecraft": "1.21.11",
+        "fabricloader": ">=0.16.10"
+      },
+      "sha256": "b08fa9638e10697d5277112d6acb4dbd318ed7205e0ac898330f6672ff4c1493",
+      "original": true,
+      "index_path": "mods/modernfix-5.26.3-build.1.jar"
+    },
+    {
+      "id": "modmenu",
+      "name": "modmenu-17.0.0.jar",
+      "version": "17.0.0",
+      "side": "client",
+      "depends": {
+        "fabric-resource-loader-v1": "*",
+        "fabric-screen-api-v1": "*",
+        "fabric-key-binding-api-v1": "*",
+        "fabric-lifecycle-events-v1": "*",
+        "fabricloader": ">=0.17.2",
+        "minecraft": ">=1.21.11 <26"
+      },
+      "sha256": "95f2c9571ca4a1e30d473783ed909c6b9d997b0b3e1418ea189cad73282c5128",
+      "original": true,
+      "index_path": "mods/modmenu-17.0.0.jar"
+    },
+    {
+      "id": "morechathistory",
+      "name": "morechathistory-1.3.1.jar",
+      "version": "1.3.1",
+      "side": "client",
+      "depends": {
+        "minecraft": ">=1.20.5",
+        "fabricloader": ">=0.15.0"
+      },
+      "sha256": "f6032e46826b63e18c8848a3053e32652fc5298892a216a53dce66598925fc6c",
+      "original": true,
+      "index_path": "mods/morechathistory-1.3.1.jar"
+    },
+    {
+      "id": "moreculling",
+      "name": "moreculling-fabric-1.21.11-1.6.2.jar",
+      "version": "1.6.2",
+      "side": "client",
+      "depends": {
+        "fabricloader": ">=0.15.0",
+        "minecraft": ">=1.21",
+        "java": ">=21",
+        "cloth-config": ">=16.0.0"
+      },
+      "sha256": "45e5e32cd33d38662db9fe45d15dc777c1503ac186522c4397d98c54ed0dda43",
+      "original": true,
+      "index_path": "mods/moreculling-fabric-1.21.11-1.6.2.jar"
+    },
+    {
+      "id": "netprodis",
+      "name": "netprodis-2.0.0+1.21.2.jar",
+      "version": "2.0.0+1.21.2",
+      "side": "both",
+      "depends": {
+        "fabricloader": ">=0.15.0",
+        "minecraft": ">=1.20.5",
+        "java": ">=21"
+      },
+      "sha256": "867c46e66e92f8be9e1c181d70a55d9c71632db3110b44b8613ac883fe467dd1",
+      "original": true,
+      "index_path": "mods/netprodis-2.0.0+1.21.2.jar"
+    },
+    {
+      "id": "noxesium",
+      "name": "noxesium-fabric-3.0.0.jar",
+      "version": "3.0.0+67135f29",
+      "side": "client",
+      "depends": {
+        "fabric": "*",
+        "fabricloader": ">=0.18.1",
+        "fabric-api": ">=0.140.0",
+        "minecraft": ">=1.21.11"
+      },
+      "sha256": "cefcbed05be2c679fae440bceb28af3259e93678de8e471a91771dae38b5e11c",
+      "original": true,
+      "index_path": "mods/noxesium-fabric-3.0.0.jar"
+    },
+    {
+      "id": "optigui",
+      "name": "optigui-2.3.0-beta.10+1.21.9.jar",
+      "version": "2.3.0-beta.10+1.21.9",
+      "side": "client",
+      "depends": {
+        "fabricloader": ">=0.15.0",
+        "fabric-events-interaction-v0": "*",
+        "fabric-key-binding-api-v1": "*",
+        "fabric-lifecycle-events-v1": "*",
+        "fabric-networking-api-v1": "*",
+        "fabric-resource-loader-v0": "*",
+        "fabric-language-kotlin": ">=1.11.0+kotlin.2.0.0",
+        "minecraft": ">=1.21.9 <1.22",
+        "java": ">=21"
+      },
+      "sha256": "f45fb40d7b25c4b36d16d4c9f73a89ddb7039a665566ac03d23f0d45e07ac7a7",
+      "original": true,
+      "index_path": "mods/optigui-2.3.0-beta.10+1.21.9.jar"
+    },
+    {
+      "id": "owo",
+      "name": "owo-lib-0.13.0+1.21.11.jar",
+      "version": "0.13.0+1.21.11",
+      "side": "both",
+      "depends": {
+        "fabricloader": ">=0.15.0",
+        "fabric-api": ">=0.100",
+        "minecraft": ">=1.21.6"
+      },
+      "sha256": "ded21de3e15288baad8a89f00476cf14427a1bbcdc4b184995dc78ff17e6ac40",
+      "original": true,
+      "index_path": "mods/owo-lib-0.13.0+1.21.11.jar"
+    },
+    {
+      "id": "paginatedadvancements",
+      "name": "paginatedadvancements-2.8.0+1.21.11.jar",
+      "version": "2.8.0+1.21.11",
+      "side": "client",
+      "depends": {
+        "minecraft": ">=1.21.11",
+        "fabricloader": "*",
+        "fabric-api": "*",
+        "cloth-config": "*"
+      },
+      "sha256": "13d103bb6191d2535b11e345743a7ab86770967bb098763c2ba55ce6ba721f1c",
+      "original": true,
+      "index_path": "mods/paginatedadvancements-2.8.0+1.21.11.jar"
+    },
+    {
+      "id": "particle_core",
+      "name": "particle_core-0.3.2+1.21.11.jar",
+      "version": "0.3.2+1.21.11",
+      "side": "client",
+      "depends": {
+        "fabricloader": ">=0.18.4",
+        "fabric-language-kotlin": ">=1.13.2+kotlin.2.1.20",
+        "minecraft": "=1.21.11",
+        "java": ">=21",
+        "fzzy_config": ">=0.7.5"
+      },
+      "sha256": "5b8aabe85226601736c65210c50ea1f45ab72b5d50a18133348a1ce1e6ee80ef",
+      "original": true,
+      "index_path": "mods/particle_core-0.3.2+1.21.11.jar"
+    },
+    {
+      "id": "plasmovoice",
+      "name": "plasmovoice-fabric-1.21.11-2.2.0-beta.3.jar",
+      "version": "2.2.0-beta.3",
+      "side": "both",
+      "depends": {
+        "fabric": "*",
+        "fabricloader": "*",
+        "minecraft": ">1.21.10 <=1.21.11"
+      },
+      "sha256": "f986b7e658e0e70d9276329d03ed14bb7a6652c5b376e0dc099d8da2337167e3",
+      "original": true,
+      "index_path": "mods/plasmovoice-fabric-1.21.11-2.2.0-beta.3.jar"
+    },
+    {
+      "id": "polytone",
+      "name": "polytone-1.21.11-6.3.2-fabric.jar",
+      "version": "1.21.11-6.3.2",
+      "side": "client",
+      "depends": {
+        "fabricloader": ">=0.18",
+        "fabric": ">=0.140.0+1.21.11",
+        "minecraft": "=1.21.11"
+      },
+      "sha256": "5c2a2c5600b36ca7011e2cd1d2efed53454ef34e3dcc0c1e9f34a599b49ac60d",
+      "original": true,
+      "index_path": "mods/polytone-1.21.11-6.3.2-fabric.jar"
+    },
+    {
+      "id": "puzzle",
+      "name": "puzzle-fabric-2.3.0+1.21.11.jar",
+      "version": "2.3.0",
+      "side": "client",
+      "depends": {
+        "fabric": "*",
+        "minecraft": ">=1.21.11"
+      },
+      "sha256": "ede7c2fd01ad83530fba902f7a987ba2eee11419d9034d569edfa43d5979197d",
+      "original": true,
+      "index_path": "mods/puzzle-fabric-2.3.0+1.21.11.jar"
+    },
+    {
+      "id": "pv-voice-changer",
+      "name": "pv-voice-changer-1.7.5-fabric-1.21.11.jar",
+      "version": "1.7.5",
+      "side": "both",
+      "depends": {
+        "fabricloader": ">=0.18.6",
+        "fabric-api": "*",
+        "minecraft": "1.21.11",
+        "plasmovoice": ">=2.1.8"
+      },
+      "sha256": "feec5bd9026c9270f7e85d6e702204812d3f24473bf9c7679a7eb82c7f6ba8ac",
+      "original": true,
+      "index_path": "mods/pv-voice-changer-1.7.5-fabric-1.21.11.jar"
+    },
+    {
+      "id": "reeses-sodium-options",
+      "name": "reeses-sodium-options-fabric-2.2.3+mc1.21.11.jar",
+      "version": "2.2.3+mc1.21.11",
+      "side": "client",
+      "depends": {
+        "minecraft": "1.21.11",
+        "sodium": ">=0.8.11"
+      },
+      "sha256": "58dceea7fdc86c02de13fc02bfd09f119aede21233018084832d9f2dd05523e3",
+      "original": true,
+      "index_path": "mods/reeses-sodium-options-fabric-2.2.3+mc1.21.11.jar"
+    },
+    {
+      "id": "rrls",
+      "name": "rrlsFabric-5.1.15+mc.1.21.11.jar",
+      "version": "5.1.15+mc.1.21.11",
+      "side": "client",
+      "depends": {
+        "fabricloader": ">=0.18.4",
+        "minecraft": ">=1.21.11",
+        "forgeconfigapiport": ">=21.11.1"
+      },
+      "sha256": "a7fc702717cfa4cacbe6bda570ee27df7c4e4020fe5395ec21b61ba51692b399",
+      "original": true,
+      "index_path": "mods/rrlsFabric-5.1.15+mc.1.21.11.jar"
+    },
+    {
+      "id": "shulkerboxtooltip",
+      "name": "shulkerboxtooltip-fabric-5.2.16+1.21.11.jar",
+      "version": "5.2.16+1.21.11",
+      "side": "both",
+      "depends": {
+        "fabric-resource-loader-v1": "*",
+        "fabricloader": ">=0.16.0",
+        "minecraft": ">=1.21.10"
+      },
+      "sha256": "b69bd63be42ca15d4f3eaabd8e185836bc30c1dcbaa9d1a7eafa851d9b67658f",
+      "original": true,
+      "index_path": "mods/shulkerboxtooltip-fabric-5.2.16+1.21.11.jar"
+    },
+    {
+      "id": "skinlayers3d",
+      "name": "skinlayers3d-fabric-1.11.3-mc1.21.11.jar",
+      "version": "1.11.3",
+      "side": "both",
+      "depends": {
+        "minecraft": "1.21.x",
+        "fabric-api": "*"
+      },
+      "sha256": "6063bcd25485beb05f59f8dfb1e47d95a3a0dc87fcd892ac9ecb151eae93b4b1",
+      "original": true,
+      "index_path": "mods/skinlayers3d-fabric-1.11.3-mc1.21.11.jar"
+    },
+    {
+      "id": "skyboxify",
+      "name": "skyboxify-3.3.1+1.21.11-fabric.jar",
+      "version": "3.3.1",
+      "side": "client",
+      "depends": {
+        "fabricloader": ">=0.18.4",
+        "minecraft": "1.21.11",
+        "fabric-resource-loader-v1": "*",
+        "fabric-command-api-v2": "*",
+        "yet_another_config_lib_v3": "*"
+      },
+      "sha256": "9e9ce2e25828ade023ece84d48ba2b1813dbabf99899d6a52695848bd879795d",
+      "original": true,
+      "index_path": "mods/skyboxify-3.3.1+1.21.11-fabric.jar"
+    },
+    {
+      "id": "sodium-extra",
+      "name": "sodium-extra-fabric-0.8.3+mc1.21.11.jar",
+      "version": "0.8.3+mc1.21.11",
+      "side": "client",
+      "depends": {
+        "fabricloader": ">=0.18",
+        "sodium": ">=0.8.1",
+        "minecraft": ">=1.21.11"
+      },
+      "sha256": "bd634e73fec7c84b47bf3d5701495c6b7d5d4104b81a75cb453346e9c2c92009",
+      "original": true,
+      "index_path": "mods/sodium-extra-fabric-0.8.3+mc1.21.11.jar"
+    },
+    {
+      "id": "sodium",
+      "name": "sodium-fabric-0.8.12+mc1.21.11.jar",
+      "version": "0.8.12+mc1.21.11",
+      "side": "client",
+      "depends": {
+        "fabricloader": ">=0.16.0",
+        "fabric-block-view-api-v2": "*",
+        "fabric-rendering-fluids-v1": ">=2.0.0",
+        "fabric-resource-loader-v0": "*"
+      },
+      "sha256": "009299748f192f6246fd6759a26304f0fea06f3412cff522d1d533e2b8db8176",
+      "original": true,
+      "index_path": "mods/sodium-fabric-0.8.12+mc1.21.11.jar"
+    },
+    {
+      "id": "sspb",
+      "name": "sodium-shadowy-path-blocks-fabric-6.0.0.jar",
+      "version": "6.0.0",
+      "side": "client",
+      "depends": {
+        "fabricloader": ">=0.16.0",
+        "sodium": ">=0.8.0",
+        "minecraft": ">=1.21.11"
+      },
+      "sha256": "ce46d9f867679f909d044c3e3acafac56555a5db3e860fc2f76b4efabb675b17",
+      "original": true,
+      "index_path": "mods/sodium-shadowy-path-blocks-fabric-6.0.0.jar"
+    },
+    {
+      "id": "sound_physics_remastered",
+      "name": "sound-physics-remastered-fabric-1.21.11-1.5.1.jar",
+      "version": "1.21.11-1.5.1",
+      "side": "both",
+      "depends": {
+        "fabricloader": ">=0.18.1",
+        "minecraft": "1.21.x",
+        "java": ">=21"
+      },
+      "sha256": "17a4c14f58b739d275089262fc2015ff1548425202e6e4d7ce8cecf3122cdbca",
+      "original": true,
+      "index_path": "mods/sound-physics-remastered-fabric-1.21.11-1.5.1.jar"
+    },
+    {
+      "id": "sounds",
+      "name": "sounds-2.4.23+edge+1.21.11-fabric.jar",
+      "version": "2.4.23+edge",
+      "side": "client",
+      "depends": {
+        "fabricloader": ">=0.17.2",
+        "yet_another_config_lib_v3": "*",
+        "fabric-api": "*",
+        "mru": "~1.0.26+edge+1.21.11",
+        "minecraft": ">1.21.10 <1.22"
+      },
+      "sha256": "8faafb984b897e57051dc780df324a65eddbc54ffdc70e82360b6d9d3b2351d8",
+      "original": true,
+      "index_path": "mods/sounds-2.4.23+edge+1.21.11-fabric.jar"
+    },
+    {
+      "id": "spark",
+      "name": "spark-1.10.170-fabric.jar",
+      "version": "1.10.170",
+      "side": "both",
+      "depends": {
+        "fabricloader": ">=0.4.0",
+        "fabric-api-base": "*",
+        "fabric-command-api-v2": "*",
+        "fabric-lifecycle-events-v1": "*",
+        "fabric-permissions-api-v0": "*"
+      },
+      "sha256": "53652a6682d69b1a8924ee9ae8e61925551639ab540bd53f9814b1129435e7e5",
+      "original": true,
+      "index_path": "mods/spark-1.10.170-fabric.jar"
+    },
+    {
+      "id": "ukulib",
+      "name": "ukulib-1.10.2+1.21.11.jar",
+      "version": "1.10.2+1.21.11",
+      "side": "client",
+      "depends": {
+        "minecraft": "~1.21.11",
+        "fabricloader": ">=0.17",
+        "fabric-resource-loader-v1": "*",
+        "fabric-command-api-v2": "*",
+        "fabric-key-binding-api-v1": "*"
+      },
+      "sha256": "3af87dbb2b84f0cb5bc21da5fa3818d22780e30c8b6c02cce7afa37847b89aaf",
+      "original": true,
+      "index_path": "mods/ukulib-1.10.2+1.21.11.jar"
+    },
+    {
+      "id": "waveycapes",
+      "name": "waveycapes-fabric-1.11.2-mc1.21.11.jar",
+      "version": "1.11.2",
+      "side": "both",
+      "depends": {
+        "minecraft": "1.21.x",
+        "fabric-api": "*"
+      },
+      "sha256": "5a14fe801674678046ae18aa4f3de91b7417b8ec42d243b06bb463b8b8128732",
+      "original": true,
+      "index_path": "mods/waveycapes-fabric-1.11.2-mc1.21.11.jar"
+    },
+    {
+      "id": "yet_another_config_lib_v3",
+      "name": "yet_another_config_lib_v3-3.8.2+1.21.11-fabric.jar",
+      "version": "3.8.2+1.21.11-fabric",
+      "side": "both",
+      "depends": {
+        "fabricloader": ">=0.17.0",
+        "minecraft": "~1.21.11",
+        "java": ">=17",
+        "fabric-api": ">=0.140.0+1.21.11"
+      },
+      "sha256": "49c279bc28c80ca17d6c21c3dd299ec1c115b892272f21b3f034ed782829babd",
+      "original": true,
+      "index_path": "mods/yet_another_config_lib_v3-3.8.2+1.21.11-fabric.jar"
+    },
+    {
+      "id": "zfastnoise",
+      "name": "zfastnoise-1.0.40+1.21.11.jar",
+      "version": "1.0.40+1.21.11",
+      "side": "both",
+      "depends": {
+        "fabricloader": ">=0.19.3",
+        "minecraft": "~1.21.11",
+        "java": ">=21"
+      },
+      "sha256": "2ff54869dc08dc72e676824ff6b2f4a3d5fc0abfa4798f13dd2d9dd0aa7c6f12",
+      "original": true,
+      "index_path": "mods/zfastnoise-1.0.40+1.21.11.jar"
+    },
+    {
+      "id": "zoomify",
+      "name": "zoomify-2.15.2+1.21.11.jar",
+      "version": "2.15.2+1.21.11",
+      "side": "client",
+      "depends": {
+        "fabricloader": ">=0.18.0",
+        "fabric-language-kotlin": ">=1.13.8+kotlin.2.3.0",
+        "minecraft": "~1.21.11",
+        "java": ">=17",
+        "yet_another_config_lib_v3": ">=3.6.6"
+      },
+      "sha256": "642b498a6802ad3ed7f37e25556139f5f3cb6ee634927695cec70c7c3fa20312",
+      "original": true,
+      "index_path": "mods/zoomify-2.15.2+1.21.11.jar"
+    },
+    {
+      "id": "magicskin",
+      "name": "magicskin-1.0.0+1.21.11-fabric.jar",
+      "version": "1.0.0+1.21.11-fabric",
+      "side": "client",
+      "depends": {
+        "fabricloader": ">=0.15",
+        "fabric-api": "*",
+        "minecraft": "~1.21.11"
+      },
+      "sha256": "0fa53451e998950914f6e5ae28fee790c3a059a4e4d41b46dabd0ec3f1923cc8",
+      "original": true,
+      "index_path": "mods/magicskin-1.0.0+1.21.11-fabric.jar"
+    },
+    {
+      "id": "worldedit",
+      "name": "worldedit-mod-7.4.2.jar",
+      "version": "7.4.2+7450-eb8e82c",
+      "side": "both",
+      "depends": {
+        "worldeditcui_protocol": "*",
+        "fabricloader": ">=0.4.0",
+        "fabric-api-base": "*",
+        "fabric-command-api-v2": "*",
+        "fabric-lifecycle-events-v1": "*",
+        "fabric-events-interaction-v0": "*",
+        "fabric-networking-api-v1": "*"
+      },
+      "sha256": "f964976b47d6b2766753738815bdeef54a25e1861343f3038df389b9dddcea60",
+      "original": false,
+      "url": "https://cdn.modrinth.com/data/1u6JkXh5/versions/oY3E2pzA/worldedit-mod-7.4.2.jar",
+      "download_sha512": "79f206c283421e68972e7df2b7f4c393506ff450ea5e58b8f6baafd762092eef07015edcdced6a4f536904ac048d69b2a86fa2fbf74e9d159cef9d2372042a2a"
+    },
+    {
+      "id": "mcwfurnitures",
+      "name": "mcw-furniture-3.4.2-mc1.21.11fabric.jar",
+      "version": "3.4.2",
+      "side": "both",
+      "depends": {
+        "fabricloader": ">=0.18.2",
+        "minecraft": "~1.21.11",
+        "java": ">=21",
+        "fabric-api": "*"
+      },
+      "sha256": "e55d7a78b878043af82875cb8738941b0bba1a3c77652dea3d75a434dbba1a0e",
+      "original": false,
+      "url": "https://cdn.modrinth.com/data/dtWC90iB/versions/xhmciaUD/mcw-furniture-3.4.2-mc1.21.11fabric.jar",
+      "download_sha512": "f984bff2ab79c62220b62268e26b2829467331ffbc2e558126068b5cacdb81925babc0dea82d0a9d6a7981d1b5255f983d3ebc6de88a233c0d4c80cb4baa82a6"
+    },
+    {
+      "id": "mcwbridges",
+      "name": "mcw-bridges-3.1.2-mc1.21.11fabric.jar",
+      "version": "3.1.2",
+      "side": "both",
+      "depends": {
+        "fabricloader": ">=0.17.2",
+        "minecraft": "~1.21.10",
+        "java": ">=21",
+        "fabric-api": "*"
+      },
+      "sha256": "b55697065ce942aaf2ed7a1aeef36f655ec70aa67339690dab9ca3a879dba33d",
+      "original": false,
+      "url": "https://cdn.modrinth.com/data/GURcjz8O/versions/VwHKtWix/mcw-bridges-3.1.2-mc1.21.11fabric.jar",
+      "download_sha512": "866afffd9e07765596941322ed8d8085c471770360027dea033bae63d5763f672c0934d7277fa9d0d0f6520281deeac5b8107fe089dc6eb07dc9c56341d1e2a0"
+    },
+    {
+      "id": "mcwwindows",
+      "name": "mcw-windows-2.4.2-mc1.21.11fabric.jar",
+      "version": "2.4.2",
+      "side": "both",
+      "depends": {
+        "fabricloader": ">=0.18.2",
+        "minecraft": "~1.21.11",
+        "java": ">=21",
+        "fabric-api": "*"
+      },
+      "sha256": "508e9ac9979fbdc063a3c4468aeb2a2d9cc1cccc300f41ab006f3fb4032fe6c2",
+      "original": false,
+      "url": "https://cdn.modrinth.com/data/C7I0BCni/versions/uriWt4r9/mcw-windows-2.4.2-mc1.21.11fabric.jar",
+      "download_sha512": "609194c9516d8407bffc0977dba3e296a55648fd7ecf8fb0ea3c899b681a2283ddc89baf36512c1df9c4084af68aee1d752a1664a21b507b89b168d8f1896672"
+    },
+    {
+      "id": "mcwroofs",
+      "name": "mcw-roofs-2.3.2-mc1.21.11fabric.jar",
+      "version": "2.3.2",
+      "side": "both",
+      "depends": {
+        "fabricloader": ">=0.18.2",
+        "minecraft": "~1.21.11",
+        "java": ">=21",
+        "fabric-api": "*"
+      },
+      "sha256": "4850de31eed4dc8ee2cea19edabe454fc2bcaccad5ed5bbcbb0b9b2c9cc2aed2",
+      "original": false,
+      "url": "https://cdn.modrinth.com/data/B8jaH3P1/versions/KQqPCHJC/mcw-roofs-2.3.2-mc1.21.11fabric.jar",
+      "download_sha512": "cabb092dadf2aeba926e6257158510669572906d9cbb53e6afab10ea167ace45ead6f6316513e1ae58e5551ebc5b1b4afc6a2cccfa50b2ec48f0eebbd525e6dc"
+    },
+    {
+      "id": "mcwdoors",
+      "name": "mcw-doors-1.1.5-mc1.21.11fabric.jar",
+      "version": "1.1.5",
+      "side": "both",
+      "depends": {
+        "fabricloader": ">=0.17.2",
+        "minecraft": "~1.21.10",
+        "java": ">=21",
+        "fabric-api": "*"
+      },
+      "sha256": "2d68c0bf20b0549420fa84306d2f6fac1503aea378ce9ada13905133cb722dee",
+      "original": false,
+      "url": "https://cdn.modrinth.com/data/kNxa8z3e/versions/G56MgNgk/mcw-doors-1.1.5-mc1.21.11fabric.jar",
+      "download_sha512": "312b07e697d6e9aafd92a282f073ee2a24cd3f8065d4512302781d9c4874965169cf4a21422003c8bef04fff845e5c3684416f8041abf085d912e4fae0ea1548"
+    },
+    {
+      "id": "mcwlights",
+      "name": "mcw-lights-1.1.5-mc1.21.11fabric.jar",
+      "version": "1.1.5",
+      "side": "both",
+      "depends": {
+        "fabricloader": ">=0.18.2",
+        "minecraft": "~1.21.11",
+        "java": ">=21",
+        "fabric-api": "*"
+      },
+      "sha256": "5aaa4d8c62cf8ec8dea3b02ad14b183c0bc22d380723cdc31938c5246109aff0",
+      "original": false,
+      "url": "https://cdn.modrinth.com/data/w4an97C2/versions/DXV1gXS5/mcw-lights-1.1.5-mc1.21.11fabric.jar",
+      "download_sha512": "e4017551ce1adeb0942bc253b31a4218ce7dfb719b66aa5d7c9bc67276697b19aea7ee120b99ea2ef1e7bc77c89cb5e9642733752523c5d3d25c406a3ff0a4fd"
+    },
+    {
+      "id": "mcwstairs",
+      "name": "mcw-stairs-1.0.2-mc1.21.11fabric.jar",
+      "version": "1.0.2",
+      "side": "both",
+      "depends": {
+        "fabricloader": ">=0.18.2",
+        "minecraft": "~1.21.11",
+        "java": ">=21",
+        "fabric-api": "*"
+      },
+      "sha256": "81a605663bdf4dcedf815f47a8c14230d78e009e46412afcbfbfc12d5205d1e4",
+      "original": false,
+      "url": "https://cdn.modrinth.com/data/iP3wH1ha/versions/HePuVuYI/mcw-stairs-1.0.2-mc1.21.11fabric.jar",
+      "download_sha512": "60ebdf461f1b18437378fa1c6002bf2b3db3a04b0d0d367f47bdf864c3f00160768385b34f35d257e212c7f9f874c5b5fb828d7bc0874f50b5dccf7881f45892"
+    },
+    {
+      "id": "mcwfences",
+      "name": "mcw-fences-1.2.1-mc1.21.11fabric.jar",
+      "version": "1.2.1",
+      "side": "both",
+      "depends": {
+        "fabricloader": ">=0.18.2",
+        "minecraft": "~1.21.11",
+        "java": ">=21",
+        "fabric-api": "*"
+      },
+      "sha256": "a543e02ffbda18a801912984a1867be6e294bcc9dcf5087c28db9ab1ebe63d27",
+      "original": false,
+      "url": "https://cdn.modrinth.com/data/GmwLse2I/versions/KvcFYpyP/mcw-fences-1.2.1-mc1.21.11fabric.jar",
+      "download_sha512": "9aa9763fe32fd2843c6bc576b7f77aa3a97e46bf0bba04603bce2311a932043e5d9739f971d1f38830498a069247903c6da7f5fb355490a1e2f7d5b4bc206ff5"
+    },
+    {
+      "id": "mcwpaths",
+      "name": "mcw-paths-1.1.1-mc1.21.11fabric.jar",
+      "version": "1.1.1",
+      "side": "both",
+      "depends": {
+        "fabricloader": ">=0.18.2",
+        "minecraft": "~1.21.11",
+        "java": ">=21",
+        "fabric-api": "*"
+      },
+      "sha256": "9c953210dec9b1a8a6dff604f03fb31bdd312b7ce9a1c4e7d72035e0c6657626",
+      "original": false,
+      "url": "https://cdn.modrinth.com/data/VRLhWB91/versions/RgddKk8C/mcw-paths-1.1.1-mc1.21.11fabric.jar",
+      "download_sha512": "d99594f70d166e950145c15a6bf91a4ea347195caa1b9087807d466db82bc82ce88c8c8cd627d826d175fe22bb0d922e77dd72b0b4ec549a67c4eefa8ddaa3e0"
+    },
+    {
+      "id": "easy_npc_bundle",
+      "name": "easy_npc_bundle-fabric-1.21.11-7.21.0.jar",
+      "version": "7.21.0",
+      "side": "both",
+      "depends": {
+        "fabricloader": ">=0.18.4",
+        "fabric-api": ">=0.141.3+1.21.11",
+        "minecraft": "1.21.11",
+        "java": ">=21",
+        "easy_npc": ">=7.21.0 <8.0.0",
+        "easy_npc_config_ui": ">=7.21.0 <8.0.0"
+      },
+      "sha256": "8e370f739b3cddc1c1bea88e75bf2f060567ada3cb8873401f5191f09f82bb64",
+      "original": false,
+      "url": "https://cdn.modrinth.com/data/CgGEe1h3/versions/LGF5NPar/easy_npc_bundle-fabric-1.21.11-7.21.0.jar",
+      "download_sha512": "de998252d753521a112befb1b48bdcfc524789e87cb09606b4feef28133c13593adecd747c90de3be57edf646e1caa5a20985a3fcfe6134bb0a3307b56581acb"
+    },
+    {
+      "id": "easy_npc",
+      "name": "easy_npc-fabric-1.21.11-7.21.0.jar",
+      "version": "7.21.0",
+      "side": "both",
+      "depends": {
+        "fabricloader": ">=0.18.4",
+        "fabric-api": ">=0.141.3+1.21.11",
+        "minecraft": "1.21.11",
+        "java": ">=21"
+      },
+      "sha256": "f1aac28e555d2c53ef4d8d3d88162261706f47d507233ab69a387288bcfc15fd",
+      "original": false,
+      "url": "https://cdn.modrinth.com/data/Epm6R3P2/versions/G1OZQmxR/easy_npc-fabric-1.21.11-7.21.0.jar",
+      "download_sha512": "99248c3ba5c264039c1e1ffd73fe88629f85f305094d44fc7ee40f2361bed5798b6e3d41361b79ec67f84f0817866731dcf9c229c1dd3ae0cb3523df2a720cc1"
+    },
+    {
+      "id": "easy_npc_config_ui",
+      "name": "easy_npc_config_ui-fabric-1.21.11-7.21.0.jar",
+      "version": "7.21.0",
+      "side": "both",
+      "depends": {
+        "fabricloader": ">=0.18.4",
+        "fabric-api": ">=0.141.3+1.21.11",
+        "minecraft": "1.21.11",
+        "java": ">=21",
+        "easy_npc": ">=7.21.0 <8.0.0"
+      },
+      "sha256": "a1e7b7c6af4d7ea09f96d71121082de197163789235a68205b700aa2055d6aa1",
+      "original": false,
+      "url": "https://cdn.modrinth.com/data/uTGjf7vA/versions/9KZf3Wc6/easy_npc_config_ui-fabric-1.21.11-7.21.0.jar",
+      "download_sha512": "5e07ecdf1012b53b8b1e5bea89f89d7335d8df6b7144d2a5e90198b01b5a320c549f05200fa717e2e9abfa67ce04ba68e613ad31ca0e8563caa5186a67fb5ad4"
+    },
+    {
+      "id": "saros_money_mod",
+      "name": "Saros-Money-Mod-Fabric-1.21.11-3.12.10.jar",
+      "version": "3.12.10",
+      "side": "both",
+      "depends": {
+        "fabricloader": ">=0.16.10",
+        "minecraft": "~1.21.11",
+        "java": ">=21",
+        "fabric-api": "*"
+      },
+      "sha256": "bc506d77bf94878295d1132951dc4a911c311da809c6361efda2adb9d87cc209",
+      "original": false,
+      "url": "https://cdn.modrinth.com/data/vRkO4kGw/versions/8kYr8wna/Saros-Money-Mod-Fabric-1.21.11-3.12.10.jar",
+      "download_sha512": "60570c739c3a2e93e6fbad389e73b4c3c397bb5b845021bb46baf36d53040a1150556a98925e6f96357c7f861461ace8a68bed8261c336788acb6edc308cd198"
+    },
+    {
+      "id": "falasiayacraft_menu",
+      "name": "fala-siaya-menu-0.1.0.jar",
+      "version": "0.1.0",
+      "side": "client",
+      "depends": {
+        "fabricloader": ">=0.19.3",
+        "minecraft": "1.21.11",
+        "java": ">=21",
+        "fabric-resource-loader-v0": "*"
+      },
+      "sha256": "f7f3fdca22fba8153faddc564fa6b387802bdf899903883f76971ff9dc317e68",
+      "original": true,
+      "archive_entry": "client-overrides/mods/fala-siaya-menu-0.1.0.jar"
+    },
+    {
+      "id": "figura",
+      "name": "figura-custom-0.1.6+1.21.11-metadatafix.jar",
+      "version": "0.1.6+1.21.11",
+      "side": "client",
+      "depends": {
+        "java": ">=21",
+        "minecraft": "<=1.21.11 >1.21.1",
+        "fabricloader": ">=0.15"
+      },
+      "sha256": "ce467a566ddf0e032a5ca5e440e0f75f4b79c11fa675693da308128d26ae4edc",
+      "original": true,
+      "archive_entry": "client-overrides/mods/figura-custom-0.1.6+1.21.11-metadatafix.jar"
+    },
+    {
+      "id": "mru",
+      "name": "mru-1.0.26+edge+1.21.11-fabric-metadatafix.jar",
+      "version": "1.0.26+edge+1.21.10",
+      "side": "client",
+      "depends": {
+        "fabricloader": ">=0.18.3",
+        "minecraft": "1.21.11"
+      },
+      "sha256": "9cf147a1b2f5f9d017144a8a26f7900ea911aabad9ab9f5360d6d2a2d21b6ee3",
+      "original": true,
+      "archive_entry": "client-overrides/mods/mru-1.0.26+edge+1.21.11-fabric-metadatafix.jar"
+    },
+    {
+      "id": "fala_phone",
+      "name": "fala-phone-0.1.0-dev.1.jar",
+      "version": "0.1.0-dev.1",
+      "side": "both",
+      "depends": {
+        "minecraft": "=1.21.11",
+        "java": ">=21",
+        "fabricloader": ">=0.19.3",
+        "fabric-api": "*"
+      },
+      "sha256": "d134727baec03f6fe0dce190061360fdd6fa868171ece66572e522297b73bd2c",
+      "local_build": true
+    },
+    {
+      "id": "fala_saros_sign_compat",
+      "name": "fala-saros-sign-compat-0.1.0-dev.1.jar",
+      "version": "0.1.0-dev.1",
+      "side": "client",
+      "depends": {
+        "fabricloader": ">=0.19.3",
+        "minecraft": "=1.21.11",
+        "saros_money_mod": "=3.12.10"
+      },
+      "sha256": "617a094ca39a991252a4cd9ba18578a067d73d5c0277430fd89d3caa877e1de8",
+      "local_build": true
+    }
+  ]
+}

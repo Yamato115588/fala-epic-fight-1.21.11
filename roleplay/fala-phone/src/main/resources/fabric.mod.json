@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1, "id": "fala_phone", "version": "0.1.0-dev.1",
+  "name": "Fala Phone", "environment": "*", "license": "GPL-3.0-only",
+  "entrypoints": {
+    "main": ["th.falasiayacraft.phone.FalaPhone"],
+    "client": ["th.falasiayacraft.phone.PhoneClient"]
+  },
+  "depends": {"minecraft": "=1.21.11", "java": ">=21", "fabricloader": ">=0.19.3", "fabric-api": "*"}
+}

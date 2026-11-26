@@ -1,0 +1,37 @@
+--- roleplay-restart.log ---
+java.lang.NoSuchMethodError: 'boolean net.minecraft.class_2168.method_9259(int)'
+	at knot//link.e4mc.E4mcClient.lambda$registerCommands$0(E4mcClient.java:44)
+--- retest-server.log ---
+[07:42:43] [Server thread/INFO]: FalaV3QA joined the game
+[07:43:31] [Server thread/INFO]: §aFalaV3QA's balance: 100.
+[07:44:14] [Server thread/INFO]: §aFalaV3QA's balance: 70.
+[07:44:14] [Server thread/INFO]: §aFalaV3Peer's balance: 30.
+[07:44:15] [Server thread/INFO]: Saved the game
+[07:46:25] [Server thread/INFO]: §aFalaV3QA's balance: 70.
+[07:46:25] [Server thread/INFO]: §aFalaV3QA's balance: 70.
+[07:46:25] [Server thread/INFO]: §aFalaV3Peer's balance: 30.
+[07:46:25] [Server thread/INFO]: Saved the game
+[07:48:33] [Server thread/INFO]: Saved the game
+--- phone-server.log ---
+[07:50:13] [Server thread/INFO]: FalaV3QA joined the game
+[07:50:17] [plasmo-voice-udp-2-1/INFO]: FalaV3QA (/127.0.0.1:56788) connected
+[07:50:38] [Server thread/INFO]: [Server] CHECK chair persisted
+[07:50:38] [Server thread/INFO]: [Server] CHECK ATM persisted
+[07:50:38] [Server thread/INFO]: [Server] CHECK bridge persisted
+[07:50:38] [Server thread/INFO]: [Server] CHECK NPC persisted
+[07:50:38] [Server thread/INFO]: [Server] CHECK clinic persisted
+[07:50:38] [Server thread/INFO]: §aFalaV3QA's balance: 70.
+[07:51:53] [Server thread/INFO]: §aFalaV3QA's balance: 58.
+[07:51:53] [Server thread/INFO]: §aFalaV3Peer's balance: 42.
+[07:55:22] [Server thread/INFO]: FalaV3QA joined the game
+[07:55:24] [plasmo-voice-udp-2-1/INFO]: FalaV3QA (/127.0.0.1:58995) connected
+[08:05:50] [Server thread/INFO]: 99, 161, 99 has the following block data: ["Fala sign QA", "", "", ""]
+--- phone-client.log ---
+[07:49:55] [Render thread/ERROR]: Failed to find sign field:
+java.lang.NoSuchFieldException: blockEntity
+[07:51:51] [Render thread/INFO]: [CHAT] You paid 12.00 to FalaV3Peer.
+--- sign-retest.log ---
+	- fala_saros_sign_compat 0.1.0-dev.1
+[07:55:00] [Render thread/INFO]: Registered SignShopListener events for Fabric
+[07:55:24] [plasmo-voice-udp-3-1/INFO]: [PlasmoVoice] Connected to /127.0.0.1:25589
+[07:55:24] [Plasmo Voice Input Device/ERROR]: [PlasmoVoice/VoiceDeviceManager] Failed to open input device

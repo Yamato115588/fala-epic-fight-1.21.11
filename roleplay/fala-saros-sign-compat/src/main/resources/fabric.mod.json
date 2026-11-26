@@ -1,0 +1,6 @@
+{
+  "schemaVersion":1, "id":"fala_saros_sign_compat", "version":"0.1.0-dev.1",
+  "name":"Fala Sign Shop Compatibility", "environment":"client", "license":"GPL-3.0-only",
+  "depends":{"fabricloader":">=0.19.3","minecraft":"=1.21.11","saros_money_mod":"=3.12.10"},
+  "mixins":["fala-saros.client.mixins.json"]
+}

@@ -1,0 +1,1 @@
+e4mc by its contributors, MIT. Fala QA adapts the dedicated owner permission check for Minecraft 1.21.11. Original source https://github.com/vgskye/e4mc-minecraft-architectury
