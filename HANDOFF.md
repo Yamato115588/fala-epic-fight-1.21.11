@@ -113,3 +113,7 @@ Use the v3/upstream-parity branch for original implementation work. The recipe d
 ### Native roleplay integration
 
 The repository now preserves the tested Fala Phone source, the e4mc owner-check fix, the Saros sign-field adapter, original furnished prefabs and the exact 102-client/53-server QA inventory. Recreate the isolated mod directories with roleplay/stage_mods.py; use the private test builds in test-evidence/roleplay/local-builds. QA_REPORT.md records actual loopback, restart and transfer results. The live server still requires a verified backup before migration. Authenticated multiplayer, target hardware, upstream asset permission and the full V3 release remain open.
+
+### Epic Fight · keyframe and pose comparison complete
+
+2,112 keyframe and two-joint blending samples matched the pinned official Fabric implementation on the same 1.21.11 runtime. The incremental classes task and the targeted comparison passed. No production implementation changed. Evidence and invocation are in QA_REPORT.md. Next small upstream task: compare collider transforms and hit/miss decisions at weapon-range boundaries using fixed inputs. Authored clip comparisons still require upstream asset permission.

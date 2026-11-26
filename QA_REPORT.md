@@ -23,3 +23,13 @@ The repository contains source changes and reference evidence. The V3 CI has no 
 | Release gates | NOT TESTED | Authenticated remote play, two human callers, Epic Fight upstream visual parity, shop purchases, cross-platform launcher flows, physical GPU/mic and same-hardware Horizon comparison. |
 
 The Full RC3 fixture is separate from the historical 24-mod Lite/Beta. The V3 Epic Fight development JAR is excluded from this roleplay run. The ZIP and schematics under roleplay/prefabs contain five original CC0 structures. The snapshot covers only the test world. [Filtered runtime logs](test-evidence/roleplay/loopback.log) · [Phone home](test-evidence/roleplay/phone-home.png) · [GPS](test-evidence/roleplay/phone-gps.png) · [Transfer confirmation](test-evidence/roleplay/phone-bank-confirm.png) · [Sign editor](test-evidence/roleplay/sign-edit.png)
+
+## Epic Fight animation sampling · 26 November 2026
+
+**PASS** — 2,112 samples matched for source-keyframe interpolation and two-joint pose blending at endpoints, intermediate keyframes and between keyframes. The reference classes were compiled directly from official Fabric commit 866a2a1. A second JVM loaded the target port. Both used the same 1.21.11 dependency classpath. The runner checked the code origin of all four animation classes on each run. SHA-256 of the sampled transforms was identical in both processes. The fixture uses generated input and does not exercise original media, rendering or multiplayer. [Recorded output](test-evidence/v3/animation-parity.log) · [Fixture](tools/parity/AnimationScenario.java)
+
+Run the existing Gradle writeParityClasspath task, then run the affected check with JDK 21:
+
+```sh
+python tools/parity/compare_matrices.py --animation-only "$PINNED_UPSTREAM_ARCHIVE" "$PARITY_CLASSPATH_FILE"
+```

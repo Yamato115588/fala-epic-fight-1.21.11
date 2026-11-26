@@ -28,7 +28,7 @@ jobs:
       - name: Build and run original unit tests
         working-directory: ${{ runner.temp }}/v3
         run: ./gradlew --no-daemon --max-workers=2 clean build -I "$GITHUB_WORKSPACE/tools/parity/classpath.gradle" "-PparityClasspath=$RUNNER_TEMP/math-classpath" writeParityClasspath
-      - name: Compare original and port math
+      - name: Compare upstream and port matrix math and animation sampling
         run: python tools/parity/compare_matrices.py "$RUNNER_TEMP/fabric.tar.gz" "$RUNNER_TEMP/math-classpath"
       - name: Run the complete data and model verification
         working-directory: ${{ runner.temp }}/v3
